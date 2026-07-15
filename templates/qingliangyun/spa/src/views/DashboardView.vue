@@ -28,9 +28,71 @@
       </el-col>
     </el-row>
 
-    <el-row :gutter="16" class="mt">
-      <el-col :xs="24" :lg="16">
-        <div class="ql-card">
+    <div class="main-grid">
+      <div class="main-left">
+        <div class="ql-card chart-card">
+          <div class="chart-head">
+            <h3 class="ql-section-title" style="margin:0">月度流量趋势</h3>
+            <span class="ql-muted" v-html="trendHtml" />
+          </div>
+          <div class="legend">
+            <span class="leg"><i class="dot line" />趋势</span>
+            <span class="leg"><i class="dot bar" />流量用量 (GB)</span>
+          </div>
+          <div class="chart-area" ref="chartRef">
+            <svg
+              v-if="chartPoints.length"
+              class="traffic-svg"
+              :viewBox="`0 0 ${svgW} ${svgH}`"
+              preserveAspectRatio="none"
+            >
+              <!-- grid -->
+              <line
+                v-for="g in gridYs"
+                :key="'g' + g"
+                :x1="padL"
+                :y1="g"
+                :x2="svgW - padR"
+                :y2="g"
+                class="grid"
+              />
+              <!-- bars -->
+              <rect
+                v-for="(p, i) in chartPoints"
+                :key="'b' + i"
+                :x="p.bx"
+                :y="p.by"
+                :width="p.bw"
+                :height="p.bh"
+                rx="6"
+                class="bar-fill"
+              />
+              <!-- area under line -->
+              <path v-if="areaPath" :d="areaPath" class="area-fill" />
+              <!-- trend line -->
+              <polyline
+                v-if="linePoints"
+                :points="linePoints"
+                class="trend-line"
+                fill="none"
+              />
+              <circle
+                v-for="(p, i) in chartPoints"
+                :key="'c' + i"
+                :cx="p.cx"
+                :cy="p.cy"
+                r="4"
+                class="trend-dot"
+              />
+            </svg>
+            <div v-else class="chart-empty ql-muted">暂无流量历史，刷新用量后可查看</div>
+            <div v-if="chartPoints.length" class="x-labels">
+              <span v-for="(p, i) in chartPoints" :key="'l' + i">{{ p.label }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="ql-card shortcut-card">
           <h3 class="ql-section-title">快捷功能</h3>
           <div class="shortcut-grid">
             <button
@@ -45,8 +107,9 @@
             </button>
           </div>
         </div>
-      </el-col>
-      <el-col :xs="24" :lg="8">
+      </div>
+
+      <div class="main-right">
         <div class="ql-card info-card">
           <h3 class="ql-section-title">主机信息</h3>
           <div class="info-list" v-loading="loading">
@@ -90,20 +153,11 @@
               <span class="ql-muted">数据库账号</span>
               <strong class="mono">{{ sqlUser || '—' }}</strong>
             </div>
+            <div class="info-spacer" />
+            <div class="info-foot ql-muted">
+              用量超限时系统可能暂停站点，可点右上角刷新重新计算。
+            </div>
           </div>
-        </div>
-      </el-col>
-    </el-row>
-
-    <div v-if="history.length" class="ql-card mt">
-      <div class="chart-head">
-        <h3 class="ql-section-title" style="margin:0">月度流量</h3>
-        <span class="ql-muted">{{ trendText }}</span>
-      </div>
-      <div class="bar-chart">
-        <div v-for="(h, i) in historyBars" :key="i" class="bar-col">
-          <div class="bar" :style="{ height: h.h + '%' }" :title="h.tip" />
-          <span>{{ h.label }}</span>
         </div>
       </div>
     </div>
@@ -133,6 +187,13 @@ const loading = ref(true)
 const refreshing = ref(false)
 const conf = ref(null)
 
+const svgW = 640
+const svgH = 220
+const padL = 36
+const padR = 16
+const padT = 16
+const padB = 12
+
 const isCdn = computed(() => String(conf.value?.type || boot.productType || '') === '1')
 
 function num(v, d = 0) {
@@ -150,7 +211,7 @@ function formatMb(v) {
   return `${num(v).toFixed(1)} MB`
 }
 
-function formatTraffic(bytes, maxGb) {
+function formatTraffic(bytes) {
   const b = num(bytes)
   if (b >= 1024 * 1024 * 1024) return `${(b / 1024 / 1024 / 1024).toFixed(2)} GB`
   if (b >= 1024 * 1024) return `${(b / 1024 / 1024).toFixed(1)} MB`
@@ -163,8 +224,8 @@ const quotaCards = computed(() => {
   const web = c.web || {}
   const sql = c.sql || {}
   const lls = c.lls || {}
-  const llsMax = num(lls.max) // GB
-  const llsDq = num(lls.dq) // bytes often
+  const llsMax = num(lls.max)
+  const llsDq = num(lls.dq)
   const llsPct = llsMax > 0 ? Math.min(100, (llsDq / (llsMax * 1024 * 1024 * 1024)) * 100) : 0
   return [
     {
@@ -224,31 +285,103 @@ const ftpHost = computed(() => conf.value?.config?.ftp?.host || '')
 const ftpUser = computed(() => conf.value?.config?.ftp?.user || '')
 const sqlUser = computed(() => conf.value?.config?.sql?.user || '')
 
-const history = computed(() => {
-  const h = conf.value?.lls?.history
-  if (!h) return []
-  if (Array.isArray(h)) return h
-  return Object.values(h)
+/** 与 default 主题一致：history 为 { '2024-01': bytes, ... }，再追加本月 */
+const series = computed(() => {
+  const lls = conf.value?.lls || {}
+  const history = lls.history || {}
+  const labels = []
+  const values = []
+  if (history && typeof history === 'object' && !Array.isArray(history)) {
+    Object.keys(history)
+      .sort()
+      .forEach((m) => {
+        const mon = m.includes('-') ? parseInt(m.split('-')[1], 10) : m
+        labels.push(`${mon}月`)
+        values.push(+(num(history[m]) / (1024 * 1024 * 1024)).toFixed(2))
+      })
+  } else if (Array.isArray(history)) {
+    history.forEach((x, i) => {
+      labels.push(String(x.month ?? x.name ?? i + 1))
+      const raw = x.value ?? x.dq ?? x
+      const gb = num(raw) > 100 ? num(raw) / (1024 * 1024 * 1024) : num(raw)
+      values.push(+gb.toFixed(2))
+    })
+  }
+  labels.push('本月')
+  values.push(+(num(lls.dq) / (1024 * 1024 * 1024)).toFixed(2))
+  return { labels, values }
 })
 
-const historyBars = computed(() => {
-  const arr = history.value.map((x) => num(x.value ?? x.dq ?? x))
-  const max = Math.max(...arr, 1)
-  return history.value.map((x, i) => ({
-    label: String(x.month ?? x.name ?? i + 1).slice(-2),
-    h: Math.max(6, (num(x.value ?? x.dq ?? x) / max) * 100),
-    tip: String(x.value ?? x.dq ?? x),
-  }))
+const chartPoints = computed(() => {
+  const { labels, values } = series.value
+  if (!labels.length) return []
+  const maxV = Math.max(...values, 0.1)
+  const n = values.length
+  const plotW = svgW - padL - padR
+  const plotH = svgH - padT - padB
+  const slot = plotW / n
+  const barW = Math.min(36, slot * 0.45)
+
+  return values.map((v, i) => {
+    const cx = padL + slot * i + slot / 2
+    const ratio = v / maxV
+    const bh = Math.max(v > 0 ? 4 : 0, ratio * plotH)
+    const by = padT + plotH - bh
+    const cy = v > 0 ? by : padT + plotH
+    return {
+      label: labels[i],
+      value: v,
+      cx,
+      cy,
+      bx: cx - barW / 2,
+      by,
+      bw: barW,
+      bh,
+    }
+  })
 })
 
-const trendText = computed(() => {
-  const arr = history.value
-  if (arr.length < 2) return ''
-  const a = num(arr[arr.length - 2].value ?? arr[arr.length - 2].dq ?? arr[arr.length - 2])
-  const b = num(arr[arr.length - 1].value ?? arr[arr.length - 1].dq ?? arr[arr.length - 1])
-  if (a <= 0) return ''
-  const d = (((b - a) / a) * 100).toFixed(1)
-  return Number(d) >= 0 ? `环比 +${d}%` : `环比 ${d}%`
+const linePoints = computed(() =>
+  chartPoints.value.map((p) => `${p.cx},${p.cy}`).join(' ')
+)
+
+const areaPath = computed(() => {
+  const pts = chartPoints.value
+  if (!pts.length) return ''
+  const baseY = svgH - padB
+  let d = `M ${pts[0].cx} ${baseY}`
+  pts.forEach((p) => {
+    d += ` L ${p.cx} ${p.cy}`
+  })
+  d += ` L ${pts[pts.length - 1].cx} ${baseY} Z`
+  return d
+})
+
+const gridYs = computed(() => {
+  const ys = []
+  const plotH = svgH - padT - padB
+  for (let i = 0; i <= 4; i++) {
+    ys.push(padT + (plotH * i) / 4)
+  }
+  return ys
+})
+
+const trendHtml = computed(() => {
+  const values = series.value.values
+  if (values.length < 2) {
+    const curr = values[0] ?? 0
+    return `本月用量 <b style="color:#12b886">${curr.toFixed(2)} GB</b>`
+  }
+  const prev = values[values.length - 2]
+  const curr = values[values.length - 1]
+  if (prev <= 0) {
+    return `本月用量 <b style="color:#12b886">${curr.toFixed(2)} GB</b>`
+  }
+  const pctChg = (((curr - prev) / prev) * 100).toFixed(1)
+  const up = curr >= prev
+  const color = up ? '#e03131' : '#12b886'
+  const arrow = up ? '↑' : '↓'
+  return `较上月 <b style="color:${color}">${arrow} ${Math.abs(curr - prev).toFixed(2)}GB (${pctChg >= 0 ? '+' : ''}${pctChg}%)</b>`
 })
 
 const shortcuts = computed(() => {
@@ -279,7 +412,6 @@ async function load() {
   if (res.ok) {
     conf.value = res.data
     if (res.data?.gg) {
-      // 公告仅提示一次
       const key = 'ql_gg_' + String(res.data.gg).slice(0, 32)
       if (!sessionStorage.getItem(key)) {
         sessionStorage.setItem(key, '1')
@@ -352,8 +484,142 @@ onMounted(load)
   font-weight: 700;
   font-size: 15px;
 }
-.mt {
-  margin-top: 4px;
+
+/* 左：趋势+快捷；右：主机信息等高拉伸 */
+.main-grid {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 16px;
+  align-items: stretch;
+}
+@media (max-width: 991px) {
+  .main-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.main-left {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.main-right {
+  min-width: 0;
+  display: flex;
+}
+.info-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  margin: 0;
+}
+.info-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+}
+.info-spacer {
+  flex: 1;
+  min-height: 12px;
+}
+.info-foot {
+  font-size: 12px;
+  line-height: 1.5;
+  padding-top: 8px;
+  border-top: 1px dashed var(--ql-border);
+}
+
+.chart-card {
+  margin: 0;
+}
+.chart-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.legend {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--ql-text-secondary);
+}
+.leg {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.dot {
+  display: inline-block;
+  width: 14px;
+  height: 10px;
+  border-radius: 3px;
+}
+.dot.bar {
+  background: rgba(18, 184, 134, 0.55);
+  border: 1px solid #12b886;
+}
+.dot.line {
+  background: linear-gradient(90deg, #38d9a9, #12b886);
+  border-radius: 2px;
+  height: 3px;
+  width: 16px;
+}
+.chart-area {
+  position: relative;
+  height: 240px;
+}
+.traffic-svg {
+  width: 100%;
+  height: 200px;
+  display: block;
+}
+.grid {
+  stroke: #e8f5ef;
+  stroke-width: 1;
+}
+.bar-fill {
+  fill: rgba(18, 184, 134, 0.45);
+  stroke: #12b886;
+  stroke-width: 1;
+}
+.area-fill {
+  fill: rgba(18, 184, 134, 0.12);
+}
+.trend-line {
+  stroke: #0ca678;
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.trend-dot {
+  fill: #12b886;
+  stroke: #fff;
+  stroke-width: 2;
+}
+.x-labels {
+  display: flex;
+  justify-content: space-around;
+  padding: 0 16px 0 28px;
+  font-size: 12px;
+  color: var(--ql-text-secondary);
+}
+.chart-empty {
+  height: 200px;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+}
+
+.shortcut-card {
+  margin: 0;
 }
 .shortcut-grid {
   display: grid;
@@ -387,12 +653,6 @@ onMounted(load)
 .shortcut:active {
   transform: scale(0.98);
 }
-.info-list {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  min-height: 120px;
-}
 .info-item {
   display: flex;
   align-items: center;
@@ -411,42 +671,5 @@ onMounted(load)
   display: flex;
   align-items: center;
   gap: 8px;
-}
-.chart-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-}
-.bar-chart {
-  display: flex;
-  align-items: flex-end;
-  gap: 10px;
-  height: 160px;
-  padding-top: 8px;
-}
-.bar-col {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  height: 100%;
-  justify-content: flex-end;
-  gap: 6px;
-}
-.bar {
-  width: 100%;
-  max-width: 36px;
-  border-radius: 8px 8px 4px 4px;
-  background: linear-gradient(180deg, #38d9a9, #12b886);
-  min-height: 4px;
-  transition: height 0.4s ease;
-}
-.bar-col span {
-  font-size: 11px;
-  color: var(--ql-text-secondary);
-}
-.info-card {
-  margin-bottom: 16px;
 }
 </style>
