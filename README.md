@@ -22,6 +22,7 @@
 - [宝塔面板对接](#宝塔面板对接)
 - [MNBT 节点插件](#mnbt-节点插件)
 - [前端模板](#前端模板)
+- [主题开发](#主题开发)
 - [安全说明](#安全说明)
 - [常见问题](#常见问题)
 - [更新日志](#更新日志)
@@ -48,6 +49,7 @@
 - ✅ **PHP 8.x 全面兼容**：已修复全部废弃语法
 - ✅ **SQL 参数化查询**：彻底消除 SQL 注入风险
 - ✅ **完善的操作日志**：所有关键操作可追溯
+- ✅ **可切换前端主题**：用户端 / 管理端独立皮肤，缺页回退 default
 
 ---
 
@@ -277,10 +279,21 @@ chown -R www:www .
 │   ├── monitor.function.php  # 监控函数库（自动建表/URL检测/资源百分比/SSRF防护/邮件通知）
 │   ├── security.php          # 安全过滤
 │   ├── node.function.php     # MNBT 节点函数库
+│   ├── theme.php             # 主题加载引擎（render / 切换 / 回退）
 │   ├── database_backup.function.php
 │   ├── BL.php / SQ.php       # 业务辅助
 │   ├── lib/                  # 支付宝 SDK（core.function/submit/notify/md5）
 │   └── 360safe/              # WAF 防护
+│
+├── templates/                # 前端主题（用户端 + 管理端视图）
+│   ├── README.md             # 主题系统说明
+│   ├── THEME_DEV.md          # 主题开发手册
+│   ├── active_user_theme     # 当前用户端主题名
+│   ├── active_admin_theme    # 当前管理端主题名
+│   └── default/              # 官方默认主题
+│       ├── theme.json
+│       ├── user/             # 用户控制面板视图
+│       └── admin/            # 管理后台视图
 │
 ├── api/                      # 外部 API 接口
 │   ├── api.php               # RESTful API 入口
@@ -378,7 +391,7 @@ $params = [
 
 ## 前端模板
 
-管理后台及用户控制面板采用 **Light Year Admin v5** 构建。
+管理后台及用户控制面板默认 UI 基于 **Light Year Admin**（Bootstrap 4 + jQuery）。
 
 | 资源 | 地址 |
 |------|------|
@@ -397,6 +410,50 @@ $params = [
 - jQuery Confirm 弹窗
 
 ---
+
+## 主题开发
+
+MNBT 已支持**可切换前端主题**：`user/`、`admin/` 为控制器，页面 HTML 位于 `templates/{主题名}/`。
+
+### 文档入口
+
+| 文档 | 内容 |
+|------|------|
+| [templates/README.md](templates/README.md) | 目录结构、切换方式、API 一览、安全说明 |
+| [templates/THEME_DEV.md](templates/THEME_DEV.md) | **完整开发手册**：新建主题、页面清单、变量约定、资源引用、FAQ |
+
+### 快速切换
+
+1. 后台登录 → **系统管理** → **前端模板**（`admin/set.php?gn=theme`）
+2. 分别选择「用户端主题」「管理端主题」→ 保存
+3. 或编辑 `templates/active_user_theme` / `templates/active_admin_theme`（写入主题目录名）
+
+### 新建主题（摘要）
+
+```text
+templates/my_theme/
+├── theme.json          # 名称、版本、简介
+├── user/               # 覆盖用户端页面（可只放部分文件）
+│   ├── login.php
+│   └── assets/
+└── admin/              # 覆盖管理端页面（可只放部分文件）
+    ├── login.php
+    └── assets/
+```
+
+未提供的页面自动回退到 `templates/default/`。详细步骤与必选页面列表见 [THEME_DEV.md](templates/THEME_DEV.md)。
+
+### 核心代码
+
+| 路径 | 说明 |
+|------|------|
+| `MPHX/theme.php` | `mnbt_render` / `mnbt_admin_render` / 主题列表与切换 |
+| `templates/default/user/` | 默认用户端视图 |
+| `templates/default/admin/` | 默认管理端视图 |
+| `admin/api/setting.php` | `settheme` 保存接口 |
+
+---
+
 
 ## 常见问题
 
@@ -554,6 +611,14 @@ backup/
 - 插件注册/心跳/异步任务队列
 - 违禁词扫描（定时全量 + 增量）
 - `plugins/mnbt_connector/` 插件包
+
+### V1.80（开发中 / dev/v1.80）
+
+- **前端主题系统**：用户端 / 管理端视图迁入 `templates/`，支持独立切换与缺页回退
+- 主题引擎 `MPHX/theme.php`；后台「系统管理 → 前端模板」可视化切换
+- 主题文档：`templates/README.md`、`templates/THEME_DEV.md`
+- 管理端设置页改为现代卡片布局
+- 修复安装 SQL 空语句导致 `Query was empty`
 
 ### V1.78
 
