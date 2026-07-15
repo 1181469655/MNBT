@@ -1,0 +1,8 @@
+{
+  "name": "qingliangyun",
+  "title": "清凉云",
+  "version": "0.1.0",
+  "description": "现代化白绿配色用户端主题（Vue 3 + Element Plus SPA）",
+  "author": "MNBT",
+  "scope": ["user"]
+}

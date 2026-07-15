@@ -1,0 +1,22 @@
+# 依赖
+node_modules/
+
+# 日志与缓存
+*.log
+npm-debug.log*
+.pnpm-debug.log*
+.DS_Store
+.idea/
+.vscode/
+*.local
+
+# Vite 缓存
+.vite/
+dist-ssr/
+
+# 环境变量（保留示例）
+.env
+.env.*.local
+
+# 注意：不要忽略 ../user/dist 构建产物
+# 主题运行依赖已编译的 SPA，需提交到仓库

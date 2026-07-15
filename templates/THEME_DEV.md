@@ -29,6 +29,8 @@ templates/
         └── assets/
 ```
 
+> 官方示例 SPA 主题：`templates/qingliangyun/`（Vue 3 + Element Plus），见 [qingliangyun/README.md](./qingliangyun/README.md)。
+
 ### 步骤 2：编写 `theme.json`
 
 ```json

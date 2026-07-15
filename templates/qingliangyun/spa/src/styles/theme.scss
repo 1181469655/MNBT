@@ -1,0 +1,118 @@
+:root {
+  --ql-primary: #12b886;
+  --ql-primary-dark: #0ca678;
+  --ql-primary-light: #38d9a9;
+  --ql-primary-soft: #e6fcf5;
+  --ql-bg: #f4faf7;
+  --ql-surface: #ffffff;
+  --ql-text: #1a2e28;
+  --ql-text-secondary: #5c7369;
+  --ql-border: #d8ebe3;
+  --ql-radius: 16px;
+  --ql-radius-sm: 12px;
+  --ql-shadow: 0 4px 24px rgba(18, 184, 134, 0.08);
+  --ql-sidebar-w: 240px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  margin: 0;
+  min-height: 100dvh;
+  font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  color: var(--ql-text);
+  background: var(--ql-bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--ql-primary);
+  text-decoration: none;
+}
+
+/* Element Plus 主题覆盖 */
+.el-button--primary {
+  --el-button-bg-color: var(--ql-primary);
+  --el-button-border-color: var(--ql-primary);
+  --el-button-hover-bg-color: var(--ql-primary-dark);
+  --el-button-hover-border-color: var(--ql-primary-dark);
+  --el-button-active-bg-color: var(--ql-primary-dark);
+  --el-button-active-border-color: var(--ql-primary-dark);
+}
+
+.el-menu {
+  border-right: none !important;
+  background: transparent !important;
+}
+
+.el-menu-item.is-active {
+  background: var(--ql-primary-soft) !important;
+  color: var(--ql-primary-dark) !important;
+  border-radius: var(--ql-radius-sm);
+  font-weight: 600;
+}
+
+.el-menu-item:hover,
+.el-sub-menu__title:hover {
+  background: rgba(18, 184, 134, 0.06) !important;
+  border-radius: var(--ql-radius-sm);
+}
+
+.el-card {
+  border: 1px solid var(--ql-border) !important;
+  border-radius: var(--ql-radius) !important;
+  box-shadow: var(--ql-shadow) !important;
+}
+
+.el-input__wrapper,
+.el-textarea__inner,
+.el-select__wrapper {
+  border-radius: 10px !important;
+}
+
+.ql-page {
+  padding: 20px 24px 32px;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+@media (max-width: 768px) {
+  .ql-page {
+    padding: 12px 12px 24px;
+  }
+}
+
+.ql-card {
+  background: var(--ql-surface);
+  border: 1px solid var(--ql-border);
+  border-radius: var(--ql-radius);
+  box-shadow: var(--ql-shadow);
+  padding: 20px;
+}
+
+.ql-section-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ql-text);
+  margin: 0 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ql-section-title::before {
+  content: '';
+  width: 4px;
+  height: 16px;
+  border-radius: 2px;
+  background: var(--ql-primary);
+}
+
+.ql-muted {
+  color: var(--ql-text-secondary);
+  font-size: 13px;
+}

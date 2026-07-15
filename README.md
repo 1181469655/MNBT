@@ -626,7 +626,8 @@ backup/
 - **前端主题系统**：用户端 / 管理端视图迁入 `templates/`，支持独立切换与缺页回退
 - 主题引擎 `MPHX/theme.php`；后台「系统管理 → 前端模板」可视化切换
 - **主题资源隔离**：公共资源 `mnbt_asset_url()`（`imsetes/`）与主题私有 `mnbt_theme_asset()`（`templates/*/assets/`，缺文件回退 default）
-- 主题文档：`templates/README.md`、`templates/THEME_DEV.md`
+- **清凉云主题** `qingliangyun` v0.1.0：Vue 3 + Element Plus SPA，白绿圆角仪表盘（圆形进度）
+- 主题文档：`templates/README.md`、`templates/THEME_DEV.md`、`templates/qingliangyun/README.md`
 - 管理端设置页改为现代卡片布局
 - 修复安装 SQL 空语句导致 `Query was empty`
 
