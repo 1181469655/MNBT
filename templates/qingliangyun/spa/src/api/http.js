@@ -85,8 +85,17 @@ export async function apiGn(gn, data = {}, { silent = false } = {}) {
     }
     return result
   } catch (e) {
-    if (!silent) ElMessage.error(e.message || '网络错误')
-    return { ok: false, message: e.message || '网络错误', raw: null }
+    // axios 500 时尽量展示后端 HTML/JSON 片段，便于排查
+    let msg = e.message || '网络错误'
+    const body = e?.response?.data
+    if (typeof body === 'string' && body.trim()) {
+      const plain = body.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+      if (plain) msg = plain.slice(0, 160)
+    } else if (body && typeof body === 'object') {
+      msg = body.code || body.msg || body.message || msg
+    }
+    if (!silent) ElMessage.error(msg)
+    return { ok: false, message: msg, raw: body ?? null }
   }
 }
 

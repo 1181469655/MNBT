@@ -159,77 +159,74 @@ if($egn=='setyxml') {
 }
 if($egn=='sxsyxx') {
 	//刷新网页空间，数据库空间，流量使用情况
-	include("../../class.php");
-	$sql_kjr=json_decode($yhc['hxb'],true);
-	$web_kjr=json_decode($yhc['hxa'],true);
-	$ll_kjr=json_decode($yhc['llmax'],true);
-	$api = new bt_api($btipe,$btkeye);
-	if($yhc['hxc']!='1') {
-		$r_data = $api->webkjjs($os_xt.$yhc['sqldz']) ?: [];
-		$webkj=($r_data['size']??0)/(1024*1000);
-		$r_js_web=$web_kjr;
-		$r_js_web['dq']=sprintf("%.2f",$webkj);
-		$r_sy=json_encode($r_js_web,256);
-		$t_id=$yhc['id'];
-		$sql_w="update `MN_zj` set `hxa` =? where `id`=?";
-		$p_w=[$r_sy, $t_id];
-		$r_datb = $api->sqlkjhq($yhc['sqluser']) ?: [];
-		$r_datb_data_size = $r_datb['data_size'] ?? '0';
-		if(substr($r_datb_data_size,'-2' , 2)=='kb' || substr($r_datb_data_size,'-2' , 2)=='KB' || substr($r_datb_data_size,'-2' , 2)=='kB' || substr($r_datb_data_size,'-2' , 2)=='Kb') {
-			$sqlkj= str_ireplace(substr($r_datb_data_size,'-2' , 2),'',$r_datb_data_size);
-		} elseif(substr($r_datb_data_size,'-2' , 2)=='b' || substr($r_datb_data_size,'-2' , 2)=='B') {
-			$sqlkj= str_ireplace(substr($r_datb_data_size,'-2' , 2),'',$r_datb_data_size)/1000;
-		} elseif(substr($r_datb_data_size,'-2' , 2)=='MB' || substr($r_datb_data_size,'-2' , 2)=='mb' || substr($r_datb_data_size,'-2' , 2)=='Mb' || substr($r_datb_data_size,'-2' , 2)=='Mb') {
-			$sqlkj= str_ireplace(substr($r_datb_data_size,'-2' , 2),'',$r_datb_data_size)*1000;
+	// 与其它接口一致用 ../class.php（旧 ../../class.php 在 CWD=user 时会越界失败 → 500）
+	include("../class.php");
+	$sql_kjr = json_decode($yhc['hxb'] ?? '', true) ?: [];
+	$web_kjr = json_decode($yhc['hxa'] ?? '', true) ?: [];
+	$ll_kjr = json_decode($yhc['llmax'] ?? '', true) ?: [];
+	$r_js_web = $web_kjr;
+	$r_js_sql = $sql_kjr;
+	$api = new bt_api($btipe, $btkeye);
+	$t_id = $yhc['id'] ?? 0;
+	$is_cdn = (string)($yhc['hxc'] ?? '') === '1';
+
+	if (!$is_cdn) {
+		$r_data = $api->webkjjs($os_xt . $yhc['sqldz']) ?: [];
+		$webkj = ($r_data['size'] ?? 0) / (1024 * 1000);
+		$r_js_web = $web_kjr;
+		$r_js_web['dq'] = sprintf('%.2f', $webkj);
+		$r_sy = json_encode($r_js_web, 256);
+		$DB->query_prepare('update `MN_zj` set `hxa` =? where `id`=?', [$r_sy, $t_id]);
+
+		$r_datb = $api->sqlkjhq($yhc['sqluser'] ?? '') ?: [];
+		$r_datb_data_size = (string)($r_datb['data_size'] ?? '0');
+		if (substr($r_datb_data_size, -2) == 'kb' || substr($r_datb_data_size, -2) == 'KB' || substr($r_datb_data_size, -2) == 'kB' || substr($r_datb_data_size, -2) == 'Kb') {
+			$sqlkj = str_ireplace(substr($r_datb_data_size, -2), '', $r_datb_data_size);
+		} elseif (substr($r_datb_data_size, -2) == 'MB' || substr($r_datb_data_size, -2) == 'mb' || substr($r_datb_data_size, -2) == 'Mb' || substr($r_datb_data_size, -2) == 'mB') {
+			$sqlkj = str_ireplace(substr($r_datb_data_size, -2), '', $r_datb_data_size) * 1000;
+		} elseif (substr($r_datb_data_size, -1) == 'b' || substr($r_datb_data_size, -1) == 'B') {
+			$sqlkj = (float)preg_replace('/[^0-9.]/', '', $r_datb_data_size) / 1000;
 		} else {
-			$sqlkj='0';
+			$sqlkj = '0';
 		}
-		$adft=$sqlkj/1024;
-		$r_js_sql=$sql_kjr;
-		$r_js_sql['dq']=sprintf("%.2f",$adft);
-		$r_sy=json_encode($r_js_sql,256);
-		$t_id=$yhc['id'];
-		$sql_s="update `MN_zj` set `hxb` =? where `id`=?";
-		$p_s=[$r_sy, $t_id];
+		$adft = ((float)$sqlkj) / 1024;
+		$r_js_sql = $sql_kjr;
+		$r_js_sql['dq'] = sprintf('%.2f', $adft);
+		$r_sy = json_encode($r_js_sql, 256);
+		$DB->query_prepare('update `MN_zj` set `hxb` =? where `id`=?', [$r_sy, $t_id]);
 	}
-	$s_data=$api->getlog($yhc['sqldz']) ?: [];
-	if(($s_data['status']??false) && ($s_data['msg']??'')!='') {
-		$sfyr=explode(' - - ',$s_data['msg']);
+
+	$s_data = $api->getlog($yhc['sqldz'] ?? '') ?: [];
+	$g_size = 0;
+	if (($s_data['status'] ?? false) && ($s_data['msg'] ?? '') != '') {
+		$sfyr = explode(' - - ', $s_data['msg']);
 		unset($sfyr[0]);
-		$g_size=0;
-		$latest_ts='';
-		foreach($sfyr as $vfm) {
+		$latest_ts = '';
+		foreach ($sfyr as $vfm) {
 			preg_match('/\[(.*?)\]/', $vfm, $tm);
-			if(!($tm[1]??''))continue;
-			if($tm[1]<=$ll_kjr['statistics'])continue;
-			$e_size=explode(' ',$vfm);
-			if(!isset($e_size[6]) || !is_numeric($e_size[6]))continue;
-			$g_size+=$e_size[6];
-			if($tm[1]>$latest_ts)$latest_ts=$tm[1];
+			if (!($tm[1] ?? '')) continue;
+			if (isset($ll_kjr['statistics']) && $ll_kjr['statistics'] !== '' && $tm[1] <= $ll_kjr['statistics']) continue;
+			$e_size = explode(' ', $vfm);
+			if (!isset($e_size[6]) || !is_numeric($e_size[6])) continue;
+			$g_size += $e_size[6];
+			if ($tm[1] > $latest_ts) $latest_ts = $tm[1];
 		}
-		$ll_kjr['statistics']=$latest_ts;
-	} else {
-		$g_size='0';
+		if ($latest_ts !== '') $ll_kjr['statistics'] = $latest_ts;
 	}
-	$r_jy=$ll_kjr;
-	$ll_kjr['dq']=($ll_kjr['dq']??0)+$g_size;
-	$r_sy=json_encode($ll_kjr,256);
-	$t_id=$yhc['id'];
-	$sql="update `MN_zj` set `llmax` =? where `id`=?";
-	$p=[$r_sy, $t_id];
-	if($yhc['hxc']!='1') {
-		$DB->query_prepare($sql, $p);
-		$DB->query_prepare($sql_w, $p_w);
-	}
-	$DB->query_prepare($sql_s, $p_s);
-	if($ll_kjr['dq']<=$ll_kjr['max']*1024*1024*1024 && $r_js_web['dq']<=$r_js_web['max'] && $r_js_sql['dq']<=$r_js_sql['max']) {
-		//依旧是超出
-		$api->qdweb($yhc['btid'],$yhc['sqldz']);
-		$api->ftpxg($yhc['ftpid'],$yhc['user'],'1');
+	$ll_kjr['dq'] = ($ll_kjr['dq'] ?? 0) + $g_size;
+	$r_sy = json_encode($ll_kjr, 256);
+	$DB->query_prepare('update `MN_zj` set `llmax` =? where `id`=?', [$r_sy, $t_id]);
+
+	// 未定义 max/dq 时按 0，避免 PHP8 Warning→Exception 导致 500
+	$ll_ok = (float)($ll_kjr['dq'] ?? 0) <= (float)($ll_kjr['max'] ?? 0) * 1024 * 1024 * 1024;
+	$web_ok = (float)($r_js_web['dq'] ?? 0) <= (float)($r_js_web['max'] ?? 0);
+	$sql_ok = (float)($r_js_sql['dq'] ?? 0) <= (float)($r_js_sql['max'] ?? 0);
+	if ($ll_ok && $web_ok && $sql_ok) {
+		$api->qdweb($yhc['btid'] ?? '', $yhc['sqldz'] ?? '');
+		if (!$is_cdn) $api->ftpxg($yhc['ftpid'] ?? '', $yhc['user'] ?? '', '1');
 	} else {
-		//解除超出
-		$api->ztweb($yhc['btid'],$yhc['sqldz']);
-		$api->ftpxg($yhc['ftpid'],$yhc['user'],'0');
+		$api->ztweb($yhc['btid'] ?? '', $yhc['sqldz'] ?? '');
+		if (!$is_cdn) $api->ftpxg($yhc['ftpid'] ?? '', $yhc['user'] ?? '', '0');
 	}
 	json_exit('刷新成功！');
 	return;
