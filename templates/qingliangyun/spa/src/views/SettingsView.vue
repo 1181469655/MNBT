@@ -379,82 +379,136 @@ const cacheForm = reactive({ suffix: '', time_out: '30d' })
 const passwords = reactive({ ftp: '', sql: '' })
 const dbAccess = ref('127.0.0.1')
 
+function pickPayload(res) {
+  if (!res) return {}
+  // panel 包装: data 为 msg；纯数据: data 即对象
+  if (res.data != null && typeof res.data === 'object') return res.data
+  if (res.raw != null && typeof res.raw === 'object') return res.raw
+  return {}
+}
+
+function normalizeBool(v) {
+  if (v === true || v === 1 || v === '1' || v === 'true' || v === 'True') return true
+  return false
+}
+
 async function loadSection() {
   loading.value = true
   const section = gn.value
-
-  if (section === 'url' || section === 'CDN_url') {
-    const [init, list] = await Promise.all([setInit(section), domainList()])
-    if (init.ok) {
-      const m = init.data || {}
-      domainHint.value =
-        m.als && m.als !== 'false' ? String(m.als) : `请将域名解析到 ${m.btip || '服务器 IP'}`
-    }
-    if (list.ok) {
-      const d = list.data || list.raw || {}
-      domains.value = d.url || d.domains || d.msg?.url || []
-      domainDirs.value = d.dir || d.dirs || ['/']
-      if (!Array.isArray(domains.value)) domains.value = []
-    }
-  } else if (section === 'pass') {
-    const res = await passList()
-    if (res.ok) {
-      let list = res.data?.list || []
-      if (!Array.isArray(list)) list = Object.values(list)
-      passListData.value = list
-    }
-  } else if (section === 'ssl') {
-    const [gs, lu] = await Promise.all([getSsl(), listUrl()])
-    if (gs.ok || gs.raw) {
-      const d = gs.raw || gs.data || {}
-      ssl.key = d.key || ''
-      ssl.pem = d.csr || d.pem || ''
-      ssl.https = !!(d.httpTohttps || d.https)
-      const cd = d.cert_data || {}
+  try {
+    if (section === 'url' || section === 'CDN_url') {
+      const [init, list] = await Promise.all([setInit(section), domainList()])
+      const m = pickPayload(init)
+      if (m.btip || m.als !== undefined) {
+        domainHint.value =
+          m.als && m.als !== 'false' ? String(m.als) : `请将域名 A 记录到 ${m.btip || '服务器 IP'}`
+      }
+      const d = pickPayload(list)
+      let urls = d.url || d.domains || []
+      if (!Array.isArray(urls)) urls = []
+      domains.value = urls.map((x) => ({
+        name: x.name || x.domain || '',
+        port: x.port ?? 80,
+        path: x.path || '/',
+        addtime: x.addtime || '',
+      }))
+      domainDirs.value = Array.isArray(d.dir) ? d.dir : Array.isArray(d.dirs) ? d.dirs : ['/']
+      if (!domainDirs.value.length) domainDirs.value = ['/']
+    } else if (section === 'pass') {
+      const res = await passList()
+      const m = pickPayload(res)
+      let list = m.list
+      // 宝塔返回可能是 { sitename: [...] }
+      if (list && !Array.isArray(list) && typeof list === 'object') {
+        const first = Object.values(list).find((v) => Array.isArray(v))
+        list = first || Object.values(list)
+      }
+      if (!Array.isArray(list)) list = []
+      passListData.value = list.map((x) => ({
+        name: x.name || '',
+        site_dir: x.site_dir || x.dir || '',
+        username: x.username || x.user || '',
+      }))
+    } else if (section === 'ssl') {
+      const [gs, lu] = await Promise.all([getSsl(), listUrl()])
+      const d = pickPayload(gs)
+      ssl.key = d.key && d.key !== false ? String(d.key) : ''
+      ssl.pem = d.csr && d.csr !== false ? String(d.csr) : d.pem && d.pem !== false ? String(d.pem) : ''
+      ssl.https = normalizeBool(d.httpTohttps)
+      const cd = d.cert_data && typeof d.cert_data === 'object' ? d.cert_data : {}
       ssl.info = cd.subject
-        ? `主题: ${cd.subject} · 颁发: ${cd.issuer || '-'} · 到期: ${cd.notAfter || '-'}`
+        ? `认证域名: ${cd.subject} · 品牌: ${cd.issuer || '-'} · 到期: ${cd.notAfter || '-'}`
         : ''
-    }
-    if (lu.ok || lu.raw) {
-      const d = lu.raw || lu.data || {}
-      const arr = d.domains || d.url || []
-      ssl.domainList = (Array.isArray(arr) ? arr : []).map((x) => x.name || x).filter(Boolean)
-    }
-  } else if (section === 'fdl') {
-    const res = await getFdl()
-    const d = res.raw || res.data || {}
-    fdl.fix = d.fix || ''
-    fdl.domains = (d.domains || '').toString().replace(/,/g, '\n')
-    fdl.return_rule = d.return_rule || ''
-    fdl.http_status = String(d.http_status ?? 'true')
-    fdl.status = String(d.status ?? 'false')
-  } else {
-    const res = await setInit(section)
-    if (res.ok) {
-      const m = res.data || {}
+      const ud = pickPayload(lu)
+      const arr = ud.domains || ud.url || []
+      ssl.domainList = (Array.isArray(arr) ? arr : [])
+        .map((x) => (typeof x === 'string' ? x : x.name || x.domain || ''))
+        .filter(Boolean)
+    } else if (section === 'fdl') {
+      const res = await getFdl()
+      const d = pickPayload(res)
+      // 宝塔防盗链字段兼容
+      fdl.fix = d.fix || d.fixs || d.suffix || ''
+      let doms = d.domains || d.domain || ''
+      if (Array.isArray(doms)) doms = doms.join('\n')
+      fdl.domains = String(doms).replace(/,/g, '\n')
+      fdl.return_rule = d.return_rule || d.return_url || d.return || '404'
+      fdl.http_status = normalizeBool(d.http_status) ? 'true' : 'false'
+      fdl.status = normalizeBool(d.status) ? 'true' : 'false'
+    } else if (section === 'wjt') {
+      const res = await setInit('wjt')
+      const m = pickPayload(res)
+      let t = m.templates
+      // GetRewriteList 常见: { rewrite: ['wordpress', ...] } 或数组
+      if (t && !Array.isArray(t) && typeof t === 'object') {
+        t = t.rewrite || t.list || Object.keys(t)
+      }
+      if (!Array.isArray(t)) t = []
+      rewriteTpls.value = t.map((x) => (typeof x === 'string' ? x : x.name || String(x)))
+      // 加载当前站点规则
+      const cur = await loadRewriteTpl('0.当前')
+      if (cur.ok && typeof cur.data === 'string') {
+        rewriteBody.value = cur.data
+      } else if (cur.ok && cur.data != null) {
+        rewriteBody.value = String(cur.data)
+      }
+      rewriteTpl.value = ''
+    } else {
+      const res = await setInit(section)
+      const m = pickPayload(res)
       if (section === 'php') {
         php.version = m.php || ''
-        php.list = Array.isArray(m.list) ? m.list : Object.values(m.list || {})
+        let pl = m.list
+        if (!Array.isArray(pl)) pl = Object.values(pl || {})
+        php.list = pl.filter(Boolean)
       } else if (section === 'mrwd') {
-        mrwd.value = m.index || ''
+        mrwd.value = typeof m.index === 'string' ? m.index : Array.isArray(m.index) ? m.index.join(',') : ''
       } else if (section === 'yxml') {
-        runDirs.value = m.dirs || []
-        runPath.value = m.current || (runDirs.value[0] || '/')
-      } else if (section === 'wjt') {
-        const t = m.templates
-        rewriteTpls.value = Array.isArray(t) ? t : Object.keys(t || {})
+        // runPath 可能是嵌套 { runPath: { runPath: '/', dirs: [] } }
+        let dirs = m.dirs || []
+        let current = m.current || ''
+        if (m.runPath && typeof m.runPath === 'object') {
+          current = m.runPath.runPath || m.runPath.path || current
+          dirs = m.runPath.dirs || dirs
+        }
+        if (!Array.isArray(dirs)) dirs = []
+        runDirs.value = dirs.length ? dirs : ['/']
+        runPath.value = current || runDirs.value[0] || '/'
       } else if (section === 'gzip') {
-        const g = m.gzip || {}
-        gzip.on = !!(g.status || g.gzip || g.open)
-        gzip.level = Number(g.level || g.comp_level || 6)
+        const g = m.gzip || m
+        gzip.on = normalizeBool(g.status ?? g.gzip ?? g.open ?? g.enabled)
+        gzip.level = Number(g.level || g.comp_level || g.compLevel || 6) || 6
         gzip.min_len = g.minLength || g.min_length || g.min_len || '1k'
-        gzip.types = g.types || gzip.types
+        gzip.types = g.types || g.gzip_types || gzip.types
       } else if (section === 'cache') {
-        let list = m.list || []
-        if (!Array.isArray(list)) list = Object.entries(list).map(([k, v]) => ({
-          suffix: v.suffix || k,
-          time_out: v.time_out || v.expire || v,
-        }))
+        let list = m.list
+        if (!list && Array.isArray(m)) list = m
+        if (!Array.isArray(list) && list && typeof list === 'object') {
+          list = Object.entries(list).map(([k, v]) =>
+            typeof v === 'object' ? { suffix: v.suffix || k, time_out: v.time_out || v.expire || v.time } : { suffix: k, time_out: v }
+          )
+        }
+        if (!Array.isArray(list)) list = []
         cacheList.value = list.map((x) => ({
           suffix: x.suffix || x.ext || x.name || '',
           time_out: x.time_out || x.expire || x.time || '',
@@ -463,6 +517,8 @@ async function loadSection() {
         dbAccess.value = m.access || '127.0.0.1'
       }
     }
+  } catch (e) {
+    console.error('loadSection', section, e)
   }
   loading.value = false
 }
@@ -538,10 +594,13 @@ async function saveRunPath() {
 async function loadTpl(name) {
   if (!name) return
   const res = await loadRewriteTpl(name)
-  // hqjt 可能返回纯文本
-  if (typeof res.raw === 'string') rewriteBody.value = res.raw
-  else if (res.message && !res.ok) rewriteBody.value = res.message
-  else if (res.data) rewriteBody.value = typeof res.data === 'string' ? res.data : JSON.stringify(res.data)
+  if (res.ok) {
+    if (typeof res.data === 'string') rewriteBody.value = res.data
+    else if (res.data != null) rewriteBody.value = String(res.data)
+    else if (typeof res.raw === 'string') rewriteBody.value = res.raw
+  } else {
+    ElMessage.error(res.message || '加载模板失败')
+  }
 }
 
 async function saveWjt() {
@@ -570,7 +629,11 @@ async function onCloseSsl() {
 
 async function onForceHttps(val) {
   const res = await forceHttps(val)
-  if (res.ok || res.raw?.qk == 1) ElMessage.success(res.message || res.raw?.code || '已更新')
+  if (res.ok) ElMessage.success(res.message || '已更新')
+  else {
+    // 回滚开关显示
+    ssl.https = !val
+  }
 }
 
 async function onApplySsl() {
@@ -579,15 +642,12 @@ async function onApplySsl() {
     return
   }
   saving.value = true
-  // list 多值：axios URLSearchParams 对数组需展开
-  const body = { type: true }
-  ssl.domains.forEach((d, i) => {
-    body[`list[${i}]`] = d
-  })
-  // 兼容 list[] 风格
-  const res = await applySsl(ssl.domains.join(','), true)
+  const res = await applySsl(ssl.domains, false)
   saving.value = false
-  if (res.ok || res.raw?.qk == 1) ElMessage.success(res.message || res.raw?.code || '申请已提交')
+  if (res.ok) {
+    ElMessage.success(res.message || '申请已提交')
+    await loadSection()
+  }
 }
 
 async function saveFdl() {

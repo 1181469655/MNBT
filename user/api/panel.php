@@ -190,8 +190,28 @@ if ($egn === 'pass_list') {
 	include("../class.php");
 	$api = new bt_api($btipe, $btkeye);
 	$r = $api->GetLogs($zjid) ?: [];
-	$list = is_array($r) ? $r : [];
-	exit(json_encode(['qk' => 1, 'code' => '获取成功', 'msg' => ['list' => $list]], JSON_UNESCAPED_UNICODE));
+	$list = [];
+	if (is_array($r)) {
+		// Linux 宝塔常按站点名分组；Windows 可能直接是列表
+		$site = $yhc['sqldz'] ?? '';
+		if ($site !== '' && isset($r[$site]) && is_array($r[$site])) {
+			$list = $r[$site];
+		} elseif (isset($r[0]) || array_keys($r) === range(0, count($r) - 1)) {
+			$list = $r;
+		} else {
+			foreach ($r as $v) {
+				if (is_array($v) && (isset($v[0]) || isset($v['name']))) {
+					if (isset($v['name'])) {
+						$list[] = $v;
+					} else {
+						$list = array_merge($list, $v);
+					}
+				}
+			}
+		}
+	}
+	if (!is_array($list)) $list = [];
+	exit(json_encode(['qk' => 1, 'code' => '获取成功', 'msg' => ['list' => array_values($list)]], JSON_UNESCAPED_UNICODE));
 }
 
 if ($egn === 'set_init') {
@@ -226,29 +246,59 @@ if ($egn === 'set_init') {
 			$msg['index'] = $sm['index'] ?? 'index.php,index.html,index.htm,default.php,default.htm,default.html';
 		}
 	} elseif ($section === 'yxml') {
-		$r = $api->yxmlrhq($zjid, $yhc['sqldz'] ?? '') ?: [];
-		$dirs = $r['dir'] ?? $r['dirs'] ?? $r['msg'] ?? [];
+		$path = ($os_xt ?? '') . ($yhc['sqldz'] ?? '');
+		$r = $api->yxmlrhq($zjid, $path) ?: [];
+		// 宝塔 GetDirUserINI: runPath.runPath / dirs
+		$rp = $r['runPath'] ?? [];
+		if (is_array($rp)) {
+			$msg['current'] = $rp['runPath'] ?? $rp['path'] ?? '/';
+			$dirs = $rp['dirs'] ?? $r['dirs'] ?? [];
+		} else {
+			$msg['current'] = is_string($rp) ? $rp : ($r['path'] ?? '/');
+			$dirs = $r['dirs'] ?? $r['dir'] ?? [];
+		}
 		if (!is_array($dirs)) $dirs = [];
 		$msg['dirs'] = $dirs;
-		$msg['current'] = $r['runPath'] ?? $r['path'] ?? $r['runpath'] ?? '';
+		$msg['runPath'] = $r['runPath'] ?? null;
 	} elseif ($section === 'wjt') {
-		// 伪静态模板列表 + 当前规则
 		$templates = $api->GetLogswr($yhc['sqldz'] ?? '') ?: [];
-		if (!is_array($templates)) $templates = [];
-		$msg['templates'] = $templates;
-		$msg['current'] = '';
+		// GetRewriteList 常见 { rewrite: ['wordpress', ...] }
+		if (is_array($templates) && isset($templates['rewrite']) && is_array($templates['rewrite'])) {
+			$templates = $templates['rewrite'];
+		} elseif (is_array($templates) && isset($templates['list'])) {
+			$templates = $templates['list'];
+		} elseif (!is_array($templates)) {
+			$templates = [];
+		}
+		$msg['templates'] = array_values($templates);
 	} elseif ($section === 'gzip') {
 		$r = $api->get_gzip_status($yhc['sqldz'] ?? '') ?: [];
+		// 兼容 data 包装
+		if (isset($r['data']) && is_array($r['data'])) {
+			$r = array_merge($r, $r['data']);
+		}
 		$msg['gzip'] = $r;
 	} elseif ($section === 'cache') {
 		$r = $api->get_static_cache($yhc['sqldz'] ?? '') ?: [];
-		$list = $r['data'] ?? $r['msg'] ?? $r;
+		$list = $r['data'] ?? $r['msg'] ?? $r['list'] ?? $r;
 		if (!is_array($list)) $list = [];
-		// 统一为数组列表
-		if (isset($list['status']) || isset($list['msg'])) {
-			$list = $list['data'] ?? [];
+		if (isset($list['status']) && isset($list['data'])) {
+			$list = $list['data'];
 		}
-		$msg['list'] = is_array($list) ? array_values($list) : [];
+		if (!is_array($list)) $list = [];
+		// 关联数组转列表
+		if ($list && array_keys($list) !== range(0, count($list) - 1)) {
+			$tmp = [];
+			foreach ($list as $k => $v) {
+				if (is_array($v)) {
+					$tmp[] = array_merge(['suffix' => $v['suffix'] ?? $k], $v);
+				} else {
+					$tmp[] = ['suffix' => $k, 'time_out' => $v];
+				}
+			}
+			$list = $tmp;
+		}
+		$msg['list'] = array_values($list);
 	} elseif ($section === 'xgpass') {
 		$msg['ftp_hint'] = '修改后控制面板登录密码同步为 FTP 密码';
 	} elseif ($section === 'mysqlcz') {
@@ -261,6 +311,9 @@ if ($egn === 'set_init') {
 		$msg['btip'] = $cert['btip'] ?? '';
 		$msg['als'] = $cert['als'] ?? 'false';
 		$msg['is_cdn'] = (string)($yhc['hxc'] ?? '') === '1';
+	} elseif ($section === 'pass') {
+		// 仅元信息；列表走 pass_list
+		$msg['ok'] = true;
 	} else {
 		$msg['ok'] = true;
 	}
