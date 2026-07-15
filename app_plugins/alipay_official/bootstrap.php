@@ -164,6 +164,8 @@ function alipay_official_render_qr_error($result)
 	$sub = $raw['sub_msg'] ?? '';
 	$msgEsc  = htmlspecialchars((string)$msg, ENT_QUOTES, 'UTF-8');
 	$subEsc  = htmlspecialchars((string)$sub, ENT_QUOTES, 'UTF-8');
+	// 预先计算子消息行，避免在 heredoc 中使用嵌套 {$} 三元表达式（部分 PHP 版本解析异常）
+	$subLine = $subEsc !== '' ? '<p>' . $subEsc . '</p>' : '';
 
 	return <<<HTML
 <!DOCTYPE html>
@@ -184,7 +186,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
 <div class="err-card">
   <h1>支付发起失败</h1>
   <p>{$msgEsc}</p>
-  {$subEsc ? "<p>{$subEsc}</p>" : ''}
+  {$subLine}
   <a href="javascript:history.back()" class="back">返回上一页</a>
 </div>
 </body>
