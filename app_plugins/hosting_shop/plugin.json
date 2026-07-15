@@ -1,0 +1,10 @@
+{
+  "id": "hosting_shop",
+  "name": "主机售卖",
+  "version": "1.0.0",
+  "author": "MNBT",
+  "description": "虚拟主机售卖：管理员配置套餐与价格，用户可购买主机、查看资产与订单。购买调用宝塔 API 自动开通。依赖 user_info 与 balance 插件。",
+  "requires_mnbt": "1.81",
+  "requires_plugins": ["user_info", "balance"],
+  "type": ["business"]
+}

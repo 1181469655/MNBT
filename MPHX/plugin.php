@@ -110,7 +110,42 @@ function mnbt_plugin_read_json($slug)
 	$data['version'] = isset($data['version']) ? (string)$data['version'] : '0.0.0';
 	$data['description'] = isset($data['description']) ? (string)$data['description'] : '';
 	$data['author'] = isset($data['author']) ? (string)$data['author'] : '';
+	// requires_plugins：声明本插件依赖的其他插件 slug 列表（必须在数据库存在且启用）
+	if (!isset($data['requires_plugins']) || !is_array($data['requires_plugins'])) {
+		$data['requires_plugins'] = [];
+	} else {
+		$clean = [];
+		foreach ($data['requires_plugins'] as $dep) {
+			$dep = is_string($dep) ? trim($dep) : '';
+			if ($dep !== '' && mnbt_plugin_slug_valid($dep) && !in_array($dep, $clean, true)) {
+				$clean[] = $dep;
+			}
+		}
+		$data['requires_plugins'] = $clean;
+	}
 	return $data;
+}
+
+/**
+ * 检查插件依赖是否满足。
+ *
+ * @param string $slug        被检查的插件 slug
+ * @param array  $meta        可选，插件的 meta 数据（含 requires_plugins）
+ * @return array ['ok'=>bool, 'missing'=>string[] 未启用的依赖 slug 列表]
+ */
+function mnbt_plugin_check_dependencies($slug, $meta = null)
+{
+	if ($meta === null) {
+		$meta = mnbt_plugin_read_json($slug) ?: [];
+	}
+	$requires = isset($meta['requires_plugins']) && is_array($meta['requires_plugins']) ? $meta['requires_plugins'] : [];
+	$missing = [];
+	foreach ($requires as $dep) {
+		if (!mnbt_plugin_enabled($dep)) {
+			$missing[] = $dep;
+		}
+	}
+	return ['ok' => empty($missing), 'missing' => $missing];
 }
 
 function mnbt_plugin_scan_disk()
@@ -218,6 +253,13 @@ function mnbt_plugin_install($slug)
 	if (!is_file(mnbt_plugin_path($slug) . 'bootstrap.php')) {
 		return '缺少 bootstrap.php';
 	}
+	// 依赖检查：安装时要求所有 requires_plugins 已安装（不要求启用，启用时再检查）
+	$requires = isset($meta['requires_plugins']) && is_array($meta['requires_plugins']) ? $meta['requires_plugins'] : [];
+	foreach ($requires as $dep) {
+		if (!mnbt_plugin_db_row($dep)) {
+			return '本插件依赖的插件尚未安装：' . $dep;
+		}
+	}
 	mnbt_plugin_ensure_tables();
 	$dir = mnbt_plugin_path($slug);
 	mnbt_plugin_run_sql_file($dir . 'install.sql');
@@ -255,6 +297,13 @@ function mnbt_plugin_set_enabled($slug, $enabled)
 			return $r;
 		}
 		$row = mnbt_plugin_db_row($slug);
+	}
+	// 启用时检查依赖：所有 requires_plugins 必须已启用
+	if ($enabled) {
+		$dep = mnbt_plugin_check_dependencies($slug, $meta);
+		if (!$dep['ok']) {
+			return '本插件依赖的插件未启用：' . implode(', ', $dep['missing']);
+		}
 	}
 	$flag = $enabled ? 'true' : 'false';
 	$now = isset($date) ? $date : date('Y-m-d H:i:s');
@@ -817,6 +866,12 @@ function mnbt_plugins_boot()
 			continue;
 		}
 		$meta = mnbt_plugin_read_json($slug);
+		// 运行时依赖检查：依赖插件未启用则跳过 boot（防止调用未定义函数）
+		$dep = mnbt_plugin_check_dependencies($slug, $meta);
+		if (!$dep['ok']) {
+			error_log('[MNBT plugin] ' . $slug . ' 依赖未满足，跳过 boot：' . implode(', ', $dep['missing']));
+			continue;
+		}
 		$GLOBALS['mnbt_plugin_current'] = $slug;
 		$GLOBALS['mnbt_plugin_meta'][$slug] = $meta ?: ['id' => $slug];
 		try {

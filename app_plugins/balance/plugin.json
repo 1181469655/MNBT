@@ -5,5 +5,6 @@
   "author": "MNBT",
   "description": "用户余额系统：余额查询、充值（调用支付插件 API）、消费、流水记录。依赖 user_info 插件。",
   "requires_mnbt": "1.81",
+  "requires_plugins": ["user_info"],
   "type": ["business"]
 }
