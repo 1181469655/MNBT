@@ -235,7 +235,7 @@
                         </div>
                         <div>
                             <p class="text-primary-foreground font-bold text-base leading-none">MNBT</p>
-                            <p class="text-xs leading-none mt-1" style="color: rgba(255, 255, 255, 0.5);">V<span class="mn-vs">1.79</span> 安装向导</p>
+                            <p class="text-xs leading-none mt-1" style="color: rgba(255, 255, 255, 0.5);">V<span class="mn-vs">1.81</span> 安装向导</p>
                         </div>
                     </div>
                     <div class="hidden md:block">
@@ -296,6 +296,18 @@
                                     <div class="w-0.5 flex-1 mt-1" style="min-height: 20px; background: rgba(255, 255, 255, 0.15);"></div>
                                 </div>
                                 <div class="pb-4">
+                                    <p class="text-sm font-semibold leading-none mb-0.5" style="color: rgba(255, 255, 255, 0.4);">站点配置</p>
+                                    <p class="text-xs leading-tight" style="color: rgba(255, 255, 255, 0.3);"> 网站信息与管理员</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start gap-3">
+                                <div class="flex flex-col items-center">
+                                    <div class="flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold flex-shrink-0 transition-all duration-1000" style="background: rgba(255, 255, 255, 0.15); color: rgba(255, 255, 255, 0.5);">
+                                        <span>6</span>
+                                    </div>
+                                    <div class="w-0.5 flex-1 mt-1" style="min-height: 20px; background: rgba(255, 255, 255, 0.15);"></div>
+                                </div>
+                                <div class="pb-4">
                                     <p class="text-sm font-semibold leading-none mb-0.5" style="color: rgba(255, 255, 255, 0.4);">等待安装</p>
                                     <p class="text-xs leading-tight" style="color: rgba(255, 255, 255, 0.3);"> 选择模式并等待安装</p>
                                 </div>
@@ -303,7 +315,7 @@
                             <div class="flex items-start gap-3">
                                 <div class="flex flex-col items-center">
                                     <div class="flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold flex-shrink-0 transition-all duration-1000" style="background: rgba(255, 255, 255, 0.15); color: rgba(255, 255, 255, 0.5);">
-                                        <span>6</span>
+                                        <span>7</span>
                                     </div>
                                 </div>
                                 <div class="pb-4">
@@ -319,8 +331,10 @@
                         <div class="rounded-full transition-all duration-300" style="width: 8px; height: 8px; background: rgba(255, 255, 255, 0.25);"></div>
                         <div class="rounded-full transition-all duration-300" style="width: 8px; height: 8px; background: rgba(255, 255, 255, 0.25);"></div>
                         <div class="rounded-full transition-all duration-300" style="width: 8px; height: 8px; background: rgba(255, 255, 255, 0.25);"></div>
+                        <div class="rounded-full transition-all duration-300" style="width: 8px; height: 8px; background: rgba(255, 255, 255, 0.25);"></div>
+                        <div class="rounded-full transition-all duration-300" style="width: 8px; height: 8px; background: rgba(255, 255, 255, 0.25);"></div>
                     </div>
-                    <p class="text-center text-xs md:hidden progress-text-info" style="color: rgba(255, 255, 255, 0.6);">步骤 1 / 6</p>
+                    <p class="text-center text-xs md:hidden progress-text-info" style="color: rgba(255, 255, 255, 0.6);">步骤 1 / 7</p>
                     <div class="hidden md:block mt-auto pt-8">
                         <div class="rounded-xl p-3 text-xs" style="background: rgba(255, 255, 255, 0.08); color: rgba(255, 255, 255, 0.55);">
                             <p class="font-semibold text-primary-foreground mb-1">版权&联系方式</p>
@@ -334,7 +348,7 @@
                 <div class="flex-1 p-6 md:p-10 flex flex-col overflow-hidden">
                     <div class="mb-6">
                         <div class="flex justify-between items-center mb-1.5 progress-text">
-                            <span class="text-xs font-semibold text-muted-foreground">步骤 1 / 6</span>
+                            <span class="text-xs font-semibold text-muted-foreground">步骤 1 / 7</span>
                             <span class="text-xs font-semibold text-primary">0%</span>
                         </div>
                         <div class="w-full h-1.5 rounded-full bg-secondary overflow-hidden">
@@ -520,6 +534,50 @@
 
                                 </div>
 
+                                <!--站点与管理员配置-->
+                                <div>
+                                    <div data-cmp="SiteConfigStep" class="step-fade-in flex flex-col h-full">
+                                        <div class="flex items-center gap-3 mb-5">
+                                            <div class="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center flex-shrink-0">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-settings text-primary" aria-hidden="true">
+                                                    <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
+                                                    <circle cx="12" cy="12" r="3"></circle>
+                                                </svg>
+                                            </div>
+                                            <div>
+                                                <h2 class="text-xl font-bold text-foreground">站点与管理员</h2>
+                                                <p class="text-muted-foreground text-xs">设置网站信息与后台登录账号</p>
+                                            </div>
+                                        </div>
+                                        <form class="form-site">
+                                            <div class="mb-4">
+                                                <label class="text-xs font-semibold text-foreground mb-1.5 block">控制面板名称</label>
+                                                <input id="site_name" type="text" class="input-field w-full text-sm" placeholder="例如：梦奈主机控制面板" value="MNBT 控制面板" required maxlength="80"/>
+                                            </div>
+                                            <div class="mb-4">
+                                                <label class="text-xs font-semibold text-foreground mb-1.5 block">站长 QQ</label>
+                                                <input id="site_qq" type="text" class="input-field w-full text-sm" placeholder="选填，用于用户联系" value="" maxlength="20"/>
+                                            </div>
+                                            <div class="mb-4">
+                                                <label class="text-xs font-semibold text-foreground mb-1.5 block">网站公告（选填）</label>
+                                                <textarea id="site_gg" class="input-field w-full text-sm" rows="2" placeholder="安装后显示在前台/后台的公告" maxlength="2000"></textarea>
+                                            </div>
+                                            <div class="mb-4">
+                                                <label class="text-xs font-semibold text-foreground mb-1.5 block">管理员账号</label>
+                                                <input id="admin_user" type="text" class="input-field w-full text-sm" placeholder="后台登录用户名" value="admin" required maxlength="50"/>
+                                            </div>
+                                            <div class="mb-4">
+                                                <label class="text-xs font-semibold text-foreground mb-1.5 block">管理员密码</label>
+                                                <input id="admin_pwd" type="password" class="input-field w-full text-sm" placeholder="至少 6 位" value="" required minlength="6" maxlength="64"/>
+                                            </div>
+                                            <div class="mb-4">
+                                                <label class="text-xs font-semibold text-foreground mb-1.5 block">确认密码</label>
+                                                <input id="admin_pwd2" type="password" class="input-field w-full text-sm" placeholder="再次输入密码" value="" required minlength="6" maxlength="64"/>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+
                                 <!--安装确认-->
                                 <div>
 
@@ -537,7 +595,7 @@
                                             </div>
                                         </div>
                                         <div class="tips-er tips-type-blue">
-                                            <span>数据库信息配置完成</span>
+                                            <span>数据库与站点信息已就绪，点击完成开始安装</span>
                                         </div>
                                         <div class="new-install-select">
                                             <div class="tips-er tips-type-warning">
@@ -573,7 +631,14 @@
                                                 </div>
                                                 <h2 class="text-2xl font-bold text-foreground mb-1">安装成功！</h2>
                                                 <p class="text-muted-foreground text-sm text-center">梦奈宝塔主机系统已安装到您的站点中</p>
-                                                <p class="text-muted-foreground text-sm text-center">您现在大可关闭该页面，为了安全，您也可删除掉站点下的install目录</p>
+                                                <p class="text-muted-foreground text-sm text-center">请妥善保存管理员账号；为安全建议删除站点下的 install 目录</p>
+                                            </div>
+                                            <div class="w-full mb-4 p-4 rounded-xl border install-admin-box" style="background: var(--secondary); border-color: var(--border);">
+                                                <p class="text-sm font-semibold text-foreground mb-2">管理员登录信息</p>
+                                                <p class="text-xs text-muted-foreground mb-1">后台地址：域名/admin</p>
+                                                <p class="text-sm text-foreground">账号：<code class="install-admin-user">admin</code></p>
+                                                <p class="text-sm text-foreground">密码：<code class="install-admin-pwd">（安装时设置）</code></p>
+                                                <p class="text-xs text-muted-foreground mt-2">控制面板名称：<span class="install-site-name">—</span></p>
                                             </div>
                                             <div class="w-full flex flex-col gap-2 mb-6 cursor-pointer-button">
                                                 <a href="../admin" target="_blank" class="flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all duration-200 w-full" style="background: var(--primary); border-color: var(--primary);">
@@ -586,7 +651,7 @@
                                                     </div>
                                                     <div>
                                                         <p class="text-sm font-semibold" style="color: var(--primary-foreground);">访问应用后台</p>
-                                                        <p class="text-xs" style="color: rgba(255, 255, 255, 0.7);">默认后台地址：域名/admin</p>
+                                                        <p class="text-xs" style="color: rgba(255, 255, 255, 0.7);">使用上方账号登录</p>
                                                     </div>
                                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewbox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-external-link ml-auto flex-shrink-0" aria-hidden="true" style="color: rgba(255, 255, 255, 0.5);">
                                                         <path d="M15 3h6v6"></path>
@@ -672,8 +737,9 @@
 <script src="/imsetes/js/jquery.min.js"></script>
 <script>
     let curr_index=1;
-    const MAX_INDEX=5;
-    const COUNT_INDEX=6;
+    const MAX_INDEX=6;
+    const COUNT_INDEX=7;
+    let siteConfigCache={};
     const NEXT_BTN_FUN={
         //禁用下一步按钮
         disabled: ()=>{
@@ -718,15 +784,15 @@
 
         let progress=Math.floor(((curr_index-1)/(COUNT_INDEX-1))*100);
         $('.progress-bar-anim').css('width',`${progress}%`);
-        $('.progress-text>span:first,.progress-text-info').html(`步骤 ${curr_index} / 6`);
+        $('.progress-text>span:first,.progress-text-info').html(`步骤 ${curr_index} / 7`);
         $('.progress-text>span:last').html(`${progress}%`);
         let btn_text_arr={
             1:'开始安装 →',
-            5:'完成 →',
+            6:'完成安装 →',
         };
         let btn=$("#btn-install-next");
         btn.html(btn_text_arr[curr_index] || '下一步 →');
-        if(curr_index===6)btn.hide();
+        if(curr_index===7)btn.hide();
         else btn.show();
     }
 
@@ -756,17 +822,34 @@
             if(result.data.in_table)$('.new-install-select').removeClass('d-none');
             else $('.new-install-select').addClass('d-none');
         }else if(curr_index===5){
+            let siteCheck=validateSiteForm(true);
+            if(!siteCheck.ok){
+                NEXT_BTN_FUN.removeDisabled();
+                return NEXT_BTN_FUN.TipsShow(siteCheck.msg);
+            }
+            siteConfigCache=siteCheck.data;
+        }else if(curr_index===6){
             NEXT_BTN_FUN.loading('安装中....');
-            let result = await request('install',{is_install:$('.new-install-select').hasClass('d-none') || $('.mn-new-install.use-terms').hasClass('terms-yes')});
+            let payload=Object.assign({
+                is_install:$('.new-install-select').hasClass('d-none') || $('.mn-new-install.use-terms').hasClass('terms-yes')
+            }, siteConfigCache);
+            let result = await request('install', payload);
             if(result.code!==1){
                 NEXT_BTN_FUN.removeDisabled();
                 return NEXT_BTN_FUN.TipsShow(result.msg);
             }
+            $('.install-admin-user').text(siteConfigCache.admin_user || 'admin');
+            $('.install-admin-pwd').text(siteConfigCache.admin_pwd || '（已设置）');
+            $('.install-site-name').text(siteConfigCache.site_name || '—');
         }
         //进入下一页
         next(curr_index++);
         refresh();
-        if (curr_index===5)NEXT_BTN_FUN.removeDisabled();
+        if (curr_index===6)NEXT_BTN_FUN.removeDisabled();
+        else if (curr_index===5){
+            NEXT_BTN_FUN.TipsShow('请填写站点信息与管理员账号');
+            checkSiteFormValidation();
+        }
         else if (curr_index===4)NEXT_BTN_FUN.TipsShow('您必须将表单填写完整后才能继续安装，表单可下滑');
         else if (curr_index===3)await systemCheck();
         else if (curr_index===2) NEXT_BTN_FUN.TipsShow('您必须同意许可协议才能继续安装');
@@ -846,7 +929,42 @@
         return isAllFilled;
     };
 
-    $(".form-database input").on("change input", checkFormValidation)
+    $(".form-database input").on("change input", checkFormValidation);
+
+    const validateSiteForm = function(strict) {
+        let site_name=($('#site_name').val()||'').trim();
+        let site_qq=($('#site_qq').val()||'').trim();
+        let site_gg=($('#site_gg').val()||'').trim();
+        let admin_user=($('#admin_user').val()||'').trim();
+        let admin_pwd=$('#admin_pwd').val()||'';
+        let admin_pwd2=$('#admin_pwd2').val()||'';
+        if(!site_name) return {ok:false, msg:'请填写控制面板名称'};
+        if(!admin_user) return {ok:false, msg:'请填写管理员账号'};
+        if(admin_user.length<3) return {ok:false, msg:'管理员账号至少 3 位'};
+        if(!/^[a-zA-Z0-9_\u4e00-\u9fa5-]+$/.test(admin_user)) return {ok:false, msg:'管理员账号含非法字符'};
+        if(admin_pwd.length<6) return {ok:false, msg:'管理员密码至少 6 位'};
+        if(admin_pwd!==admin_pwd2) return {ok:false, msg:'两次输入的密码不一致'};
+        if(site_qq && !/^\d{5,15}$/.test(site_qq)) return {ok:false, msg:'QQ 号格式不正确'};
+        return {
+            ok:true,
+            data:{site_name, site_qq, site_gg, admin_user, admin_pwd}
+        };
+    };
+
+    const checkSiteFormValidation = function() {
+        if(curr_index!==5) return;
+        let r=validateSiteForm(true);
+        if(r.ok){
+            NEXT_BTN_FUN.removeDisabled();
+            NEXT_BTN_FUN.TipsHide();
+        }else{
+            NEXT_BTN_FUN.disabled();
+            NEXT_BTN_FUN.TipsShow(r.msg);
+        }
+        return r.ok;
+    };
+
+    $(".form-site input, .form-site textarea").on("change input", checkSiteFormValidation);
 
     const systemCheck=async ()=>{
         let result = await request('system');
