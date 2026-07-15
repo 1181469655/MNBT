@@ -213,3 +213,93 @@ function balance_json($code, $extra = [])
 	echo json_encode($payload, JSON_UNESCAPED_UNICODE);
 	exit;
 }
+
+/* ============================================================
+ *  管理员端辅助函数
+ * ============================================================ */
+
+/**
+ * 获取所有用户余额列表（分页，关联用户名）。
+ *
+ * @param int   $page
+ * @param int   $per_page
+ * @param string $kw       用户名关键字
+ * @return array ['list'=>[], 'total'=>int, 'page'=>int, 'per_page'=>int]
+ */
+function balance_admin_list($page = 1, $per_page = 30, $kw = '')
+{
+	global $DB;
+	$page = max(1, (int)$page);
+	$per_page = max(1, min(200, (int)$per_page));
+	$offset = ($page - 1) * $per_page;
+
+	$join = '';
+	$where = '';
+	$params = [];
+	if ($kw !== '') {
+		$join = " LEFT JOIN MN_plugin_user u ON b.user_id=u.id";
+		$where = " WHERE u.username LIKE ?";
+		$params = ['%' . $kw . '%'];
+	}
+
+	$count_row = $DB->get_row_prepare("SELECT COUNT(*) AS cnt FROM MN_plugin_balance b{$join}{$where}", $params);
+	$total = $count_row ? (int)$count_row['cnt'] : 0;
+
+	$list = $DB->get_all_prepare(
+		"SELECT b.*, u.username, u.email, u.status
+		 FROM MN_plugin_balance b
+		 LEFT JOIN MN_plugin_user u ON b.user_id=u.id
+		 " . ($kw !== '' ? " WHERE u.username LIKE ?" : "") . "
+		 ORDER BY b.id DESC
+		 LIMIT {$offset},{$per_page}",
+		$params
+	) ?: [];
+
+	return ['list' => $list, 'total' => $total, 'page' => $page, 'per_page' => $per_page];
+}
+
+/**
+ * 获取所有用户的流水记录（分页，关联用户名）。
+ *
+ * @param int   $page
+ * @param int   $per_page
+ * @param array $filters  ['user_id'=>int, 'type'=>string, 'order_no'=>string]
+ * @return array
+ */
+function balance_admin_logs($page = 1, $per_page = 30, $filters = [])
+{
+	global $DB;
+	$page = max(1, (int)$page);
+	$per_page = max(1, min(200, (int)$per_page));
+	$offset = ($page - 1) * $per_page;
+
+	$where = ' WHERE 1=1';
+	$params = [];
+	if (!empty($filters['user_id'])) {
+		$where .= ' AND l.user_id=?';
+		$params[] = (int)$filters['user_id'];
+	}
+	if (!empty($filters['type'])) {
+		$where .= ' AND l.type=?';
+		$params[] = $filters['type'];
+	}
+	if (!empty($filters['order_no'])) {
+		$where .= ' AND l.order_no LIKE ?';
+		$params[] = '%' . $filters['order_no'] . '%';
+	}
+
+	$count_row = $DB->get_row_prepare("SELECT COUNT(*) AS cnt FROM MN_plugin_balance_log l{$where}", $params);
+	$total = $count_row ? (int)$count_row['cnt'] : 0;
+
+	$list = $DB->get_all_prepare(
+		"SELECT l.*, u.username
+		 FROM MN_plugin_balance_log l
+		 LEFT JOIN MN_plugin_user u ON l.user_id=u.id
+		 {$where}
+		 ORDER BY l.id DESC
+		 LIMIT {$offset},{$per_page}",
+		$params
+	) ?: [];
+
+	return ['list' => $list, 'total' => $total, 'page' => $page, 'per_page' => $per_page];
+}

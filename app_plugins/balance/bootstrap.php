@@ -152,3 +152,60 @@ mnbt_register_route('POST', '/balance/api/create_recharge', function ($params, $
 	// 返回支付 HTML，前端用 document.write 输出跳转
 	balance_json('正在跳转到支付页面', ['html' => $html]);
 });
+
+/* ============================================================
+ *  管理员端页面注册
+ * ============================================================ */
+
+mnbt_register_page('admin', 'balances', 'views/admin/balances.php', '余额管理');
+mnbt_register_page('admin', 'balance_logs', 'views/admin/logs.php', '余额流水');
+
+mnbt_register_menu('admin', [
+	'title' => '余额管理 - 用户余额',
+	'page'  => 'balances',
+	'icon'  => 'mdi-cash-multiple',
+	'order' => 71,
+	'multitabs' => true,
+]);
+
+mnbt_register_menu('admin', [
+	'title' => '余额管理 - 流水记录',
+	'page'  => 'balance_logs',
+	'icon'  => 'mdi-file-document-multiple',
+	'order' => 72,
+	'multitabs' => true,
+]);
+
+// 管理员端 AJAX：调整用户余额
+mnbt_register_ajax('admin', 'balance_admin_adjust', function () {
+	mnbt_plugin_require_admin();
+	$user_id = (int)($_POST['user_id'] ?? 0);
+	$amount_yuan = (float)($_POST['amount'] ?? 0);
+	$direction = $_POST['direction'] ?? '';   // add / deduct
+	$remark = trim((string)($_POST['remark'] ?? ''));
+
+	if ($user_id <= 0) {
+		json_exit('参数错误');
+	}
+	if ($amount_yuan <= 0) {
+		json_exit('金额必须大于 0');
+	}
+	if (!in_array($direction, ['add', 'deduct'], true)) {
+		json_exit('操作类型错误');
+	}
+	$amount_cents = (int)round($amount_yuan * 100);
+	if ($amount_cents <= 0) {
+		json_exit('金额必须大于 0');
+	}
+	$remark = $remark === '' ? '管理员调整' : $remark;
+
+	if ($direction === 'add') {
+		$ok = balance_add($user_id, $amount_cents, 'adjust', '', '管理员加款：' . $remark);
+	} else {
+		$ok = balance_deduct($user_id, $amount_cents, 'adjust', '', '管理员扣款：' . $remark);
+	}
+	if (!$ok) {
+		json_exit($direction === 'deduct' ? '扣款失败（余额不足）' : '加款失败');
+	}
+	json_exit('调整成功');
+});

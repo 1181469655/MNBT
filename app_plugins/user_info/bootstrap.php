@@ -211,3 +211,46 @@ mnbt_register_route('POST', '/account/api/change_password', function ($params, $
 	user_info_auth_login($user['id'], $hash);
 	user_info_json('修改成功');
 });
+
+/* ============================================================
+ *  管理员端页面注册
+ * ============================================================ */
+
+mnbt_register_page('admin', 'users', 'views/admin/users.php', '用户管理');
+mnbt_register_page('admin', 'user_edit', 'views/admin/user_edit.php', '用户编辑');
+
+mnbt_register_menu('admin', [
+	'title' => '用户管理 - 用户列表',
+	'page'  => 'users',
+	'icon'  => 'mdi-account-multiple',
+	'order' => 70,
+	'multitabs' => true,
+]);
+
+// 管理员端 AJAX：重置用户密码
+mnbt_register_ajax('admin', 'user_info_admin_reset_password', function () {
+	mnbt_plugin_require_admin();
+	global $DB, $date;
+	$user_id = (int)($_POST['user_id'] ?? 0);
+	$new_pass = trim((string)($_POST['new_password'] ?? ''));
+	if ($user_id <= 0) {
+		json_exit('参数错误');
+	}
+	if (strlen($new_pass) < 6) {
+		json_exit('新密码至少 6 个字符');
+	}
+	$row = $DB->get_row_prepare("SELECT id FROM MN_plugin_user WHERE id=? LIMIT 1", [$user_id]);
+	if (!$row) {
+		json_exit('用户不存在');
+	}
+	$hash = password_hash($new_pass, PASSWORD_BCRYPT);
+	$now = $date ?: date('Y-m-d H:i:s');
+	$ok = $DB->query_prepare(
+		"UPDATE MN_plugin_user SET password_hash=?, updated_at=? WHERE id=?",
+		[$hash, $now, $user_id]
+	);
+	if (!$ok) {
+		json_exit('重置失败');
+	}
+	json_exit('重置成功');
+});
