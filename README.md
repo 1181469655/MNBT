@@ -514,11 +514,32 @@ templates/my_theme/
 |------|------|
 | **[app_plugins/PLUGIN_DEV.md](app_plugins/PLUGIN_DEV.md)** | **插件开发手册**（新建步骤、API、钩子、安全、FAQ） |
 | [app_plugins/README.md](app_plugins/README.md) | 目录约定、快速启用、API 摘要 |
-| `app_plugins/hello_demo/` | 官方示例（菜单 / 配置 / AJAX / 主机事件） |
-| `app_plugins/home_demo/` | 首页接管 + 通用路由示例（P2） |
-| `app_plugins/epay/` | 易支付插件（P3，彩虹易支付协议） |
-| `app_plugins/alipay_official/` | 支付宝官方 API 插件（P3，PC + 当面付扫码） |
 | `MPHX/plugin.php` | 插件引擎源码 |
+
+### 自带插件
+
+#### 业务插件
+
+| 插件 | 说明 | README |
+|------|------|--------|
+| **user_info** | 独立用户系统（注册/登录/个人信息/修改密码） | [README](app_plugins/user_info/README.md) |
+| **balance** | 余额管理（充值/消费/流水，依赖 user_info） | [README](app_plugins/balance/README.md) |
+| **hosting_shop** | 主机售卖（套餐/购买/自动开通，依赖 user_info + balance） | [README](app_plugins/hosting_shop/README.md) |
+
+#### 支付插件
+
+| 插件 | 说明 | README |
+|------|------|--------|
+| **epay** | 易支付（彩虹易支付协议，支付宝/微信/QQ） | [README](app_plugins/epay/README.md) |
+| **alipay_official** | 支付宝官方 API（PC + 当面付，RSA2） | [README](app_plugins/alipay_official/README.md) |
+
+#### 集成与示例插件
+
+| 插件 | 说明 | README |
+|------|------|--------|
+| **webhook_notify** | Webhook 通知（主机事件/订单支付，HMAC 签名） | [README](app_plugins/webhook_notify/README.md) |
+| **home_demo** | 首页接管 + 通用路由示例（P2） | [README](app_plugins/home_demo/README.md) |
+| **hello_demo** | 基础示例（菜单/AJAX/配置/钩子） | [README](app_plugins/hello_demo/README.md) |
 
 ### 能力
 
@@ -529,7 +550,7 @@ templates/my_theme/
 - HTTP：`mnbt_http_get` / `mnbt_http_post`（默认禁内网）
 - 配置：`mnbt_plugin_option_get/set`
 - 页面：`admin/plugin.php?p=slug&page=...`、`user/plugin.php?p=slug&page=...`
-- 内置插件：`hello_demo`、`home_demo`、`epay`、`alipay_official`
+- 内置插件：`user_info`、`balance`、`hosting_shop`、`epay`、`alipay_official`、`webhook_notify`、`home_demo`、`hello_demo`
 
 ---
 
