@@ -482,7 +482,14 @@ async function loadSection() {
         if (!Array.isArray(pl)) pl = Object.values(pl || {})
         php.list = pl.filter(Boolean)
       } else if (section === 'mrwd') {
-        mrwd.value = typeof m.index === 'string' ? m.index : Array.isArray(m.index) ? m.index.join(',') : ''
+        let idx = m.index
+        if (Array.isArray(idx)) idx = idx.join(',')
+        idx = idx == null ? '' : String(idx)
+        // 接口误调用时可能把错误文案塞进内容，忽略
+        if (!idx || /不能为空|失败|错误/.test(idx)) {
+          idx = 'index.php,index.html,index.htm,default.php,default.htm,default.html'
+        }
+        mrwd.value = idx
       } else if (section === 'yxml') {
         // runPath 可能是嵌套 { runPath: { runPath: '/', dirs: [] } }
         let dirs = m.dirs || []

@@ -233,18 +233,44 @@ if ($egn === 'set_init') {
 		$msg['php'] = $cur['phpversion'] ?? '';
 		$msg['list'] = $list;
 	} elseif ($section === 'mrwd') {
-		$r = $api->GetLogsea($zjid, '') ?: [];
-		// 默认文档可能在不同字段
-		$msg['index'] = $r['msg'] ?? $r['index'] ?? '';
-		if (is_array($msg['index'])) {
-			$msg['index'] = implode(',', $msg['index']);
+		// 读取：GetIndex(GetLogseb)；写入：SetIndex(GetLogsea)
+		// 旧代码误用 GetLogsea('', '') 会触发「默认文档不能为空」
+		$r = $api->GetLogseb($zjid);
+		$index = '';
+		if (is_string($r) && $r !== '') {
+			$index = $r;
+		} elseif (is_array($r)) {
+			// 数字索引列表: ["index.php","index.html"]
+			if (isset($r[0]) && (is_string($r[0]) || is_numeric($r[0]))) {
+				$flat = true;
+				foreach ($r as $item) {
+					if (is_array($item)) { $flat = false; break; }
+				}
+				if ($flat) {
+					$index = implode(',', $r);
+				}
+			}
+			if ($index === '') {
+				// 常见包装: msg / Index / index / data
+				foreach (['Index', 'index', 'msg', 'data', 'result'] as $k) {
+					if (!isset($r[$k])) continue;
+					$v = $r[$k];
+					if (is_string($v) && $v !== '' && strpos($v, '不能为空') === false) {
+						$index = $v;
+						break;
+					}
+					if (is_array($v) && isset($v[0]) && is_string($v[0])) {
+						$index = implode(',', $v);
+						break;
+					}
+				}
+			}
 		}
-		// 备用：从站点配置取
-		if ($msg['index'] === '' || $msg['index'] === null) {
-			$site = $apist->sitemsg($yhc['sqldz'] ?? '') ?: [];
-			$sm = $site['msg'] ?? [];
-			$msg['index'] = $sm['index'] ?? 'index.php,index.html,index.htm,default.php,default.htm,default.html';
+		if ($index === '' || $index === null || $index === false
+			|| (is_string($index) && (strpos($index, '不能为空') !== false || strpos($index, '失败') !== false))) {
+			$index = 'index.php,index.html,index.htm,default.php,default.htm,default.html';
 		}
+		$msg['index'] = $index;
 	} elseif ($section === 'yxml') {
 		$path = ($os_xt ?? '') . ($yhc['sqldz'] ?? '');
 		$r = $api->yxmlrhq($zjid, $path) ?: [];
