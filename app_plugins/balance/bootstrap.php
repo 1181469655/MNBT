@@ -171,7 +171,7 @@ mnbt_register_menu('admin', [
 mnbt_register_menu('admin', [
 	'title' => '余额管理 - 流水记录',
 	'page'  => 'balance_logs',
-	'icon'  => 'mdi-file-document-multiple',
+	'icon'  => 'mdi-history',
 	'order' => 72,
 	'multitabs' => true,
 ]);
