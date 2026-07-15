@@ -210,6 +210,8 @@ if($egn=='nodeforbiddenscan') {
         'keywords' => $keywords,
         'max_file_size' => $maxFileSizeMb * 1024 * 1024,
         'max_matches' => $maxMatches,
+        'scan_changed_only' => false,
+        'scan_mode' => 'full',
     ]);
     mnbt_admin_node_log($user, '节点管理', '下发违禁词扫描任务 '.$taskId, $DB);
     mnbt_admin_node_exit(true, '违禁词扫描任务已下发', ['task_id' => $taskId]);
@@ -493,6 +495,8 @@ if($egn=='savescancfg') {
                         'keywords' => $keywords,
                         'max_file_size' => $sdzmax,
                         'max_matches' => $sdhmax,
+                        'scan_changed_only' => false,
+                        'scan_mode' => 'full',
                         'auto_trigger' => true,
                         'trigger_reason' => '扫描开关已开启',
                     ]);
