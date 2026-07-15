@@ -1,0 +1,66 @@
+/* 管理端公共样式 */
+.ajhggtr1 {
+  height: 100px;
+  width: 100px;
+}
+.tjnr1 {
+  width: 96%;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  margin: 0 auto;
+  background: #fff;
+}
+.nbvbk {
+  width: 100%;
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+.nbvbks {
+  width: 100%;
+  margin: 0 auto;
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+.dspj {
+  margin-bottom: 10px;
+}
+.a2 {
+  height: 20px;
+  width: 80%;
+}
+.a1 b {
+  margin-left: 4px;
+  text-align: left;
+  line-height: 40px;
+}
+.a3 {
+  float: right;
+  margin-block: -15px;
+  margin-right: 4px;
+}
+.listscr {
+  width: 150px;
+}
+.listscr img {
+  height: 50px;
+  width: 50px;
+  float: left;
+  border: 2px solid #ffffff;
+  border-radius: 6px;
+}
+.wbcchh {
+  word-wrap: break-word;
+  word-break: break-all;
+  overflow: hidden;
+}
+.textmntti {
+  margin: 2px 10px;
+}
+.mdi-delete:hover {
+  color: #ef4444;
+}
+
+/* iframe 内页默认背景 */
+body {
+  background: #f4f6f9;
+}
