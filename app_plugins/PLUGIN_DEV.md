@@ -384,7 +384,24 @@ mnbt_register_route('*', '/health', function ($params, $ctx) {
 
 **Web 服务器配置：**
 
-通用路由需要 Web 服务器把未命中实际文件的请求转发到 `index.php`：
+通用路由支持两种访问方式：
+
+**方式一：查询参数路由（无需 rewrite，推荐）**
+
+引擎支持通过 `index.php?_r=/path` 访问任意插件路由，无需任何 Web 服务器配置。
+插件提供的 `xxx_url()` 辅助函数（如 `user_info_url()`、`balance_url()`、`hosting_url()`）
+已默认生成此格式的 URL，直接可用。
+
+```
+http://example.com/index.php?_r=/account/register
+http://example.com/index.php?_r=/balance/recharge
+http://example.com/index.php?_r=/shop
+```
+
+**方式二：伪静态路径（需 rewrite，URL 更美观）**
+
+如希望使用 `/account/register` 这样无 `index.php?_r=` 前缀的简洁 URL，
+需配置 Web 服务器把未命中实际文件的请求转发到 `index.php`：
 
 - **开发环境（PHP 内置服务器）**：`_router.php` 已自动支持，无需额外配置。
   ```bash

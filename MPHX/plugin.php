@@ -909,11 +909,16 @@ function mnbt_plugin_request_info()
 	if ($basePath === '.' || $basePath === '/') {
 		$basePath = '';
 	}
-	$uri = isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '';
-	$path = parse_url($uri, PHP_URL_PATH) ?: '';
-	// 去掉 base path 前缀
-	if ($basePath !== '' && strpos($path, $basePath) === 0) {
-		$path = substr($path, strlen($basePath));
+	// 支持通过查询参数 _r 传递路由路径（无需 Web 服务器 rewrite 的兼容方案）
+	if (isset($_GET['_r']) && is_string($_GET['_r']) && $_GET['_r'] !== '') {
+		$path = $_GET['_r'];
+	} else {
+		$uri = isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '';
+		$path = parse_url($uri, PHP_URL_PATH) ?: '';
+		// 去掉 base path 前缀
+		if ($basePath !== '' && strpos($path, $basePath) === 0) {
+			$path = substr($path, strlen($basePath));
+		}
 	}
 	if ($path === '' || $path === false) {
 		$path = '/';

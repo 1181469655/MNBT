@@ -20,7 +20,15 @@ function balance_url($path = '')
 	if ($basePath === '.' || $basePath === '/') {
 		$basePath = '';
 	}
-	return $basePath . '/' . ltrim($path, '/');
+	// 使用查询参数路由（index.php?_r=/path），避免依赖 Web 服务器 rewrite
+	$p = ltrim($path, '/');
+	$qpos = strpos($p, '?');
+	if ($qpos !== false) {
+		$route = substr($p, 0, $qpos);
+		$query = substr($p, $qpos + 1);
+		return $basePath . '/index.php?_r=/' . $route . '&' . $query;
+	}
+	return $basePath . '/index.php?_r=/' . $p;
 }
 
 /**
