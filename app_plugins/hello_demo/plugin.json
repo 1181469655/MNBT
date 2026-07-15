@@ -1,0 +1,9 @@
+{
+  "id": "hello_demo",
+  "name": "示例插件 Hello",
+  "version": "1.0.0",
+  "author": "MNBT",
+  "description": "演示菜单、AJAX、配置与主机生命周期钩子。启用后可在后台「插件」菜单进入。",
+  "requires_mnbt": "1.81",
+  "type": ["business", "lifecycle"]
+}

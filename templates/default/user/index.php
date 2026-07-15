@@ -83,6 +83,12 @@
   </ul>
 </li>
 <?php }?>
+<?php
+if (function_exists('mnbt_plugin_render_menu_user_html')) {
+  echo mnbt_plugin_render_menu_user_html();
+}
+?>
+</ul>
 <div class="sidebar-footer">
   <p class="copyright">
     <?=$conf['hxp']?>

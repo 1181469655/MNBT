@@ -41,13 +41,36 @@ if($egn=='setkzmb') {
 	if($DB->query_prepare($sql,[$name,$ftp,$yzm,$kg,$bq,$auther,$siteid]))json_exit('修改成功'); else json_exit('修改失败'.$DB->error());
 	return;
 }
-if($egn=='setzf') {
-	$url=daddslashes($_POST['url']);
-	$id=daddslashes($_POST['id']);
-	$key=daddslashes($_POST['key']);
-	$sql="update `MN_config` set `hxe` =?,`hxr` =?,`hxt` =? where `id`=?";
-	logjl($user,'支付设置','修改了支付对接信息','修改成功',$DB);
-	if($DB->query_prepare($sql,[$url,$id,$key,$siteid]))json_exit('修改成功'); else json_exit('修改失败'.$DB->error());
+if($egn=='setpaymethods') {
+	$raw = isset($_POST['methods']) ? $_POST['methods'] : '';
+	$data = json_decode($raw, true);
+	if (!is_array($data)) {
+		json_exit('数据格式错误');
+	}
+	// 校验并规范化
+	$clean = [];
+	$seen = [];
+	foreach ($data as $row) {
+		if (!is_array($row)) continue;
+		$plugin = isset($row['plugin']) ? preg_replace('/[^a-zA-Z0-9_\-]/', '', (string)$row['plugin']) : '';
+		$method = isset($row['method']) ? preg_replace('/[^a-zA-Z0-9_\-]/', '', (string)$row['method']) : '';
+		if ($plugin === '' || $method === '') continue;
+		$key = $plugin . '__' . $method;
+		if (isset($seen[$key])) continue;
+		$seen[$key] = true;
+		$clean[] = [
+			'plugin'       => $plugin,
+			'method'       => $method,
+			'display_name' => mb_substr(isset($row['display_name']) ? trim((string)$row['display_name']) : '', 0, 40),
+			'icon'         => mb_substr(isset($row['icon']) ? trim((string)$row['icon']) : '', 0, 60),
+			'sort'         => isset($row['sort']) ? max(0, min(999, (int)$row['sort'])) : 99,
+		];
+	}
+	if (function_exists('mnbt_save_payment_methods') && mnbt_save_payment_methods($clean)) {
+		logjl($user, '支付设置', '保存了 ' . count($clean) . ' 个付款方式', '修改成功', $DB);
+		json_exit('修改成功');
+	}
+	json_exit('修改失败');
 	return;
 }
 if($egn=='gl') {

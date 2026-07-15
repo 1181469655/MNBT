@@ -1,0 +1,9 @@
+{
+  "id": "user_info",
+  "name": "用户信息",
+  "version": "1.0.0",
+  "author": "MNBT",
+  "description": "独立用户系统：提供注册、登录、个人信息、修改密码功能。独立于主机账号，一个用户可绑定多台主机（后续扩展）。V1.81 P3。",
+  "requires_mnbt": "1.81",
+  "type": ["business", "lifecycle"]
+}

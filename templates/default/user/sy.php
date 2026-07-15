@@ -101,6 +101,12 @@ if($yhc['mailuser'] == "" || $yhc['mailuser'] == null)
     </div>
 </div>
 
+<?php
+if (function_exists('mnbt_plugin_render_widgets_html')) {
+	echo mnbt_plugin_render_widgets_html('user');
+}
+?>
+
 <div class="row d-sm-block">
     <div class="col-lg-12">
       <div class="card">

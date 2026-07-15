@@ -205,27 +205,6 @@ window.location.href="./log.php"
 }
 
 
-function setzf() {
-msloading('正在修改中！请稍后...','text-info','text-info');  // 加载显示
-let data = {};
-data["gn"]="setzf";
-data["url"]=yurl.value;
-data["id"]=yid.value;
-data["key"]=ykey.value;
-$.post('./ajax.php', data, function (date) {
-var jsoe= JSON.parse(date);    
-var qk= jsoe.code
-
-if(qk=='修改成功'){
-msalert(1,'修改成功！',2000);
-msloadingde();  // 隐藏
-}else{
-msalert(4,qk,2000);
-msloadingde();  // 隐藏
-}                        
-})
-}
-
 $(function(){
     //文件选择监听
 $(".custom-file-input").on("change",function(){

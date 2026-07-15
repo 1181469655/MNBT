@@ -1,0 +1,9 @@
+{
+  "id": "epay",
+  "name": "易支付",
+  "version": "1.0.0",
+  "author": "MNBT",
+  "description": "彩虹易支付协议（pid/key/apiurl），支持支付宝/微信/QQ 钱包。V1.81 P3 起从核心代码迁移为插件。",
+  "requires_mnbt": "1.81",
+  "type": ["payment"]
+}

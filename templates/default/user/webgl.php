@@ -96,15 +96,16 @@ echo '<div class="col-12"><div class="card"><div class="card-body text-center te
 	  <label for="web_site_logo">请选择支付方式</label>
           <div class="example-box">
               <div class="row">
+            <?php $__pay_methods = function_exists('mnbt_get_enabled_payment_methods') ? mnbt_get_enabled_payment_methods() : []; ?>
+            <?php foreach ($__pay_methods as $__idx => $__m): ?>
+            <?php $__type = $__m['plugin'] . '__' . $__m['method']; ?>
             <label class="lyear-radio radio-inline radio-primary col">
-              <input type="radio" name="type" value="alipay"><i class="mdi mdi-puzzle"></i><span>支付宝支付</span>
+              <input type="radio" name="type" value="<?php echo htmlspecialchars($__type); ?>" <?php echo $__idx === 0 ? 'checked' : ''; ?>><i class="mdi <?php echo htmlspecialchars($__m['icon'] ?? 'mdi-payment'); ?>"></i><span><?php echo htmlspecialchars($__m['display_name']); ?></span>
             </label>
-            <label class="lyear-radio radio-inline radio-primary col">
-              <input type="radio" name="type" value="qqpay"><i class="mdi mdi-qqchat"></i><span>QQ支付</span>
-            </label>
-            <label class="lyear-radio radio-inline radio-primary col">
-              <input type="radio" name="type" value="wxpay"><i class="mdi mdi-wechat"></i><span>微信支付</span>
-            </label>
+            <?php endforeach; ?>
+            <?php if (empty($__pay_methods)): ?>
+            <label class="col text-muted">暂无可用支付方式，请联系管理员</label>
+            <?php endif; ?>
           </div>
           </div>
           

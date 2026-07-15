@@ -1,11 +1,11 @@
-# 梦奈宝塔主机系统 (MNBT) V1.80
+# 梦奈宝塔主机系统 (MNBT) V1.81
 
-基于宝塔面板 API 的虚拟主机分销管理系统，支持多节点宝塔面板统一管理、用户自主开通主机、一键部署网站程序、在线文件管理、Gzip/缓存配置、URL/资源监控告警、违禁词扫描、**可切换前端主题**等功能。
+基于宝塔面板 API 的虚拟主机分销管理系统，支持多节点宝塔面板统一管理、用户自主开通主机、一键部署网站程序、在线文件管理、Gzip/缓存配置、URL/资源监控告警、违禁词扫描、**可切换前端主题**、**PHP 业务插件**等功能。
 
 ![PHP](https://img.shields.io/badge/PHP-7.4%20~%208.4-777BB4?logo=php&logoColor=white)
 ![MySQL](https://img.shields.io/badge/MySQL-5.6%2B-4479A1?logo=mysql&logoColor=white)
 ![License](https://img.shields.io/badge/license-Commercial-blue)
-![Version](https://img.shields.io/badge/version-1.80-green)
+![Version](https://img.shields.io/badge/version-1.81-green)
 
 ---
 
@@ -23,6 +23,8 @@
 - [MNBT 节点插件](#mnbt-节点插件)
 - [前端模板](#前端模板)
 - [主题开发](#主题开发)
+- [PHP 业务插件](#php-业务插件)
+- [插件开发](#插件开发)
 - [安全说明](#安全说明)
 - [常见问题](#常见问题)
 - [更新日志](#更新日志)
@@ -51,6 +53,7 @@
 - ✅ **完善的操作日志**：所有关键操作可追溯
 - ✅ **可切换前端主题**：用户端 / 管理端独立皮肤，缺页回退 default
 - ✅ **清凉云 SPA 主题**：Vue 3 + Element Plus，白绿圆角现代化用户端
+- ✅ **PHP 业务插件**：`app_plugins/` 目录插件，钩子 / AJAX / 菜单 / 配置（与宝塔节点 Python 插件分离）
 
 ---
 
@@ -66,7 +69,9 @@
 | 域名管理 | 域名添加、价格设置、绑定宝塔节点、上下架 |
 | 一键部署 | 可编程部署引擎，10 种自动化操作 + 模板变量，支持导入/导出 |
 | 订单管理 | 所有支付订单查询与管理 |
-| 系统设置 | 网站公告、支付接口（易支付）、邮箱配置（SMTP）、API 密钥、PHP 版本、建站目录、监控告警、违禁词扫描、**前端模板切换** |
+| 系统设置 | 网站公告、邮箱配置（SMTP）、API 密钥、PHP 版本、建站目录、监控告警、违禁词扫描、**前端模板切换** |
+| **支付设置** | 插件化支付架构，内置易支付/支付宝官方插件，支持启用付款方式、自定义显示名与排序 |
+| **插件管理** | 扫描 `app_plugins/`、安装/启用/禁用/卸载、插件菜单与页面 |
 | 操作日志 | 完整操作日志记录、搜索、分页、清空 |
 | 系统更新 | 远程在线升级 |
 
@@ -145,17 +150,18 @@
 
 访问 `http://你的域名/install`，按向导提示完成：
 
-1. 环境检测（PHP 版本 >= 7.4.0、扩展检测）
-2. 数据库配置（填写 MySQL 连接信息）
-3. 初始化数据库（自动导入表结构）
-4. 完成安装
+1. 欢迎 / 许可协议
+2. 环境检测（PHP 版本 >= 7.4.0、curl 等）
+3. 数据库配置（填写 MySQL 连接信息）
+4. **站点与管理员**（控制面板名称、站长 QQ、公告、管理员账号密码）
+5. 初始化数据库（自动导入表结构，或重装模式）
+6. 完成安装（完成页会显示你设置的管理员账号）
 
 ### 4. 登录管理
 
 - 管理后台：`http://你的域名/admin`
-- 默认账号：`admin`
-- 默认密码：`123456`
-- ⚠️ **生产环境请立即修改默认密码！**
+- 账号/密码：安装向导中设置的管理员信息（不再固定 `admin/123456`）
+- ⚠️ **请妥善保存密码；安装后建议删除 `install` 目录**
 
 ### 5. 对接宝塔面板
 
@@ -237,7 +243,9 @@ chown -R www:www .
 │   │   ├── login.php         # 登录
 │   │   ├── repair.php        # 系统修复
 │   │   ├── setting.php       # 系统设置
+│   │   ├── plugin.php        # 插件管理 AJAX
 │   │   └── log.php           # 操作日志
+│   ├── plugin.php            # 插件管理页 / 插件页面入口
 │   ├── class.php             # bt_api 引用包装器
 │   ├── mail.php              # 邮件发送
 │   └── update.php            # 系统更新
@@ -281,9 +289,10 @@ chown -R www:www .
 │   ├── security.php          # 安全过滤
 │   ├── node.function.php     # MNBT 节点函数库
 │   ├── theme.php             # 主题加载引擎（render / 切换 / 回退）
+│   ├── plugin.php            # PHP 业务插件引擎（钩子 / AJAX / 配置）
 │   ├── database_backup.function.php
 │   ├── BL.php / SQ.php       # 业务辅助
-│   ├── lib/                  # 支付宝 SDK（core.function/submit/notify/md5）
+│   ├── lib/                  # 公共函数库（pay.function.php 支付结算逻辑）
 │   └── 360safe/              # WAF 防护
 │
 ├── templates/                # 前端主题（用户端 + 管理端视图）
@@ -296,6 +305,14 @@ chown -R www:www .
 │       ├── user/             # 用户控制面板视图
 │       └── admin/            # 管理后台视图
 │
+├── app_plugins/              # PHP 业务插件（非宝塔 Python 插件）
+│   ├── README.md             # 插件开发说明
+│   ├── PLUGIN_DEV.md         # 插件开发手册
+│   ├── hello_demo/           # 官方示例（菜单 / AJAX / 配置）
+│   ├── home_demo/            # 首页接管 + 通用路由示例（P2）
+│   ├── epay/                 # 易支付插件（P3，从核心迁移）
+│   └── alipay_official/      # 支付宝官方 API 插件（P3，PC + 当面付）
+│
 ├── api/                      # 外部 API 接口
 │   ├── api.php               # RESTful API 入口
 │   ├── api.class.php         # bt_api 引用包装器
@@ -304,7 +321,7 @@ chown -R www:www .
 ├── install/                  # 安装向导
 │   ├── index.php             # 安装步骤页面
 │   ├── install.api.php       # 安装接口（PHP 版本 >= 7.4.0）
-│   ├── install.sql           # 完整数据库表结构（含监控表/节点表/违禁词扫描表）
+│   ├── install.sql           # 完整数据库表结构（含监控表/节点表/违禁词扫描表/插件表）
 │   └── db.class.php          # 安装专用数据库类
 │
 ├── jk.php                    # 域名/文件监控
@@ -314,7 +331,7 @@ chown -R www:www .
 ├── composer.json             # Composer（vendor-dir: mail/vendor）
 ├── mail/                     # PHPMailer 6.x 邮件库
 ├── filecx/                   # 一键部署程序包
-├── plugins/                  # MNBT 节点插件
+├── plugins/                  # MNBT 节点插件（宝塔侧 Python）
 ├── runtime/                  # 运行时文件
 │   └── logs/                 # PHP 错误日志
 └── imsetes/                  # 静态资源（CSS/JS/字体/图标/CodeMirror/FullCalendar）
@@ -480,6 +497,102 @@ templates/my_theme/
 
 ---
 
+## PHP 业务插件
+
+与宝塔侧 `plugins/mnbt_connector`（Python 节点代理）**分离**。业务扩展放在 `app_plugins/`。
+
+### 快速使用
+
+1. 将插件目录放入 `app_plugins/{slug}/`（需 `plugin.json` + `bootstrap.php`）
+2. 后台 → 系统管理 → **插件管理** → 安装 → 启用
+3. **整页刷新**后台；侧栏出现「插件」菜单（若插件注册了菜单）
+4. 已有站点执行一次 `update/update_v181_plugin.sql`（或依赖自动建表）
+
+### 文档与示例
+
+| 路径 | 说明 |
+|------|------|
+| **[app_plugins/PLUGIN_DEV.md](app_plugins/PLUGIN_DEV.md)** | **插件开发手册**（新建步骤、API、钩子、安全、FAQ） |
+| [app_plugins/README.md](app_plugins/README.md) | 目录约定、快速启用、API 摘要 |
+| `MPHX/plugin.php` | 插件引擎源码 |
+
+### 自带插件
+
+#### 业务插件
+
+| 插件 | 说明 | README |
+|------|------|--------|
+| **user_info** | 独立用户系统（注册/登录/个人信息/修改密码） | [README](app_plugins/user_info/README.md) |
+| **balance** | 余额管理（充值/消费/流水，依赖 user_info） | [README](app_plugins/balance/README.md) |
+| **hosting_shop** | 主机售卖（套餐/购买/自动开通，依赖 user_info + balance） | [README](app_plugins/hosting_shop/README.md) |
+
+#### 支付插件
+
+| 插件 | 说明 | README |
+|------|------|--------|
+| **epay** | 易支付（彩虹易支付协议，支付宝/微信/QQ） | [README](app_plugins/epay/README.md) |
+| **alipay_official** | 支付宝官方 API（PC + 当面付，RSA2） | [README](app_plugins/alipay_official/README.md) |
+
+#### 集成与示例插件
+
+| 插件 | 说明 | README |
+|------|------|--------|
+| **webhook_notify** | Webhook 通知（主机事件/订单支付，HMAC 签名） | [README](app_plugins/webhook_notify/README.md) |
+| **home_demo** | 首页接管 + 通用路由示例（P2） | [README](app_plugins/home_demo/README.md) |
+| **hello_demo** | 基础示例（菜单/AJAX/配置/钩子） | [README](app_plugins/hello_demo/README.md) |
+
+### 能力
+
+- 钩子：`boot`、`host.*`、`order.paid`、`cron`、`menu.*`、dashboard widgets
+- 注册：`mnbt_register_ajax` / `page` / `menu` / `widget` / `settings_tab`
+- 路由：`mnbt_register_home` / `mnbt_register_route`（P2，首页接管 + 通用路由）
+- 支付：`mnbt_register_payment` / `mnbt_pay_settle_order`（P3，支付插件化）
+- HTTP：`mnbt_http_get` / `mnbt_http_post`（默认禁内网）
+- 配置：`mnbt_plugin_option_get/set`
+- 页面：`admin/plugin.php?p=slug&page=...`、`user/plugin.php?p=slug&page=...`
+- 内置插件：`user_info`、`balance`、`hosting_shop`、`epay`、`alipay_official`、`webhook_notify`、`home_demo`、`hello_demo`
+
+---
+
+## 插件开发
+
+完整开发说明见 **[app_plugins/PLUGIN_DEV.md](app_plugins/PLUGIN_DEV.md)**（与 [主题开发手册](templates/THEME_DEV.md) 并列）。
+
+### 最短新建流程
+
+```text
+app_plugins/my_plugin/
+├── plugin.json      # name / version / description
+├── bootstrap.php    # 注册菜单、AJAX、钩子
+└── admin/index.php  # 可选后台页
+```
+
+1. 编写 `plugin.json` + `bootstrap.php`（用 `mnbt_register_*` / `mnbt_add_action`）
+2. 后台 → **插件管理** → 安装 → 启用 → 整页刷新
+3. AJAX：`POST admin/ajax.php`，`gn` 建议 `p_my_plugin_*`
+4. 页面：`admin/plugin.php?p=my_plugin&page=index`
+
+### 手册章节索引
+
+| 章节 | 内容 |
+|------|------|
+| 设计原则 | 不改核心 URL、option 表、路径隔离 |
+| 新建插件 | 目录、`plugin.json`、`bootstrap` 模板、自测清单 |
+| 核心 API | 钩子 / AJAX / 菜单页面 / 配置 / 小部件 / HTTP |
+| 钩子一览 | `host.*`、`order.paid`、`cron` 及触发位置 |
+| 数据库 | `MN_plugin`、自建表前缀 `plg_*` |
+| 安全与 FAQ | 鉴权、冲突、SPA、在线更新 |
+
+### 与主题开发对照
+
+| | 主题 | 插件 |
+|--|------|------|
+| 目录 | `templates/{id}/` | `app_plugins/{slug}/` |
+| 手册 | [templates/THEME_DEV.md](templates/THEME_DEV.md) | [app_plugins/PLUGIN_DEV.md](app_plugins/PLUGIN_DEV.md) |
+| 职责 | 外观与页面 HTML | 业务能力、事件、对接 |
+| 后台开关 | 系统管理 → 前端模板 | 系统管理 → 插件管理 |
+
+---
 
 ## 常见问题
 
@@ -568,7 +681,7 @@ backup/
 
 ### 部署安全建议
 
-1. ✅ 修改默认管理员密码（`admin/123456`）
+1. ✅ 使用安装时设置的强密码，并定期更换管理员密码
 2. ✅ 修改 API 密钥（系统设置 → API 接口）
 3. ✅ 启用 HTTPS（SSL 证书配置）
 4. ✅ 修改宝塔面板默认端口
@@ -582,7 +695,51 @@ backup/
 
 ## 更新日志
 
-### V1.80（当前）
+### V1.81（当前）
+
+**PHP 业务插件系统（P0 + P1）**
+
+- 引擎：`MPHX/plugin.php`，启动挂载于 `common.php`
+- 目录：`app_plugins/{slug}/`（`plugin.json` + `bootstrap.php`）
+- 表：`MN_plugin`、`MN_plugin_option`（升级 SQL：`update/update_v181_plugin.sql`）
+- 后台：系统管理 → 插件管理；侧栏可注入「插件」菜单（管理端 + 用户端）
+- AJAX：`user/ajax.php` / `admin/ajax.php` 优先分发插件 `gn`
+- 钩子：`boot`、`host.created/paused/unpaused/renewed/deleted`、`order.paid`、`cron`、`menu.*`、dashboard widgets
+- P1：`mnbt_http_*`、`mnbt_register_widget`、`mnbt_register_settings_tab`
+- 示例：`hello_demo`、`webhook_notify`（主机/订单 Webhook + HMAC）
+- 文档：[app_plugins/README.md](app_plugins/README.md)
+
+**插件引擎扩展（P2 路由系统）**
+
+- `mnbt_register_home()`：接管站点根 `/` 的响应（重定向或渲染自定义首页）
+- `mnbt_register_route($method, $path, $cb)`：通用路由，支持命名参数 `{id}`、尾斜杠可选
+- `index.php` 提供回退路由分发；`_router.php` 支持 PHP 内置开发服务器
+- Nginx/Apache 需配置 `try_files` / `RewriteRule` 将未命中请求转发至 `index.php`
+- 示例：`home_demo`（首页接管 + 通用路由）
+
+**支付插件系统（P3 重构）**
+
+- 支付架构插件化：易支付、支付宝官方均改为独立插件（`app_plugins/epay/`、`app_plugins/alipay_official/`）
+- 新增 API：`mnbt_register_payment`、`mnbt_pay_dispatch_gateway`、`mnbt_pay_settle_order`、`mnbt_get_enabled_payment_methods`、`mnbt_save_payment_methods`
+- 新增统一支付设置页 `admin/pay_settings.php`：仅管理启用/禁用、显示名、图标、排序
+- 支付插件 API 凭证由插件自身设置页维护（`MN_plugin_option`），与系统层解耦
+- 客户端 `user/pay.php` 重写为插件分发；模板 `webgl.php`、`set.php` 动态渲染付款方式
+- 异步/同步回调改由 P2 通用路由处理：`/pay/{slug}/notify`、`/pay/{slug}/return`
+- 易支付插件支持自动迁移旧 `MN_config.hxe/hxr/hxt` 配置
+- 旧文件清理：`user/notify_url.php`、`user/return_url.php`、`MPHX/lib/submit.class.php`、`notify.class.php`、`core.function.php`、`md5.function.php`
+- 升级 SQL：`update/update_v181_p3_pay.sql`（新增 `MN_config.pay_methods` 字段）
+
+**安装向导增强**
+
+- 新增「站点与管理员」步骤：控制面板名称、站长 QQ、公告、管理员账号/密码
+- 安装完成写入 `MN_config`；完成页展示登录信息（不再固定 admin/123456）
+
+**文档**
+
+- 插件开发手册：[app_plugins/PLUGIN_DEV.md](app_plugins/PLUGIN_DEV.md)
+- 仓库 README 增加 [插件开发](#插件开发) 入口
+
+### V1.80
 
 **前端主题系统**
 

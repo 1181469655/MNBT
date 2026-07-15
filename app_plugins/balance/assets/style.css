@@ -1,0 +1,380 @@
+/* balance 插件样式 - 简洁自然，与 user_info 风格一致 */
+
+* {
+	margin: 0;
+	padding: 0;
+	box-sizing: border-box;
+}
+
+body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+	background: #f5f6f8;
+	color: #2c3338;
+	line-height: 1.6;
+	-webkit-font-smoothing: antialiased;
+}
+
+/* 导航栏 */
+.bal-nav {
+	background: #fff;
+	border-bottom: 1px solid #e8eaed;
+}
+
+.bal-nav-inner {
+	max-width: 960px;
+	margin: 0 auto;
+	padding: 0 20px;
+	height: 52px;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.bal-nav-logo {
+	font-size: 16px;
+	font-weight: 600;
+	color: #2c3338;
+	text-decoration: none;
+}
+
+.bal-nav-links {
+	display: flex;
+	gap: 8px;
+}
+
+.bal-nav-links a {
+	color: #5f6368;
+	text-decoration: none;
+	font-size: 14px;
+	padding: 6px 12px;
+	border-radius: 4px;
+	transition: background 0.15s ease, color 0.15s ease;
+}
+
+.bal-nav-links a:hover {
+	background: #f0f1f3;
+	color: #2c3338;
+}
+
+/* 主内容区 */
+.bal-main {
+	max-width: 720px;
+	margin: 32px auto;
+	padding: 0 20px;
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+}
+
+/* 卡片 */
+.bal-card {
+	background: #fff;
+	border: 1px solid #e8eaed;
+	border-radius: 8px;
+	padding: 24px;
+}
+
+/* 余额展示 */
+.bal-balance-box {
+	text-align: center;
+	padding: 20px 0;
+}
+
+.bal-balance-label {
+	font-size: 14px;
+	color: #5f6368;
+	margin-bottom: 8px;
+}
+
+.bal-balance-amount {
+	font-size: 36px;
+	font-weight: 600;
+	color: #1a73e8;
+	margin-bottom: 20px;
+}
+
+/* 按钮 */
+.bal-btn {
+	display: inline-block;
+	height: 40px;
+	line-height: 40px;
+	padding: 0 24px;
+	border: none;
+	border-radius: 6px;
+	font-size: 14px;
+	font-weight: 500;
+	cursor: pointer;
+	text-decoration: none;
+	transition: background 0.15s ease;
+}
+
+.bal-btn-primary {
+	background: #4285f4;
+	color: #fff;
+}
+
+.bal-btn-primary:hover {
+	background: #3367d6;
+}
+
+.bal-btn-primary:active {
+	background: #2a5bb8;
+}
+
+.bal-btn-primary:disabled {
+	background: #a4c4f7;
+	cursor: not-allowed;
+}
+
+/* 区块标题 */
+.bal-section-title {
+	font-size: 16px;
+	font-weight: 600;
+	margin-bottom: 16px;
+	padding-bottom: 12px;
+	border-bottom: 1px solid #f0f1f3;
+}
+
+/* 空状态 */
+.bal-empty {
+	text-align: center;
+	color: #80868b;
+	font-size: 14px;
+	padding: 24px 0;
+}
+
+/* 表格 */
+.bal-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 13px;
+}
+
+.bal-table th {
+	text-align: left;
+	padding: 10px 8px;
+	color: #5f6368;
+	font-weight: 500;
+	border-bottom: 1px solid #e8eaed;
+}
+
+.bal-table td {
+	padding: 10px 8px;
+	border-bottom: 1px solid #f0f1f3;
+}
+
+.bal-table tbody tr:hover {
+	background: #f8f9fa;
+}
+
+.bal-income {
+	color: #137333;
+	font-weight: 500;
+}
+
+.bal-expense {
+	color: #c5221f;
+	font-weight: 500;
+}
+
+.bal-mono {
+	font-family: "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+	font-size: 12px;
+	color: #80868b;
+}
+
+/* 分页 */
+.bal-pagination {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	gap: 16px;
+	margin-top: 20px;
+	font-size: 13px;
+}
+
+.bal-pagination a {
+	color: #4285f4;
+	text-decoration: none;
+	padding: 6px 12px;
+	border: 1px solid #dadce0;
+	border-radius: 4px;
+}
+
+.bal-pagination a:hover {
+	background: #eaf1fe;
+}
+
+.bal-page-info {
+	color: #5f6368;
+}
+
+/* 表单 */
+.bal-form {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+.bal-form h1 {
+	font-size: 22px;
+	font-weight: 600;
+}
+
+.bal-form-sub {
+	font-size: 13px;
+	color: #80868b;
+	margin-top: -12px;
+}
+
+.bal-field {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.bal-field label {
+	font-size: 13px;
+	color: #5f6368;
+}
+
+.bal-field input[type="number"],
+.bal-field input[type="text"] {
+	width: 100%;
+	height: 38px;
+	padding: 0 12px;
+	border: 1px solid #dadce0;
+	border-radius: 6px;
+	font-size: 14px;
+	color: #2c3338;
+	transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.bal-field input:focus {
+	outline: none;
+	border-color: #4285f4;
+	box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.15);
+}
+
+/* 支付方式选择 */
+.bal-pay-methods {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+}
+
+.bal-pay-method {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 10px 16px;
+	border: 1px solid #dadce0;
+	border-radius: 6px;
+	cursor: pointer;
+	font-size: 14px;
+	transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.bal-pay-method:hover {
+	border-color: #4285f4;
+}
+
+.bal-pay-method input {
+	margin: 0;
+}
+
+.bal-pay-method input:checked + span {
+	color: #4285f4;
+	font-weight: 500;
+}
+
+.bal-pay-method:has(input:checked) {
+	border-color: #4285f4;
+	background: #eaf1fe;
+}
+
+/* 快捷金额 */
+.bal-quick-amounts {
+	display: flex;
+	gap: 8px;
+}
+
+.bal-quick-amounts button {
+	flex: 1;
+	height: 36px;
+	border: 1px solid #dadce0;
+	border-radius: 6px;
+	background: #fff;
+	font-size: 13px;
+	color: #5f6368;
+	cursor: pointer;
+	transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.bal-quick-amounts button:hover {
+	border-color: #4285f4;
+	color: #4285f4;
+}
+
+/* 表单底部 */
+.bal-form-footer {
+	text-align: center;
+	font-size: 13px;
+	margin-top: 4px;
+}
+
+.bal-form-footer a {
+	color: #4285f4;
+	text-decoration: none;
+}
+
+.bal-form-footer a:hover {
+	text-decoration: underline;
+}
+
+/* 消息提示（复用 user_info 样式类名） */
+.account-msg {
+	padding: 10px 14px;
+	border-radius: 6px;
+	font-size: 13px;
+	margin-bottom: 16px;
+	display: none;
+}
+
+.account-msg.show {
+	display: block;
+}
+
+.account-msg-error {
+	background: #fce8e6;
+	color: #c5221f;
+}
+
+.account-msg-success {
+	background: #e6f4ea;
+	color: #137333;
+}
+
+/* 响应式 */
+@media (max-width: 520px) {
+	.bal-main {
+		margin: 16px auto;
+	}
+
+	.bal-card {
+		padding: 16px;
+	}
+
+	.bal-balance-amount {
+		font-size: 28px;
+	}
+
+	.bal-table {
+		font-size: 12px;
+	}
+
+	.bal-table th,
+	.bal-table td {
+		padding: 8px 4px;
+	}
+}

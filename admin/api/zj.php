@@ -43,7 +43,12 @@ if($egn=='zjsc') {
 	$r_data = $api->delsite($ftr,$sza);
 	if($r_data['status']=='1' || $r_data['status']=='true' || $r_data['msg']=='指定站点不存在!') {
 		mnbt_log($user,'删除主机','删除ID'.$id.'宝塔成功','删除成功',$DB);
-		if($DB->query_prepare("DELETE FROM MN_zj WHERE id=? limit 1", [$id]))json_exit('删除成功'); else { mnbt_log($user,'删除主机','删除ID'.$id.'数据库失败','删除失败',$DB); json_exit('删除失败'.$DB->error()); }
+		if($DB->query_prepare("DELETE FROM MN_zj WHERE id=? limit 1", [$id])){
+			if (function_exists('mnbt_do_action')) {
+				mnbt_do_action('host.deleted', $cres, ['source'=>'admin']);
+			}
+			json_exit('删除成功');
+		} else { mnbt_log($user,'删除主机','删除ID'.$id.'数据库失败','删除失败',$DB); json_exit('删除失败'.$DB->error()); }
 	} else {
         mnbt_log($user,'删除主机','删除ID'.$id.'宝塔失败','删除失败：'.($r_data['msg'] ?? '未知错误'),$DB);
 	        exit(json_encode(['code'=>"删除失败！宝塔返回信息：{$r_data['msg']}"],256));
@@ -158,9 +163,15 @@ if($egn=='zjxgjl') {
 			if($kg=='true') {
 				$api->siteqt($cres['btid'],$cres['sqldz'],true);
 				$api->setftpzt($cres['ftpid'],$cres['user'],'1');
+				if (function_exists('mnbt_do_action')) {
+					mnbt_do_action('host.unpaused', $cres, ['source'=>'admin']);
+				}
 			} else {
 				$api->siteqt($cres['btid'],$cres['sqldz'],false);
 				$api->setftpzt($cres['ftpid'],$cres['user'],'0');
+				if (function_exists('mnbt_do_action')) {
+					mnbt_do_action('host.paused', $cres, ['source'=>'admin']);
+				}
 			}
 		}
 		if($kg=='true' && strtotime($date)-strtotime($datar)<0 && $datar!='0000-00-00') {
@@ -179,7 +190,13 @@ if($egn=='zjxgjl') {
 		mnbt_log($user,'修改主机','修改ID'.$id.'配置','修改成功',$DB);
 			if($cres['datae'] != $datar) mnbt_log($user,'主机续费','ID'.$id.'到期'.$cres['datae'].'=>'.$datar,'修改成功',$DB);
 		@header('Content-Type: text/html; charset=UTF-8');
-		if($DB->query_prepare("update `MN_zj` set `datae` =?, `ymbds` =?, `hxa` =?, `hxb` =?, `sqlpass` =?, `pass` =?, `qk` =?, `llmax` =? where `id`=?", [$datar, $ymbds, $s_web, $s_sql, $sqlpass, $pass, $kg, $llde, $id])) json_exit('修改成功'); else json_exit('修改失败');
+		if($DB->query_prepare("update `MN_zj` set `datae` =?, `ymbds` =?, `hxa` =?, `hxb` =?, `sqlpass` =?, `pass` =?, `qk` =?, `llmax` =? where `id`=?", [$datar, $ymbds, $s_web, $s_sql, $sqlpass, $pass, $kg, $llde, $id])){
+			if (function_exists('mnbt_do_action') && $cres['datae'] != $datar) {
+				$host_row = $DB->get_row_prepare("SELECT * FROM MN_zj WHERE id=? limit 1", [$id]);
+				mnbt_do_action('host.renewed', $host_row ?: array_merge($cres, ['datae'=>$datar]), ['source'=>'admin','old_date'=>$cres['datae'],'new_date'=>$datar]);
+			}
+			json_exit('修改成功');
+		} else json_exit('修改失败');
 	} else {
 		json_exit('修改失败');
 	}
@@ -263,7 +280,13 @@ if($egn=='addzj') {
 			$rowe=$DB->get_row_prepare("SELECT * FROM MN_zj WHERE 1 order by id desc limit 1");
 			$id=$rowe['id']+1;
 			mnbt_log($user,'添加主机','添加ID'.$id.'宝塔成功','添加成功',$DB);
-			if($DB->query_prepare("INSERT INTO `MN_zj` (`id`, `ssbt`, `user`, `pass`, `sqluser`, `sqlpass`, `data`, `datae`, `qk`, `btid`, `sqldz`, `ftpid`, `ymbds`, `hxa`, `hxb`, `hxc`, `hxd`, `llmax`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", [$id, $btdh, $user, $pass, $user, $pass, $date, $datae, $kg, $zdide, $btserw, $aedfs, $ymbds, $webdx, $sqldx, $cptype, $sqlfs, $flowratemax]))json_exit('添加成功'); else { mnbt_log($user,'添加主机','添加ID'.$id.'数据库失败','添加失败',$DB); json_exit('添加失败'.$DB->error()); }
+			if($DB->query_prepare("INSERT INTO `MN_zj` (`id`, `ssbt`, `user`, `pass`, `sqluser`, `sqlpass`, `data`, `datae`, `qk`, `btid`, `sqldz`, `ftpid`, `ymbds`, `hxa`, `hxb`, `hxc`, `hxd`, `llmax`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", [$id, $btdh, $user, $pass, $user, $pass, $date, $datae, $kg, $zdide, $btserw, $aedfs, $ymbds, $webdx, $sqldx, $cptype, $sqlfs, $flowratemax])){
+				$host_row = $DB->get_row_prepare("SELECT * FROM MN_zj WHERE id=? limit 1", [$id]);
+				if (function_exists('mnbt_do_action')) {
+					mnbt_do_action('host.created', $host_row ?: ['id'=>$id,'user'=>$user,'ssbt'=>$btdh,'btid'=>$zdide,'sqldz'=>$btserw], ['source'=>'admin']);
+				}
+				json_exit('添加成功');
+			} else { mnbt_log($user,'添加主机','添加ID'.$id.'数据库失败','添加失败',$DB); json_exit('添加失败'.$DB->error()); }
 		} else {
 			mnbt_log($user,'添加主机','添加'.$user.'到期设置失败','添加失败',$DB);
 				json_exit('添加失败');

@@ -53,16 +53,22 @@
                 <li> <a class="multitabs" href="set.php?gn=wz">网站设置</a> </li>
                 <li> <a class="multitabs" href="set.php?gn=gl">管理设置</a> </li>
                 <li> <a class="multitabs" href="set.php?gn=api">API设置</a> </li>
-                <li> <a class="multitabs" href="set.php?gn=yzf">支付设置</a> </li>
+                <li> <a class="multitabs" href="pay_settings.php">支付设置</a> </li>
                 <li> <a class="multitabs" href="set.php?gn=mail">邮箱设置</a> </li>
                 <li> <a class="multitabs" href="set.php?gn=jk">监控主机删除设置</a> </li>
                 <li> <a class="multitabs" href="set.php?gn=kzmb">控制面板管理</a> </li>
                 <li> <a class="multitabs" href="set.php?gn=theme">前端模板</a> </li>
+                <li> <a class="multitabs" href="plugin.php">插件管理</a> </li>
                 <li> <a class="multitabs" href="tutorial.php">教程及监控</a> </li>
                 <li> <a class="multitabs" href="update.php">系统更新</a> </li>
                 <li> <a class="multitabs" href="list.php?gn=log">操作日志</a> </li>
               </ul>
             </li>
+            <?php
+            if (function_exists('mnbt_plugin_render_menu_admin_html')) {
+              echo mnbt_plugin_render_menu_admin_html();
+            }
+            ?>
             <li class="nav-item nav-item-has-subnav"> <a href="javascript:void(0)"> <i class="mdi mdi-domain"></i> <span>二级域名</span> </a>
               <ul class="nav nav-subnav">
                 <li> <a class="multitabs" href="list.php?gn=ym">域名列表</a> </li>

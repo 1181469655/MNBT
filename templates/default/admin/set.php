@@ -245,25 +245,16 @@ if ($set == 'wz') {
   <div class="mn-set-card-hd">
     <div class="mn-set-icon"><i class="mdi mdi-credit-card-outline"></i></div>
     <div>
-      <h4>支付配置</h4>
-      <p>易支付对接参数</p>
+      <h4>支付配置已迁移</h4>
+      <p>支付设置已改为插件化架构</p>
     </div>
   </div>
   <div class="mn-set-card-bd">
-    <div class="mn-set-field">
-      <label for="yurl">易支付地址</label>
-      <input type="text" name="yurl" id="yurl" value="<?php echo $conf['hxe']; ?>" class="form-control" placeholder="易支付对接地址" required/>
-    </div>
-    <div class="mn-set-field">
-      <label for="yid">商户 ID</label>
-      <input type="text" name="yid" id="yid" value="<?php echo $conf['hxr']; ?>" class="form-control" placeholder="易支付商户ID" required/>
-    </div>
-    <div class="mn-set-field">
-      <label for="ykey">商户 KEY</label>
-      <input type="text" name="ykey" id="ykey" value="<?php echo $conf['hxt']; ?>" class="form-control" placeholder="易支付站点中您的密钥（KEY）" required/>
+    <div class="mn-set-note">
+      自 V1.81 P3 起，支付方式改由<b>支付插件</b>提供。请前往 <a href="pay_settings.php" class="alert-link">支付设置</a> 页面启用付款方式，并在 <a href="plugin.php" class="alert-link">插件管理</a> 中配置各支付插件的 API 凭证。
     </div>
     <div class="mn-set-actions">
-      <button class="btn btn-primary btn-block" type="button" onclick="setzf()"><i class="mdi mdi-content-save-outline"></i> 保存修改</button>
+      <a href="pay_settings.php" class="btn btn-primary btn-block"><i class="mdi mdi-arrow-right"></i> 前往支付设置</a>
     </div>
   </div>
 </div>

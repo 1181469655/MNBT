@@ -46,17 +46,12 @@ exit();
 	
 $siteid=1;
 $conf=$DB->get_row_prepare("SELECT * FROM MN_config WHERE id=? limit 1", [$siteid]);//获取系统配置
-$alipay_config['apiurl']    = $conf['hxe'];
-$alipay_config['partner']		= $conf['hxr'];
-$alipay_config['key']			= $conf['hxt'];
-$alipay_config['sign_type']    = strtoupper('MD5');
-$alipay_config['input_charset']= strtolower('utf-8');
-$alipay_config['transport']    = 'http';
 $password_hash='!@#%!s!0';
-include_once(SYSTEM_ROOT."Response.php");
+	include_once(SYSTEM_ROOT."Response.php");
 include_once(SYSTEM_ROOT."function.php");
 include_once(SYSTEM_ROOT."member.php");
 include_once(SYSTEM_ROOT."theme.php");
-require_once(SYSTEM_ROOT."lib/core.function.php");
-require_once(SYSTEM_ROOT."lib/md5.function.php");
+include_once(SYSTEM_ROOT."plugin.php");
+require_once(SYSTEM_ROOT."lib/pay.function.php");
+mnbt_plugins_boot();
 ?>

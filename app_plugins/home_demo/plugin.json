@@ -1,0 +1,9 @@
+{
+  "id": "home_demo",
+  "name": "首页接管示例",
+  "version": "1.0.0",
+  "author": "MNBT",
+  "description": "演示用 mnbt_register_home 接管站点首页（重定向/渲染/关闭三模式），以及用 mnbt_register_route 注册 /landing 路由。",
+  "requires_mnbt": "1.81",
+  "type": ["business", "lifecycle"]
+}

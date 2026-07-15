@@ -8,7 +8,7 @@ include("../MPHX/common.php");
 $egn=$_POST['gn'] ?? '';
 if($islogins==1 || $egn=='login') {
 } else exit('{"code":"请登陆"}');
-if($islogins==1) {
+	if($islogins==1) {
 	$cert=$DB->get_row_prepare("SELECT * FROM MN_bt WHERE btdh=? limit 1", [$ssbt]);
 	if(!$cert)exit('{"code":"宝塔服务器配置错误，请联系管理员"}');
 	$btipe=($cert['ptl']=='true'?'https':'http').'://'.$cert['btip'].':'.$cert['btdk'];
@@ -20,6 +20,9 @@ if($islogins==1) {
 		$os_xt=$conf['hxo'].'/';
 		$l_ler_a='C:\Windows\System32\drivers\etc\hosts';
 	}
+}
+if (($islogins==1 || $egn=='login') && function_exists('mnbt_plugin_dispatch_ajax') && mnbt_plugin_dispatch_ajax('user', $egn)) {
+	return;
 }
 include("api/login.php");
 if($yhc['hxc']=='1') {

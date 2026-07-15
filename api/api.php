@@ -95,6 +95,10 @@ if($gn=='cfif'){
         foreach(($r_datp['data'] ?? []) as $val){ if($val['name']===$user){ $sqlfs=$val['id']; break; } }
         if($DB->query_prepare("INSERT INTO `MN_zj` (`id`, `ssbt`, `user`, `pass`, `sqluser`, `sqlpass`, `data`, `datae`, `qk`, `btid`, `sqldz`, `ftpid`, `ymbds`, `hxa`, `hxb`, `hxc`, `hxd`, `llmax`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", [$id, $bh, $user, $pass, $user, $pass, $date, $datae, 'true', $zdide, $btserw, $aedfs, $ymbds, $webdx, $sqldx, $cptype, $sqlfs, $flowratemax])){
             api_lifecycle_log('API开通主机','开通'.$user.'成功，站点'.$btserw,'开通成功');
+            $host_row = $DB->get_row_prepare("SELECT * FROM MN_zj WHERE id=? limit 1", [$id]);
+            if (function_exists('mnbt_do_action')) {
+                mnbt_do_action('host.created', $host_row ?: ['id'=>$id,'user'=>$user,'ssbt'=>$bh,'btid'=>$zdide,'sqldz'=>$btserw], ['source'=>'api']);
+            }
             api_json_exit(200, '主机开通成功！');
         } else {
             $api->delsite($zdide,$btserw);
@@ -110,6 +114,9 @@ if($gn=='cfif'){
     $api->siteqt($et_zj['btid'],$et_zj['sqldz'],false);
     $api->setftpzt($et_zj['ftpid'],$et_zj['user'],'0');
     $DB->query_prepare("update `MN_zj` set `qk` =? where `user`=?", ['false', $user]);
+    if (function_exists('mnbt_do_action')) {
+        mnbt_do_action('host.paused', $et_zj, ['source'=>'api']);
+    }
     api_json_exit(200, '主机暂停成功！');
 }elseif($gn=='xf'){
     $x_dq_date=($_POST['setdate'] ?? '0')=='0' ? '0000-00-00' : $_POST['setdate'];
@@ -122,6 +129,10 @@ if($gn=='cfif'){
     }
     if($DB->query_prepare("update `MN_zj` set `datae` =? where `user`=?", [$x_dq_date, $user])){
         api_lifecycle_log('API续费主机','续费'.$user.' '.$old_date.'=>'.$x_dq_date,'续费成功');
+        $host_row = $DB->get_row_prepare("SELECT * FROM MN_zj WHERE user=? limit 1", [$user]);
+        if (function_exists('mnbt_do_action')) {
+            mnbt_do_action('host.renewed', $host_row ?: array_merge($et_zj, ['datae'=>$x_dq_date]), ['source'=>'api','old_date'=>$old_date,'new_date'=>$x_dq_date]);
+        }
         api_json_exit(200, '主机续费成功！');
     }
     api_lifecycle_log('API续费主机','续费'.$user.'数据库写入失败','续费失败');
@@ -130,7 +141,12 @@ if($gn=='cfif'){
     $api = new bt_api($btipe,$btkeye);
     $api->siteqt($et_zj['btid'],$et_zj['sqldz'],true);
     $api->setftpzt($et_zj['ftpid'],$et_zj['user'],'1');
-    if($DB->query_prepare("update `MN_zj` set `qk` =? where `user`=?", ['true', $user]))api_json_exit(200, '主机暂停解除成功！');
+    if($DB->query_prepare("update `MN_zj` set `qk` =? where `user`=?", ['true', $user])){
+        if (function_exists('mnbt_do_action')) {
+            mnbt_do_action('host.unpaused', $et_zj, ['source'=>'api']);
+        }
+        api_json_exit(200, '主机暂停解除成功！');
+    }
     else api_json_exit(100, '主机暂停解除成功！但是写入数据库时出现错误！请站长排查！');
 }elseif($gn=='tz'){
     $l_ler_a=$cert['btos']=='1' ? '/etc/hosts' : 'C:\Windows\System32\drivers\etc\hosts';
@@ -152,6 +168,9 @@ if($gn=='cfif'){
     if($r_data['status']){
         if($DB->query_prepare("DELETE FROM MN_zj WHERE user=? limit 1", [$user])){
             api_lifecycle_log('API删除主机','删除'.$user.'成功','删除成功');
+            if (function_exists('mnbt_do_action')) {
+                mnbt_do_action('host.deleted', $et_zj, ['source'=>'api']);
+            }
             api_json_exit(200, '主机删除成功！');
         }
         api_lifecycle_log('API删除主机','删除'.$user.'数据库写入失败','删除失败');

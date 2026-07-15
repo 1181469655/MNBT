@@ -2,7 +2,13 @@
 @header('Content-Type: text/html; charset=UTF-8');
 include("../MPHX/common.php");
 if($islogins==1){}else exit("<script language='javascript'>window.location.href='./login.php';</script>");
-include("../MPHX/lib/submit.class.php");
+
+// V1.81 P3: 支付方式 type 格式为 {plugin}__{method}，如 epay__alipay
+$type = isset($_POST['type']) ? $_POST['type'] : '';
+if ($type === '' || !function_exists('mnbt_pay_parse_type') || !mnbt_pay_parse_type($type)) {
+	exit("<script language='javascript'>alert('请选择有效的支付方式');history.go(-1);</script>");
+}
+
 if($_POST['pay_lx']=='yjbs'){
 $bs_id=daddslashes($_POST['id']);
 $bs_cx = $DB->get_row_prepare("SELECT * FROM `MN_bs` WHERE `id` = ? limit 1", [$bs_id]);
@@ -12,21 +18,11 @@ $ym_b=daddslashes($_POST['urlb']);			//域名前缀
 $bs_cx = $DB->get_row_prepare("SELECT * FROM `MN_ym` WHERE `url` = ? limit 1", [$ym_a]);
 }
 $out_trade_no = date("YmdHis").mt_rand(100,999);
-$type = isset($_POST['type']) ? $_POST['type'] : 'wxpay';
 $name = 'MNBT订单支付支付';
 $money = $bs_cx['jg'];
 $dada = date("Y-m-d H-i-s");
 $ip = $_SERVER["REMOTE_ADDR"] ?? '127.0.0.1';
-$parameter = array(
-		"pid" => trim($alipay_config['partner']),
-		"type" => $type,
-		"out_trade_no"	=> $out_trade_no,
-		"name"	=> $name,
-		"money"	=> $money,
-		"sitename"	=> "MNBT宝塔主机系统站点",
-		"notify_url"	=> $siteurl.'notify_url.php',
-		"return_url"	=> $siteurl.'return_url.php'
-);
+
 if($_POST['pay_lx']=='yjbs'){
 //一键部署
 if($bs_cx['qk']==false)exit("<script language='javascript'>alert('该程序已下架！');history.go(-1);</script>");
@@ -61,7 +57,20 @@ $id = $row1['id']+1;
 $DB->query_prepare("INSERT INTO `MN_dd` (`id`, `cs`, `date`, `zffs`, `je`, `ddh`, `lx`, `qk`, `ip`) VALUES (?,?,?,?,?,?,?,?,?)", [$id, $cs, $date, $type, $money, $out_trade_no, 'ymgm', 'false', $ip]);
 
 }else{exit('404 NOT！');}
-$alipaySubmit = new AlipaySubmit($alipay_config);
-$html_text = $alipaySubmit->buildRequestForm($parameter);
-echo $html_text;
+
+// V1.81 P3: 分发到支付插件
+$order_context = array(
+	'out_trade_no' => $out_trade_no,
+	'name'         => $name,
+	'money'        => $money,
+	'type'         => $type,
+	'siteurl'      => $siteurl,
+	'pay_lx'       => $_POST['pay_lx'],
+);
+
+$html = mnbt_pay_dispatch_gateway($type, $order_context);
+if ($html === false) {
+	exit("<script language='javascript'>alert('支付方式不可用，请检查支付插件是否已启用');history.go(-1);</script>");
+}
+echo $html;
 ?>

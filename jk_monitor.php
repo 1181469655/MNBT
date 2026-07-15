@@ -76,4 +76,8 @@ foreach($users as $u) {
     }
 }
 
+if (function_exists('mnbt_do_action')) {
+    mnbt_do_action('cron', ['source' => 'jk_monitor', 'done' => $done]);
+}
+
 echo '执行完成，检测任务：'.$done;

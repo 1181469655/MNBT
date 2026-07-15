@@ -26,10 +26,11 @@ CREATE TABLE `MN_config` (
   `hxa` text NOT NULL,     -- 后续....
   `hxs` text NOT NULL,     -- 后续....
   `hxd` text NOT NULL,     -- 后续....
+  `pay_methods` text NOT NULL,  -- V1.81 P3: 已启用的付款方式配置（JSON）
   PRIMARY KEY (`id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
-INSERT INTO `MN_config`(`id`, `user`, `pwd`, `gg`, `name`, `yzm`,`yzme`,`wzqk`,`auther`,`kzmbqk`, `apiqk`,`api`,`qqh`,`date`,`hxw`, `hxe`, `hxr`, `hxt`, `hxy`, `hxu`,`hxi`,`hxo`,`hxp`,`hxa`, `hxs`,`hxd`) VALUES
-('1', 'admin', '123456', '', '', 'true', 'false', '', '', 'true', '', '', '', '', 'mnftp', '', '', '', '', '56', '/www/wwwroot', 'D:/wwwroot', "<a href='./'>Copyright ©梦奈云 2023</a>", '', '', '');
+INSERT INTO `MN_config`(`id`, `user`, `pwd`, `gg`, `name`, `yzm`,`yzme`,`wzqk`,`auther`,`kzmbqk`, `apiqk`,`api`,`qqh`,`date`,`hxw`, `hxe`, `hxr`, `hxt`, `hxy`, `hxu`,`hxi`,`hxo`,`hxp`,`hxa`, `hxs`,`hxd`, `pay_methods`) VALUES
+('1', 'admin', '123456', '', '', 'true', 'false', '', '', 'true', '', '', '', '', 'mnftp', '', '', '', '', '56', '/www/wwwroot', 'D:/wwwroot', "<a href='./'>Copyright ©梦奈云 2023</a>", '', '', '', '');
 
 
 
@@ -313,3 +314,28 @@ ALTER TABLE `MN_config` ADD `wjscdzmax` INT(11) NOT NULL DEFAULT 5242880 COMMENT
 ALTER TABLE `MN_config` ADD `wjscdhmax` INT(11) NOT NULL DEFAULT 1000 COMMENT '单次扫描最大命中数';
 ALTER TABLE `MN_config` ADD `wjscqzcs` VARCHAR(50) NOT NULL DEFAULT '0 3 * * *' COMMENT '定时全量复扫 cron 表达式(默认每天凌晨3点)';
 ALTER TABLE `MN_config` ADD `wjscqzcskg` VARCHAR(20) NOT NULL DEFAULT 'true' COMMENT '定时全量复扫开关';
+
+-- V1.81 插件系统
+DROP TABLE IF EXISTS `MN_plugin`;
+CREATE TABLE `MN_plugin` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `slug` varchar(64) NOT NULL,
+  `name` varchar(120) NOT NULL DEFAULT '',
+  `version` varchar(32) NOT NULL DEFAULT '',
+  `enabled` varchar(10) NOT NULL DEFAULT 'false',
+  `config_json` mediumtext,
+  `installed_at` varchar(50) NOT NULL DEFAULT '',
+  `updated_at` varchar(50) NOT NULL DEFAULT '',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_slug` (`slug`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+DROP TABLE IF EXISTS `MN_plugin_option`;
+CREATE TABLE `MN_plugin_option` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `plugin_slug` varchar(64) NOT NULL,
+  `k` varchar(120) NOT NULL,
+  `v` mediumtext,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_plugin_k` (`plugin_slug`,`k`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;

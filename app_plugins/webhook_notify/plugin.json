@@ -1,0 +1,9 @@
+{
+  "id": "webhook_notify",
+  "name": "Webhook 通知",
+  "version": "1.0.0",
+  "author": "MNBT",
+  "description": "主机开通/暂停/恢复/续费/删除及订单支付成功时，向配置的 URL 发送 JSON Webhook。",
+  "requires_mnbt": "1.81",
+  "type": ["lifecycle", "integration"]
+}

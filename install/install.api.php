@@ -102,24 +102,54 @@ switch ($action) {
         else echo Res(0, '数据库信息保存失败，请检查系统是否有站点目录的读写权限');
         break;
     case 'install':
-        if (isset($_POST['is_install']) && (string)$_POST['is_install']==='false') {
-            @file_put_contents("install.lock",'安装锁');
-            exit(Res(1, "不导入数据库数据，直接进入下一步！"));
+        $site_name = isset($_POST['site_name']) ? trim((string)$_POST['site_name']) : '';
+        $site_qq = isset($_POST['site_qq']) ? trim((string)$_POST['site_qq']) : '';
+        $site_gg = isset($_POST['site_gg']) ? trim((string)$_POST['site_gg']) : '';
+        $admin_user = isset($_POST['admin_user']) ? trim((string)$_POST['admin_user']) : '';
+        $admin_pwd = isset($_POST['admin_pwd']) ? (string)$_POST['admin_pwd'] : '';
+
+        if ($site_name === '' || $admin_user === '' || $admin_pwd === '') {
+            exit(Res(0, '请填写站点名称、管理员账号与密码'));
         }
+        if (mb_strlen($site_name) > 80) {
+            exit(Res(0, '控制面板名称过长'));
+        }
+        if (mb_strlen($admin_user) < 3 || mb_strlen($admin_user) > 50) {
+            exit(Res(0, '管理员账号长度需在 3～50 位'));
+        }
+        if (!preg_match('/^[a-zA-Z0-9_\x{4e00}-\x{9fa5}-]+$/u', $admin_user)) {
+            exit(Res(0, '管理员账号含非法字符'));
+        }
+        if (strlen($admin_pwd) < 6 || strlen($admin_pwd) > 64) {
+            exit(Res(0, '管理员密码长度需在 6～64 位'));
+        }
+        if ($site_qq !== '' && !preg_match('/^\d{5,15}$/', $site_qq)) {
+            exit(Res(0, 'QQ 号格式不正确'));
+        }
+        if (mb_strlen($site_gg) > 2000) {
+            exit(Res(0, '网站公告过长'));
+        }
+
         include_once '../config.php';
         if (!$dbconfig['user'] || !$dbconfig['pwd'] || !$dbconfig['dbname']) {
             exit(Res(0,'请先填写好数据库并保存后再安装！',null,1));
-        } else {
-            require './db.class.php';
+        }
+        require './db.class.php';
+        $cn = DB::connect($dbconfig['host'], $dbconfig['user'], $dbconfig['pwd'], $dbconfig['dbname'], $dbconfig['port']);
+        if (!$cn) {
+            exit(Res(0, '数据库错误：' . DB::connect_error(), null, 1));
+        }
+        DB::query("set sql_mode = ''");
+        DB::query("set names utf8");
+
+        $skip_sql = isset($_POST['is_install']) && (string)$_POST['is_install'] === 'false';
+        $t = 0;
+        $e = 0;
+        $error = '';
+
+        if (!$skip_sql) {
             $sql = file_get_contents("install.sql");
             $sql = explode(';', $sql);
-            $cn = DB::connect($dbconfig['host'], $dbconfig['user'], $dbconfig['pwd'], $dbconfig['dbname'], $dbconfig['port']);
-            if (!$cn)exit(Res(0,'数据库错误：'.DB::connect_error(),null,1));
-            DB::query("set sql_mode = ''");
-            DB::query("set names utf8");
-            $t = 0;
-            $e = 0;
-            $error = '';
             for ($i = 0; $i < count($sql); $i++) {
                 $q = trim($sql[$i]);
                 if ($q === '') continue;
@@ -130,16 +160,34 @@ switch ($action) {
                     $error .= DB::error() . '<br/>';
                 }
             }
-            date_default_timezone_set("PRC");
-            $date = date("Y-m-d");
-            DB::query("update `MN_config` set `date` ='$date'  where `id`='1'");
+            if ($e != 0) {
+                exit(Res(0, "安装失败！SQL成功{$t}句，失败{$e}句，请确保您的数据库版本在Mysql5.6(含)~5.7(含)之间，错误信息：" . $error));
+            }
+        } else {
+            $exists = DB::query("select * from MN_config where 1");
+            if (!$exists) {
+                exit(Res(0, '未检测到已有数据表，无法跳过导入，请勾选强制重装或检查数据库'));
+            }
         }
-        $esew = 0;
-        if ($e == 0) {
-            @file_put_contents("install.lock",'安装锁');
-            exit(Res(1, "安装成功！"));
+
+        date_default_timezone_set("PRC");
+        $date = date("Y-m-d");
+        $esc_user = DB::escape($admin_user);
+        $esc_pwd = DB::escape($admin_pwd);
+        $esc_name = DB::escape($site_name);
+        $esc_qq = DB::escape($site_qq);
+        $esc_gg = DB::escape($site_gg);
+        $esc_date = DB::escape($date);
+        $upd = DB::query("UPDATE `MN_config` SET `user`='{$esc_user}', `pwd`='{$esc_pwd}', `name`='{$esc_name}', `qqh`='{$esc_qq}', `gg`='{$esc_gg}', `date`='{$esc_date}' WHERE `id`='1'");
+        if (!$upd) {
+            exit(Res(0, '站点配置写入失败：' . DB::error()));
         }
-        else exit(Res(0,"安装失败！SQL成功{$t}句，失败{$e}句，请确保您的数据库版本在Mysql5.6(含)~5.7(含)之间，错误信息：".$error));
+
+        @file_put_contents("install.lock", '安装锁');
+        if ($skip_sql) {
+            exit(Res(1, '安装完成（保留原表并更新站点/管理员配置）'));
+        }
+        exit(Res(1, '安装成功！'));
     default:
         exit(Res(0, '不存在的action'));
 }

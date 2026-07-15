@@ -123,7 +123,7 @@ templates/my_theme/user/login.php
 |------|------|
 | `user/ajax.php`、`user/api/*` | JSON API |
 | `admin/ajax.php`、`admin/api/*` | JSON API |
-| `user/pay.php`、`notify_url.php` 等 | 支付跳转 |
+| `user/pay.php` 等 | 支付跳转（V1.81 P3 起回调由支付插件路由处理） |
 | `user/mysql.php` | 跳转 phpMyAdmin |
 | `user/amftp/*` | 独立文件管理器 |
 

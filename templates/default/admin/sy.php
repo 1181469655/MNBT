@@ -80,6 +80,12 @@ $btsl=$DB->count_prepare("SELECT count(*) from MN_bt WHERE 1");
 		</div>
 </div>
 
+<?php
+if (function_exists('mnbt_plugin_render_widgets_html')) {
+	echo mnbt_plugin_render_widgets_html('admin');
+}
+?>
+
 </div>
 <script>
 msloading('正在获取中，请稍后...','text-info','text-default','#gglt');  // 加载显示
