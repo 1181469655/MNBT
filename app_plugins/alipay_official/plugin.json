@@ -1,0 +1,9 @@
+{
+  "id": "alipay_official",
+  "name": "支付宝官方",
+  "version": "1.0.0",
+  "author": "MNBT (SDK: dedemao/alipay)",
+  "description": "支付宝官方 API 直连，支持电脑网站支付（PC）与当面付（扫码）。基于 dedemao/alipay 单文件 SDK，RSA2 签名。",
+  "requires_mnbt": "1.81",
+  "type": ["payment"]
+}

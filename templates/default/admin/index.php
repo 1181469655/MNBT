@@ -53,7 +53,7 @@
                 <li> <a class="multitabs" href="set.php?gn=wz">网站设置</a> </li>
                 <li> <a class="multitabs" href="set.php?gn=gl">管理设置</a> </li>
                 <li> <a class="multitabs" href="set.php?gn=api">API设置</a> </li>
-                <li> <a class="multitabs" href="set.php?gn=yzf">支付设置</a> </li>
+                <li> <a class="multitabs" href="pay_settings.php">支付设置</a> </li>
                 <li> <a class="multitabs" href="set.php?gn=mail">邮箱设置</a> </li>
                 <li> <a class="multitabs" href="set.php?gn=jk">监控主机删除设置</a> </li>
                 <li> <a class="multitabs" href="set.php?gn=kzmb">控制面板管理</a> </li>

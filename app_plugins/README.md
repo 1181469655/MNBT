@@ -49,6 +49,10 @@ app_plugins/{slug}/
 | `mnbt_http_get` / `mnbt_http_post` | 安全出站 HTTP |
 | `mnbt_register_home` | 首页接管（`/` 路径，P2） |
 | `mnbt_register_route` | 通用路由，支持路径参数（P2） |
+| `mnbt_register_payment` | 注册支付插件（P3） |
+| `mnbt_pay_settle_order` | 支付成功后统一结算订单（P3） |
+| `mnbt_pay_log` | 记录支付日志（P3） |
+| `mnbt_get_enabled_payment_methods` | 读取已启用的付款方式（P3） |
 
 完整参数与示例见 **[PLUGIN_DEV.md](./PLUGIN_DEV.md)**。
 
@@ -83,7 +87,10 @@ app_plugins/{slug}/
 | 插件 | 说明 |
 |------|------|
 | `hello_demo/` | 菜单、配置、Ping、主机/订单事件日志 |
+| `home_demo/` | P2 示例：首页接管 + 通用路由 |
 | `webhook_notify/` | Webhook 推送（URL + HMAC + 事件开关 + 测试） |
+| `epay/` | P3 示例：易支付插件（支付宝/微信/QQ 钱包，MD5 签名） |
+| `alipay_official/` | P3 示例：支付宝官方 API（PC 电脑网站支付 + 当面付扫码，RSA2 签名） |
 
 Webhook 验签：请求头 `X-MNBT-Signature: sha256=<hex>`，  
 `hash_hmac('sha256', raw_body, secret) === hex`。

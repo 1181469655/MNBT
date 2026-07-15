@@ -22,6 +22,8 @@ $GLOBALS['mnbt_plugin_booted'] = false;
 // 首页接管与通用路由（V1.81 P2）
 $GLOBALS['mnbt_plugin_home_handlers'] = [];
 $GLOBALS['mnbt_plugin_routes'] = [];
+// 支付插件注册表（V1.81 P3）
+$GLOBALS['mnbt_plugin_payments'] = [];
 
 function mnbt_plugin_ensure_tables()
 {
@@ -1059,4 +1061,179 @@ function mnbt_plugin_dispatch_route()
 		}
 	}
 	return false;
+}
+
+/**
+ * ============================================================
+ *  V1.81 P3：支付插件系统
+ * ============================================================
+ *
+ *  支付方式 type 格式：{plugin_id}__{method_id}
+ *    例：epay__alipay、alipay_official__pc
+ *
+ *  支付设置存储：MN_config.pay_methods 字段（JSON）
+ *    [{"plugin":"epay","method":"alipay","display_name":"支付宝","icon":"mdi-puzzle","sort":1}, ...]
+ *
+ *  插件 API 凭证存储：MN_plugin_option 表（通过 mnbt_plugin_option_get/set）
+ */
+
+/**
+ * 注册支付插件。
+ *
+ * @param string $plugin_id  插件标识（即 slug）
+ * @param array  $config     [
+ *     'name'        => '易支付',
+ *     'description' => '彩虹易支付协议',
+ *     'methods' => [
+ *         'alipay' => ['label'=>'支付宝', 'icon'=>'mdi-puzzle'],
+ *         'wxpay'  => ['label'=>'微信支付', 'icon'=>'mdi-wechat'],
+ *     ],
+ *     'build' => function ($method, $order, $plugin_config) {
+ *         // $method: 'alipay'
+ *         // $order: ['out_trade_no'=>..., 'name'=>..., 'money'=>..., 'notify_url'=>..., 'return_url'=>..., 'order_row'=>...]
+ *         // $plugin_config: 该插件的所有选项（来自 MN_plugin_option）
+ *         // 返回 HTML 表单字符串，或返回 false 表示不接管
+ *     },
+ * ]
+ * @return bool
+ */
+function mnbt_register_payment($plugin_id, $config)
+{
+	$plugin_id = (string)$plugin_id;
+	if ($plugin_id === '' || !is_array($config)) {
+		return false;
+	}
+	// 校验 build 回调
+	if (!isset($config['build']) || !is_callable($config['build'])) {
+		return false;
+	}
+	if (!isset($config['methods']) || !is_array($config['methods'])) {
+		$config['methods'] = [];
+	}
+	$config['plugin_id'] = $plugin_id;
+	$GLOBALS['mnbt_plugin_payments'][$plugin_id] = $config;
+	return true;
+}
+
+/**
+ * 获取所有已注册的支付插件。
+ * @return array  ['epay' => ['name'=>..., 'methods'=>[...]], ...]
+ */
+function mnbt_get_payment_plugins()
+{
+	return isset($GLOBALS['mnbt_plugin_payments']) ? $GLOBALS['mnbt_plugin_payments'] : [];
+}
+
+/**
+ * 构造支付方式的 type 标识。
+ * @param string $plugin_id
+ * @param string $method_id
+ * @return string  如 "epay__alipay"
+ */
+function mnbt_pay_type($plugin_id, $method_id)
+{
+	return $plugin_id . '__' . $method_id;
+}
+
+/**
+ * 从 type 解析出 plugin_id 和 method_id。
+ * @param string $type
+ * @return array|false  ['plugin'=>'epay', 'method'=>'alipay'] 或 false
+ */
+function mnbt_pay_parse_type($type)
+{
+	$type = (string)$type;
+	if (strpos($type, '__') === false) {
+		return false;
+	}
+	$parts = explode('__', $type, 2);
+	if (count($parts) !== 2 || $parts[0] === '' || $parts[1] === '') {
+		return false;
+	}
+	return ['plugin' => $parts[0], 'method' => $parts[1]];
+}
+
+/**
+ * 获取已启用的付款方式列表（从 MN_config.pay_methods JSON 解析）。
+ * @return array  [['plugin'=>..., 'method'=>..., 'display_name'=>..., 'icon'=>..., 'sort'=>...], ...] 按 sort 排序
+ */
+function mnbt_get_enabled_payment_methods()
+{
+	global $DB, $siteid;
+	if (!isset($DB)) {
+		return [];
+	}
+	$siteid = isset($siteid) ? $siteid : 1;
+	$row = $DB->get_row_prepare("SELECT pay_methods FROM MN_config WHERE id=? LIMIT 1", [$siteid]);
+	if (!$row || empty($row['pay_methods'])) {
+		return [];
+	}
+	$list = json_decode($row['pay_methods'], true);
+	if (!is_array($list)) {
+		return [];
+	}
+	// 按 sort 排序
+	usort($list, function ($a, $b) {
+		$sa = isset($a['sort']) ? (int)$a['sort'] : 99;
+		$sb = isset($b['sort']) ? (int)$b['sort'] : 99;
+		return $sa - $sb;
+	});
+	return $list;
+}
+
+/**
+ * 保存付款方式配置到 MN_config.pay_methods。
+ * @param array $methods  [['plugin'=>..., 'method'=>..., 'display_name'=>..., 'icon'=>..., 'sort'=>...], ...]
+ * @return bool
+ */
+function mnbt_save_payment_methods($methods)
+{
+	global $DB, $siteid;
+	if (!isset($DB)) {
+		return false;
+	}
+	$siteid = isset($siteid) ? $siteid : 1;
+	$json = json_encode($methods, JSON_UNESCAPED_UNICODE);
+	return (bool)$DB->query_prepare("UPDATE MN_config SET pay_methods=? WHERE id=?", [$json, $siteid]);
+}
+
+/**
+ * 分发支付网关：根据 type 找到对应插件的 build 回调并调用。
+ *
+ * @param string $type           支付方式 type，如 epay__alipay
+ * @param array  $order_context  订单上下文 ['out_trade_no'=>..., 'name'=>..., 'money'=>..., ...]
+ * @return string|false  HTML 表单字符串，或 false 表示无插件接管
+ */
+function mnbt_pay_dispatch_gateway($type, $order_context)
+{
+	$parsed = mnbt_pay_parse_type($type);
+	if (!$parsed) {
+		return false;
+	}
+	$plugin_id = $parsed['plugin'];
+	$method_id = $parsed['method'];
+	if (!isset($GLOBALS['mnbt_plugin_payments'][$plugin_id])) {
+		return false;
+	}
+	$payment = $GLOBALS['mnbt_plugin_payments'][$plugin_id];
+	if (!isset($payment['methods'][$method_id])) {
+		return false;
+	}
+	$cb = $payment['build'];
+	if (!is_callable($cb)) {
+		return false;
+	}
+	// 加载插件选项作为配置
+	$plugin_config = function_exists('mnbt_plugin_option_all') ? mnbt_plugin_option_all($plugin_id) : [];
+	$prev = isset($GLOBALS['mnbt_plugin_current']) ? $GLOBALS['mnbt_plugin_current'] : null;
+	$GLOBALS['mnbt_plugin_current'] = $plugin_id;
+	try {
+		$result = call_user_func($cb, $method_id, $order_context, $plugin_config);
+	} catch (Throwable $e) {
+		error_log('[MNBT plugin] payment build @' . $plugin_id . '::' . $method_id . ': ' . $e->getMessage());
+		$GLOBALS['mnbt_plugin_current'] = $prev;
+		return false;
+	}
+	$GLOBALS['mnbt_plugin_current'] = $prev;
+	return $result;
 }

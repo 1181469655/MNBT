@@ -69,7 +69,8 @@
 | 域名管理 | 域名添加、价格设置、绑定宝塔节点、上下架 |
 | 一键部署 | 可编程部署引擎，10 种自动化操作 + 模板变量，支持导入/导出 |
 | 订单管理 | 所有支付订单查询与管理 |
-| 系统设置 | 网站公告、支付接口（易支付）、邮箱配置（SMTP）、API 密钥、PHP 版本、建站目录、监控告警、违禁词扫描、**前端模板切换** |
+| 系统设置 | 网站公告、邮箱配置（SMTP）、API 密钥、PHP 版本、建站目录、监控告警、违禁词扫描、**前端模板切换** |
+| **支付设置** | 插件化支付架构，内置易支付/支付宝官方插件，支持启用付款方式、自定义显示名与排序 |
 | **插件管理** | 扫描 `app_plugins/`、安装/启用/禁用/卸载、插件菜单与页面 |
 | 操作日志 | 完整操作日志记录、搜索、分页、清空 |
 | 系统更新 | 远程在线升级 |
@@ -291,7 +292,7 @@ chown -R www:www .
 │   ├── plugin.php            # PHP 业务插件引擎（钩子 / AJAX / 配置）
 │   ├── database_backup.function.php
 │   ├── BL.php / SQ.php       # 业务辅助
-│   ├── lib/                  # 支付宝 SDK（core.function/submit/notify/md5）
+│   ├── lib/                  # 公共函数库（pay.function.php 支付结算逻辑）
 │   └── 360safe/              # WAF 防护
 │
 ├── templates/                # 前端主题（用户端 + 管理端视图）
@@ -306,7 +307,11 @@ chown -R www:www .
 │
 ├── app_plugins/              # PHP 业务插件（非宝塔 Python 插件）
 │   ├── README.md             # 插件开发说明
-│   └── hello_demo/           # 官方示例插件
+│   ├── PLUGIN_DEV.md         # 插件开发手册
+│   ├── hello_demo/           # 官方示例（菜单 / AJAX / 配置）
+│   ├── home_demo/            # 首页接管 + 通用路由示例（P2）
+│   ├── epay/                 # 易支付插件（P3，从核心迁移）
+│   └── alipay_official/      # 支付宝官方 API 插件（P3，PC + 当面付）
 │
 ├── api/                      # 外部 API 接口
 │   ├── api.php               # RESTful API 入口
@@ -510,17 +515,21 @@ templates/my_theme/
 | **[app_plugins/PLUGIN_DEV.md](app_plugins/PLUGIN_DEV.md)** | **插件开发手册**（新建步骤、API、钩子、安全、FAQ） |
 | [app_plugins/README.md](app_plugins/README.md) | 目录约定、快速启用、API 摘要 |
 | `app_plugins/hello_demo/` | 官方示例（菜单 / 配置 / AJAX / 主机事件） |
-| `app_plugins/webhook_notify/` | Webhook 通知插件 |
+| `app_plugins/home_demo/` | 首页接管 + 通用路由示例（P2） |
+| `app_plugins/epay/` | 易支付插件（P3，彩虹易支付协议） |
+| `app_plugins/alipay_official/` | 支付宝官方 API 插件（P3，PC + 当面付扫码） |
 | `MPHX/plugin.php` | 插件引擎源码 |
 
 ### 能力
 
 - 钩子：`boot`、`host.*`、`order.paid`、`cron`、`menu.*`、dashboard widgets
 - 注册：`mnbt_register_ajax` / `page` / `menu` / `widget` / `settings_tab`
+- 路由：`mnbt_register_home` / `mnbt_register_route`（P2，首页接管 + 通用路由）
+- 支付：`mnbt_register_payment` / `mnbt_pay_settle_order`（P3，支付插件化）
 - HTTP：`mnbt_http_get` / `mnbt_http_post`（默认禁内网）
 - 配置：`mnbt_plugin_option_get/set`
 - 页面：`admin/plugin.php?p=slug&page=...`、`user/plugin.php?p=slug&page=...`
-- 内置插件：`webhook_notify`（事件 Webhook）
+- 内置插件：`hello_demo`、`home_demo`、`epay`、`alipay_official`
 
 ---
 
@@ -678,6 +687,26 @@ backup/
 - P1：`mnbt_http_*`、`mnbt_register_widget`、`mnbt_register_settings_tab`
 - 示例：`hello_demo`、`webhook_notify`（主机/订单 Webhook + HMAC）
 - 文档：[app_plugins/README.md](app_plugins/README.md)
+
+**插件引擎扩展（P2 路由系统）**
+
+- `mnbt_register_home()`：接管站点根 `/` 的响应（重定向或渲染自定义首页）
+- `mnbt_register_route($method, $path, $cb)`：通用路由，支持命名参数 `{id}`、尾斜杠可选
+- `index.php` 提供回退路由分发；`_router.php` 支持 PHP 内置开发服务器
+- Nginx/Apache 需配置 `try_files` / `RewriteRule` 将未命中请求转发至 `index.php`
+- 示例：`home_demo`（首页接管 + 通用路由）
+
+**支付插件系统（P3 重构）**
+
+- 支付架构插件化：易支付、支付宝官方均改为独立插件（`app_plugins/epay/`、`app_plugins/alipay_official/`）
+- 新增 API：`mnbt_register_payment`、`mnbt_pay_dispatch_gateway`、`mnbt_pay_settle_order`、`mnbt_get_enabled_payment_methods`、`mnbt_save_payment_methods`
+- 新增统一支付设置页 `admin/pay_settings.php`：仅管理启用/禁用、显示名、图标、排序
+- 支付插件 API 凭证由插件自身设置页维护（`MN_plugin_option`），与系统层解耦
+- 客户端 `user/pay.php` 重写为插件分发；模板 `webgl.php`、`set.php` 动态渲染付款方式
+- 异步/同步回调改由 P2 通用路由处理：`/pay/{slug}/notify`、`/pay/{slug}/return`
+- 易支付插件支持自动迁移旧 `MN_config.hxe/hxr/hxt` 配置
+- 旧文件清理：`user/notify_url.php`、`user/return_url.php`、`MPHX/lib/submit.class.php`、`notify.class.php`、`core.function.php`、`md5.function.php`
+- 升级 SQL：`update/update_v181_p3_pay.sql`（新增 `MN_config.pay_methods` 字段）
 
 **安装向导增强**
 

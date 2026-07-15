@@ -26,10 +26,11 @@ CREATE TABLE `MN_config` (
   `hxa` text NOT NULL,     -- 后续....
   `hxs` text NOT NULL,     -- 后续....
   `hxd` text NOT NULL,     -- 后续....
+  `pay_methods` text NOT NULL,  -- V1.81 P3: 已启用的付款方式配置（JSON）
   PRIMARY KEY (`id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
-INSERT INTO `MN_config`(`id`, `user`, `pwd`, `gg`, `name`, `yzm`,`yzme`,`wzqk`,`auther`,`kzmbqk`, `apiqk`,`api`,`qqh`,`date`,`hxw`, `hxe`, `hxr`, `hxt`, `hxy`, `hxu`,`hxi`,`hxo`,`hxp`,`hxa`, `hxs`,`hxd`) VALUES
-('1', 'admin', '123456', '', '', 'true', 'false', '', '', 'true', '', '', '', '', 'mnftp', '', '', '', '', '56', '/www/wwwroot', 'D:/wwwroot', "<a href='./'>Copyright ©梦奈云 2023</a>", '', '', '');
+INSERT INTO `MN_config`(`id`, `user`, `pwd`, `gg`, `name`, `yzm`,`yzme`,`wzqk`,`auther`,`kzmbqk`, `apiqk`,`api`,`qqh`,`date`,`hxw`, `hxe`, `hxr`, `hxt`, `hxy`, `hxu`,`hxi`,`hxo`,`hxp`,`hxa`, `hxs`,`hxd`, `pay_methods`) VALUES
+('1', 'admin', '123456', '', '', 'true', 'false', '', '', 'true', '', '', '', '', 'mnftp', '', '', '', '', '56', '/www/wwwroot', 'D:/wwwroot', "<a href='./'>Copyright ©梦奈云 2023</a>", '', '', '', '');
 
 
 
