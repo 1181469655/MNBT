@@ -36,7 +36,7 @@ function balance_url($path = '')
  */
 function balance_asset_url($path = '')
 {
-	return mnbt_plugin_url('balance', ltrim($path, '/'));
+	return mnbt_plugin_url('balance', 'assets/' . ltrim($path, '/'));
 }
 
 /**

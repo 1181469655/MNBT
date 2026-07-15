@@ -41,7 +41,7 @@ function user_info_url($path = '')
  */
 function user_info_asset_url($path = '')
 {
-	return mnbt_plugin_url('user_info', ltrim($path, '/'));
+	return mnbt_plugin_url('user_info', 'assets/' . ltrim($path, '/'));
 }
 
 /**

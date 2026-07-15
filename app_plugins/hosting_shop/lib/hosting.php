@@ -36,7 +36,7 @@ function hosting_url($path = '')
 /** 插件静态资源 URL。 */
 function hosting_asset_url($path = '')
 {
-	return mnbt_plugin_url('hosting_shop', ltrim($path, '/'));
+	return mnbt_plugin_url('hosting_shop', 'assets/' . ltrim($path, '/'));
 }
 
 /** 管理员端插件页面 URL（admin/plugin.php?p=hosting_shop&page=xxx）。 */
