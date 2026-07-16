@@ -2,8 +2,20 @@
 
 function add_inp(czlx,bdbz,rows){      //添加表单
      msloading('添加中，请稍后...');  // 加载圈显示
-     var rowr=JSON.stringify(rows);
-     var ret=eval('gp_'+czlx+'('+bdbz+','+rowr+');');
+     // 安全：白名单验证 czlx 字段，只允许预定义的表单类型
+     var allowedTypes = ['input','dxk','dxks','urlxz','textarea','file','select','checkbox','radio','hidden','password','email','date','time','datetime'];
+     if (allowedTypes.indexOf(czlx) === -1) {
+         console.error('非法的表单类型:', czlx);
+         msloadingde();
+         return;
+     }
+     var funcName = 'gp_' + czlx;
+     if (typeof window[funcName] !== 'function') {
+         console.error('未找到表单处理函数:', funcName);
+         msloadingde();
+         return;
+     }
+     var ret = window[funcName](bdbz, rows);
      var tmp = document.createElement("div");
      tmp.className="form-group";
      tmp.innerHTML= ret+'<br/>';
