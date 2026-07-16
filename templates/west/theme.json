@@ -1,0 +1,8 @@
+{
+  "name": "west",
+  "title": "West\u98ce\u683c\u4e3b\u9898",
+  "version": "1.0.0",
+  "description": "\u4eff\u897f\u90e8\u6570\u7801\u65e9\u671f\u7528\u6237\u63a7\u5236\u9762\u677f\u98ce\u683c\u7684\u7528\u6237\u7aef\u4e3b\u9898",
+  "author": "MNBT",
+  "scope": ["user"]
+}
