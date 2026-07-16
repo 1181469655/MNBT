@@ -20,24 +20,23 @@
 <body class="west-frame">
 <div class="west-topbar">
   <div class="west-topbar-inner">
-    <span><i class="mdi mdi-cart"></i> 购物车 0</span>
-    <span>最新公告</span>
-    <span>云虚拟主机</span>
-    <span>帮助中心</span>
-    <span>提交工单</span>
-    <span>备案</span>
-    <span>身份识别码：<?= htmlspecialchars($user ?? '', ENT_QUOTES, 'UTF-8') ?></span>
-    <button type="button" onclick="chteci();"><i class="mdi mdi-account"></i> 管理中心</button>
+    <span>MNBT 主机面板</span>
+    <span>当前账号：<?= htmlspecialchars($user ?? '', ENT_QUOTES, 'UTF-8') ?></span>
+    <span>主机状态以面板实时检测为准</span>
+    <span>遇到异常请先刷新用量与配置</span>
+    <button type="button" onclick="chteci();">退出登录</button>
   </div>
 </div>
 <div class="west-mainnav">
   <a href="index.php" class="west-brand"><img alt="MNBT" src="<?=mnbt_asset_url('upload_logo/logo.login.png')?>?<?=$conf['auther']?>"><strong><?= htmlspecialchars($conf['name'] ?? 'MNBT', ENT_QUOTES, 'UTF-8') ?></strong></a>
   <div class="west-mainnav-links">
     <a href="index.php">首页</a>
-    <a class="multitabs" href="set.php?gn=url">域名绑定</a>
-    <a class="multitabs" href="set.php?gn=ssl">安全</a>
-    <a class="multitabs" href="webgl.php?gn=yjbs">云建站</a>
-    <a class="multitabs" href="notice.php">消息</a>
+    <a class="multitabs" href="sy.php">主机概览</a>
+    <a class="multitabs" href="ftp.php">文件管理</a>
+    <a class="multitabs" href="set.php?gn=url">域名管理</a>
+    <a class="multitabs" href="set.php?gn=ssl">证书安全</a>
+    <a class="multitabs" href="monitor.php">监控任务</a>
+    <a class="multitabs" href="notice.php">通知日志</a>
     <a href="#!" onclick="chteci();">退出</a>
   </div>
 </div>
@@ -45,29 +44,35 @@
   <aside class="west-sidebar">
     <div class="west-sidebar-title">主机控制面板</div>
     <div class="west-sidebar-scroll">
-      <div id="jqui-sidebar-accordion">
+      <ul class="west-sidebar-menu">
 <?php if($yhc['hxc']=='1'){ ?>
-        <h3><i class="mdi mdi-monitor-dashboard"></i> 主机管理</h3>
-        <div><ul class="jqui-subnav"><li><a href="sy.php" class="multitabs">主机首页</a></li></ul></div>
-        <h3><i class="mdi mdi-earth"></i> 网站设置</h3>
-        <div><ul class="jqui-subnav"><li><a class="multitabs" href="set.php?gn=CDN_url">域名修改</a></li></ul></div>
+        <li><a href="sy.php" class="multitabs"><i class="mdi mdi-monitor-dashboard"></i>主机首页</a></li>
+        <li><a class="multitabs" href="set.php?gn=CDN_url"><i class="func-icon func-icon-nav">设</i>域名修改</a></li>
 <?php }else{ ?>
-        <h3><i class="mdi mdi-monitor-dashboard"></i> 主机管理</h3>
-        <div><ul class="jqui-subnav"><li><a href="sy.php" class="multitabs">主机首页</a></li></ul></div>
-        <h3><i class="mdi mdi-tune"></i> 网站设置</h3>
-        <div><ul class="jqui-subnav"><li><a class="multitabs" href="set.php?gn=php">PHP版本切换</a></li><li><a class="multitabs" href="set.php?gn=url">域名修改</a></li><li><a class="multitabs" href="set.php?gn=pass">密码访问</a></li><li><a class="multitabs" href="set.php?gn=mrwd">默认文档</a></li><li><a class="multitabs" href="set.php?gn=yxml">运行目录</a></li><li><a class="multitabs" href="set.php?gn=wjt">伪静态</a></li><li><a class="multitabs" href="set.php?gn=ssl">SSL配置</a></li><li><a class="multitabs" href="set.php?gn=fdl">防盗链</a></li><li><a class="multitabs" href="set.php?gn=gzip">Gzip配置</a></li><li><a class="multitabs" href="set.php?gn=cache">缓存配置</a></li><li><a class="multitabs" href="set.php?gn=xgpass">修改密码</a></li></ul></div>
-        <h3><i class="mdi mdi-database"></i> 数据管理</h3>
-        <div><ul class="jqui-subnav"><li><a class="multitabs" href="ftp.php">在线文件管理</a></li><li><a target="_blank" href="mysql.php">SQL管理面板</a></li><li><a class="multitabs" href="sqlgl.php">SQL数据备份</a></li><li><a class="multitabs" href="set.php?gn=mysqlcz">SQL权限设置</a></li></ul></div>
-        <h3><i class="mdi mdi-web"></i> 网站服务</h3>
-        <div><ul class="jqui-subnav"><li><a class="multitabs" href="webgl.php?gn=yjbs">一键部署</a></li><li><a class="multitabs" href="monitor.php">监控任务</a></li><li><a class="multitabs" href="notice.php">通知日志</a></li></ul></div>
+        <li><a href="sy.php" class="multitabs"><i class="mdi mdi-monitor-dashboard"></i>主机首页</a></li>
+        <li><a class="multitabs" href="set.php?gn=php"><i class="func-icon func-icon-nav">P</i>PHP配置</a></li>
+        <li><a class="multitabs" href="set.php?gn=url"><i class="mdi mdi-web"></i>域名修改</a></li>
+        <li><a class="multitabs" href="set.php?gn=pass"><i class="mdi mdi-lock-outline"></i>密码访问</a></li>
+        <li><a class="multitabs" href="set.php?gn=mrwd"><i class="mdi mdi-file-document-outline"></i>默认文档</a></li>
+        <li><a class="multitabs" href="set.php?gn=yxml"><i class="mdi mdi-folder-outline"></i>运行目录</a></li>
+        <li><a class="multitabs" href="set.php?gn=wjt"><i class="mdi mdi-file-code-outline"></i>伪静态</a></li>
+        <li><a class="multitabs" href="set.php?gn=ssl"><i class="mdi mdi-shield-key-outline"></i>SSL配置</a></li>
+        <li><a class="multitabs" href="set.php?gn=fdl"><i class="mdi mdi-link-variant-off"></i>防盗链</a></li>
+        <li><a class="multitabs" href="set.php?gn=gzip"><i class="func-icon func-icon-nav">G</i>Gzip配置</a></li>
+        <li><a class="multitabs" href="set.php?gn=cache"><i class="mdi mdi-cached"></i>缓存配置</a></li>
+        <li><a class="multitabs" href="set.php?gn=xgpass"><i class="mdi mdi-account-key-outline"></i>修改密码</a></li>
+        <li><a class="multitabs" href="ftp.php"><i class="mdi mdi-folder-multiple-outline"></i>在线文件管理</a></li>
+        <li><a target="_blank" href="mysql.php"><i class="mdi mdi-database"></i>SQL管理面板</a></li>
+        <li><a class="multitabs" href="webgl.php?gn=yjbs"><i class="mdi mdi-package-variant-closed"></i>一键部署</a></li>
+        <li><a class="multitabs" href="monitor.php"><i class="mdi mdi-chart-line"></i>监控任务</a></li>
+        <li><a class="multitabs" href="notice.php"><i class="mdi mdi-bell-outline"></i>通知日志</a></li>
 <?php }?>
-<?php if (function_exists('mnbt_plugin_render_menu_user_html')) { echo mnbt_plugin_render_menu_user_html(); } ?>
-      </div>
-      <div class="west-usage-box"><div>空间使用统计图：<span id="west-web-small">--</span></div><div class="west-mini-bar"><span></span></div><a class="multitabs" href="set.php?gn=cache">速度优化</a></div>
+      </ul>
+      <div class="west-usage-box"><div>空间配额使用情况：<span id="west-web-small">--</span></div><div class="west-mini-bar"><span id="west-web-small-bar"></span></div><div>空间总计：<span id="west-web-max">--</span></div><div>已经使用：<span id="west-web-used">--</span></div><a class="multitabs" href="set.php?gn=cache">升级空间</a></div>
     </div>
   </aside>
   <section class="west-content-wrap">
-    <div class="west-breadcrumb">西部风格用户首页 &gt; 用户管理中心 &gt; 虚拟主机管理首页 &gt; <?= htmlspecialchars($user ?? '', ENT_QUOTES, 'UTF-8') ?></div>
+    <div class="west-breadcrumb">MNBT 用户首页 &gt; 用户管理中心 &gt; 虚拟主机管理首页 &gt; <?= htmlspecialchars($user ?? '', ENT_QUOTES, 'UTF-8') ?></div>
     <main class="west-layout-content"><div id="iframe-content"></div></main>
   </section>
 </div>
@@ -86,7 +91,17 @@
 <script type="text/javascript" src="<?=mnbt_asset_url('js/bootstrap-notify.min.js')?>"></script>
 <script type="text/javascript">
 $(function() {
-  $("#jqui-sidebar-accordion").accordion({ heightStyle: "content", collapsible: true, active: 0, icons: false });
+  $.post('./ajax.php', { gn: 'indexconf' }, function (date) {
+    var jsoe = JSON.parse(date);
+    if (jsoe.qk != 1 || !jsoe.msg || !jsoe.msg.web) return;
+    var web = jsoe.msg.web;
+    var percent = Math.round(((web.dq / web.max) * 10000) / 100);
+    percent = Math.max(0, Math.min(100, percent || 0));
+    $('#west-web-small').text(percent + '%');
+    $('#west-web-small-bar').css('width', percent + '%');
+    $('#west-web-max').text(web.max + 'M');
+    $('#west-web-used').text(Number(web.dq).toFixed(2) + 'M');
+  });
 });
 function chteci() {
     msloading('正在退出登录中...','text-info','text-info');

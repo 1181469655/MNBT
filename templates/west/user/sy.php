@@ -2,12 +2,12 @@
 <script type="text/javascript" src="<?=mnbt_asset_url('js/Chart.min.js')?>"></script>
 <script type="text/javascript" src="<?=mnbt_asset_url('js/jquery-confirm/jquery-confirm.min.js')?>"></script>
 <div class="west-page">
-  <div class="west-alert"><i class="mdi mdi-alert"></i> 您的联系资料不完整，请与真实的电话号码和邮箱，这将对您的主机管理非常重要。</div>
-  <div class="west-banner"><span>独享云虚拟主机</span><strong>新品上线</strong><i class="mdi mdi-server-network"></i></div>
+  <div class="west-alert"><i class="west-status-dot"></i> 主机数据由系统实时读取，修改配置后如未立即生效，可刷新用量或稍后重新进入当前页面。</div>
+  <div class="west-banner"><span>MNBT 虚拟主机</span><strong>自助管理中心</strong></div>
   <section class="west-panel west-host-panel">
-    <div class="west-panel-title"><i class="mdi mdi-database"></i> 主机信息</div>
+    <div class="west-panel-title">主机信息</div>
     <div class="west-host-body">
-      <div class="west-host-status"><i class="mdi mdi-database-check"></i><strong id="siteqk">运行中</strong><span>主机有效期</span><em><?= htmlspecialchars($yhc['endtime'] ?? '以系统数据为准', ENT_QUOTES, 'UTF-8') ?></em></div>
+      <div class="west-host-status"><span class="west-status-light running"></span><strong id="siteqk">运行中</strong><span>主机有效期</span><em><?= htmlspecialchars($yhc['endtime'] ?? '以系统数据为准', ENT_QUOTES, 'UTF-8') ?></em></div>
       <div class="west-host-info">
         <dl><dt>主机账号：</dt><dd><?= htmlspecialchars($user ?? '', ENT_QUOTES, 'UTF-8') ?></dd></dl>
         <dl><dt>空间使用：</dt><dd><span id="web-used">获取中</span> / <span id="web-max">获取中</span>，<a href="#!" onclick="sxxx()">刷新空间</a></dd></dl>
@@ -26,29 +26,52 @@
       </div>
     </div>
   </section>
-  <section class="west-panel">
-    <div class="west-panel-title">网站基本功能</div>
-    <div class="west-func-grid">
-      <a href="#!" class="func-item js-create-tab" data-title="域名绑定" data-url="set.php?gn=url"><i class="mdi mdi-server"></i><span>主机域名绑定</span></a>
-      <a href="#!" class="func-item phpvs-set"><i class="mdi mdi-lock-reset"></i><span>修改密码</span></a>
-      <a href="#!" class="func-item js-create-tab" data-title="默认首页" data-url="set.php?gn=mrwd"><i class="mdi mdi-monitor"></i><span>设置首页</span></a>
-      <a href="#!" class="func-item js-create-tab" data-title="伪静态" data-url="set.php?gn=wjt"><i class="mdi mdi-cog"></i><span>主机环境设置</span></a>
-      <a href="#!" class="func-item phpvs-set"><i class="mdi mdi-language-php"></i><span>PHP版本</span></a>
-      <a href="#!" class="func-item js-create-tab" data-title="运行目录" data-url="set.php?gn=yxml"><i class="mdi mdi-folder-home"></i><span>虚拟目录</span></a>
-      <a href="#!" class="func-item js-create-tab" data-title="防盗链" data-url="set.php?gn=fdl"><i class="mdi mdi-file-document-edit"></i><span>伪静态设置</span></a>
-      <a href="#!" class="func-item js-create-tab" data-title="独立IP" data-url="set.php?gn=url"><i class="mdi mdi-alpha-p-box"></i><span>独立IP</span></a>
-      <a href="#!" class="func-item js-create-tab" data-title="缓存配置" data-url="set.php?gn=cache"><i class="mdi mdi-plus-circle"></i><span>主机诊断</span></a>
-      <a href="#!" class="func-item js-create-tab" data-title="MIME类型" data-url="set.php?gn=gzip"><i class="mdi mdi-sitemap"></i><span>MIME类型</span></a>
-      <a href="#!" class="func-item js-create-tab" data-title="一键部署" data-url="webgl.php?gn=yjbs"><i class="mdi mdi-rocket-launch"></i><span>301转向</span></a>
-      <a href="#!" class="func-item js-create-tab" data-title="SSL配置" data-url="set.php?gn=ssl"><i class="mdi mdi-certificate"></i><span>ASP.NET版本</span></a>
-    </div>
-  </section>
   <section class="west-panel west-chart-panel">
     <div class="west-panel-title">资源使用情况</div>
-    <div class="west-meter-row"><span>网页空间</span><div id="web-progressbar"><div class="progress-label">1%</div></div></div>
-    <div class="west-meter-row"><span>数据库空间</span><div id="sql-progressbar"><div class="progress-label">1%</div></div></div>
-    <div class="west-meter-row"><span>本月流量</span><div id="lls-progressbar"><div class="progress-label">1%</div></div></div>
-    <canvas id="trafficChart"></canvas>
+    <div class="west-resource-layout">
+      <div class="west-resource-meters">
+        <div class="west-meter-row"><span>网页空间</span><div id="web-progressbar"><div class="progress-label">1%</div></div></div>
+        <div class="west-meter-row"><span>数据库空间</span><div id="sql-progressbar"><div class="progress-label">1%</div></div></div>
+        <div class="west-meter-row"><span>本月流量</span><div id="lls-progressbar"><div class="progress-label">1%</div></div></div>
+      </div>
+      <div class="west-resource-chart"><canvas id="trafficChart"></canvas></div>
+    </div>
+  </section>
+  <section class="west-panel">
+    <div class="west-panel-title">网站基本配置</div>
+    <div class="west-func-grid">
+      <a href="#!" class="func-item js-create-tab" data-title="域名绑定" data-url="set.php?gn=url"><i class="mdi mdi-web"></i><span>域名绑定</span></a>
+      <a href="#!" class="func-item js-create-tab" data-title="修改密码" data-url="set.php?gn=xgpass"><i class="mdi mdi-key"></i><span>修改密码</span></a>
+      <a href="#!" class="func-item js-create-tab" data-title="默认首页" data-url="set.php?gn=mrwd"><i class="mdi mdi-home"></i><span>默认文档</span></a>
+      <a href="#!" class="func-item phpvs-set"><i class="mdi mdi-xml"></i><span>PHP版本</span></a>
+      <a href="#!" class="func-item js-create-tab" data-title="运行目录" data-url="set.php?gn=yxml"><i class="mdi mdi-television-guide"></i><span>运行目录</span></a>
+      <a href="#!" class="func-item js-create-tab" data-title="伪静态" data-url="set.php?gn=wjt"><i class="mdi mdi-link-variant"></i><span>伪静态</span></a>
+      <a href="#!" class="func-item js-create-tab" data-title="SSL配置" data-url="set.php?gn=ssl"><i class="mdi mdi-key"></i><span>SSL配置</span></a>
+      <a href="#!" class="func-item js-create-tab" data-title="防盗链" data-url="set.php?gn=fdl"><i class="mdi mdi-access-point-network"></i><span>防盗链</span></a>
+      <a href="#!" class="func-item js-create-tab" data-title="Gzip配置" data-url="set.php?gn=gzip"><i class="mdi mdi-zip-box-outline"></i><span>Gzip配置</span></a>
+      <a href="#!" class="func-item js-create-tab" data-title="缓存配置" data-url="set.php?gn=cache"><i class="mdi mdi-cached"></i><span>缓存配置</span></a>
+      <a href="#!" class="func-item js-create-tab" data-title="密码访问" data-url="set.php?gn=pass"><i class="mdi mdi-guy-fawkes-mask"></i><span>密码访问</span></a>
+    </div>
+  </section>
+  <section class="west-panel">
+    <div class="west-panel-title">数据管理</div>
+    <div class="west-func-grid west-func-grid-sm">
+      <a href="#!" class="func-item js-create-tab" data-title="在线文件管理" data-url="ftp.php"><i class="mdi mdi-folder-open"></i><span>在线文件管理</span></a>
+      <a href="mysql.php" target="_blank" class="func-item"><i class="mdi mdi-database"></i><span>数据库管理面板</span></a>
+      <a href="#!" class="func-item js-create-tab" data-title="数据库备份管理" data-url="sqlgl.php"><i class="mdi mdi-database-plus"></i><span>数据库备份管理</span></a>
+      <a href="#!" class="func-item js-create-tab" data-title="数据库权限修改" data-url="set.php?gn=mysqlcz"><i class="mdi mdi-database-lock"></i><span>数据库权限修改</span></a>
+    </div>
+  </section>
+  <section class="west-panel">
+    <div class="west-panel-title">监控与服务</div>
+    <div class="west-func-grid west-func-grid-sm">
+      <a href="#!" class="func-item js-create-tab" data-title="一键部署" data-url="webgl.php?gn=yjbs"><i class="mdi mdi-webpack"></i><span>一键部署</span></a>
+      <a href="#!" class="func-item js-create-tab" data-title="监控任务" data-url="monitor.php"><i class="mdi mdi-monitor-dashboard"></i><span>监控任务</span></a>
+      <a href="#!" class="func-item js-create-tab" data-title="通知日志" data-url="notice.php"><i class="mdi mdi-bell-ring"></i><span>通知日志</span></a>
+      <a href="#!" class="func-item js-create-tab" data-title="站点统计" data-url="site_stats.php"><i class="mdi mdi-server-minus"></i><span>站点统计</span></a>
+      <a href="#!" class="func-item js-create-tab" data-title="监控日志" data-url="monitor_log.php"><i class="func-icon">志</i><span>监控日志</span></a>
+      <a href="#!" class="func-item js-create-tab" data-title="流量趋势" data-url="sy.php"><i class="mdi mdi-signal"></i><span>流量分析</span></a>
+    </div>
   </section>
 </div>
 <script>
@@ -104,9 +127,9 @@ function configup(){
             $('#ftphost').text(cons.ftp.host);
             $('#ftpuser').text(cons.ftp.user);
             $('#sqluser').text(cons.sql.user);
-            if(conf['qk']=='1'){ $('#siteqk').html('(运行中)'); $('#siteqkText').html('<span class="text-success">运行中</span>'); }
-            else if(conf['qk']=='0'){ $('#siteqk').html('(已暂停)'); $('#siteqkText').html('<span class="text-danger">已暂停</span>'); }
-            else{ $('#siteqk').html('(未知)'); $('#siteqkText').html('<span class="text-warning">未知</span>'); }
+            if(conf['qk']=='1'){ $('#siteqk').html('(运行中)'); $('#siteqkText').html('<span class="text-success">运行中</span>'); $('.west-status-light').removeClass('paused'); }
+            else if(conf['qk']=='0'){ $('#siteqk').html('(已暂停)'); $('#siteqkText').html('<span class="text-danger">已暂停</span>'); $('.west-status-light').addClass('paused'); }
+            else{ $('#siteqk').html('(未知)'); $('#siteqkText').html('<span class="text-warning">未知</span>'); $('.west-status-light').removeClass('paused'); }
             renderTrafficChart(conf);
         } else { msalert(4,jsoe.code,6000); }
         msloadingde();
@@ -121,7 +144,15 @@ function renderTrafficChart(conf) {
     Object.keys(historyData).sort().forEach(function(m) { labels.push(parseInt(m.split('-')[1]) + '月'); values.push(+(historyData[m] / (1024*1024*1024)).toFixed(2)); });
     labels.push('本月');
     values.push(+(conf['lls'].dq / (1024*1024*1024)).toFixed(2));
-    if (window.trafficChart) { window.trafficChart.data.labels = labels; window.trafficChart.data.datasets[0].data = values; window.trafficChart.update(); return; }
+    if (window.trafficChart && window.trafficChart.data && window.trafficChart.data.labels && window.trafficChart.data.datasets && window.trafficChart.data.datasets[0]) {
+        window.trafficChart.data.labels = labels;
+        window.trafficChart.data.datasets[0].data = values;
+        window.trafficChart.update();
+        return;
+    }
+    if (window.trafficChart && typeof window.trafficChart.destroy === 'function') {
+        window.trafficChart.destroy();
+    }
     window.trafficChart = new Chart(canvas.getContext('2d'), { type: 'line', data: { labels: labels, datasets: [{ label: '流量用量(GB)', data: values, borderColor: '#1f8fd5', backgroundColor: 'rgba(31,143,213,.12)', borderWidth: 2, pointRadius: 3, fill: true }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } } });
 }
 function copypwd(lx){
