@@ -1392,7 +1392,8 @@ if(rows!=null){
 czdhx=1;
 var xhcs=1;
 $.each(rows,function(){
-eval('add_cz("'+this.cz+'")');
+// 安全：直接调用 add_cz 函数，移除 eval 拼接字符串
+add_cz(this.cz);
 
 let arr = this;
 for(var key in arr){
@@ -1408,7 +1409,8 @@ updhx=1;
 bl_arr=[];          //初始化全局变量
 var xhcs=1;
 $.each(rows,function(){
-eval('add_pt("'+this.cz+'")');
+// 安全：直接调用 add_pt 函数，移除 eval 拼接字符串
+add_pt(this.cz);
 
 let arr = this;
 for(var key in arr){

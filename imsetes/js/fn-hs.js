@@ -104,6 +104,23 @@ ico='mdi-alert'
 tp='red'
 ico='mdi-close-circle'
 }
+// 安全：将 fn/fns 字符串转换为函数（仅当非空时）
+// 注意：仅接受简单的"函数名(参数)"或"变量赋值"格式，拒绝包含 ; 或 (){ } 等可疑结构
+var okCallback = null;
+var cancelCallback = null;
+function _msalerts_make_callback(code) {
+    if (typeof code !== 'string') return null;
+    var trimmed = code.trim();
+    if (trimmed === '') return null;
+    // 拒绝可疑字符，仅允许字母数字、下划线、点、字符串、括号、空格、逗号、=、+、-、*、/、'、"、!、<、>、?、&
+    if (!/^[a-zA-Z0-9_.\s\(\),=+\-*/'"!?<>?&]+$/.test(trimmed)) {
+        console.error('回调函数包含非法字符:', trimmed);
+        return null;
+    }
+    try { return new Function(trimmed); } catch(e) { console.error('回调函数无效:', e); return null; }
+}
+okCallback = _msalerts_make_callback(fn);
+cancelCallback = _msalerts_make_callback(fns);
     $.alert({
         title: tit,
         content: cont,
@@ -118,13 +135,13 @@ ico='mdi-close-circle'
                 text: '确认',
                 btnClass: 'btn-'+tp,
                 action: function(){
-                    eval(fn);
+                    if (okCallback) { try { okCallback(); } catch(e) { console.error('确认回调执行失败:', e); } }
                 }
             },
             cancelAction: {
                 text: '取消',
                 action: function() {
-                    eval(fns);
+                    if (cancelCallback) { try { cancelCallback(); } catch(e) { console.error('取消回调执行失败:', e); } }
                 }
             }
         }

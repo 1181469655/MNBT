@@ -4,7 +4,20 @@ bl_arr=[]       //存放变量的数组
 
 function add_cz(czlx){      //添加操作
      msloading('添加中，请稍后...');  // 加载圈显示
-     var ret=eval('gl_'+czlx+'()');
+     // 安全：白名单验证 czlx 字段，只允许预定义的操作类型
+     var allowedCzlx = ['xjwj','xjwjj','delwj','delwjj','setwj','drsql','gettj','setyxml','setwjt'];
+     if (allowedCzlx.indexOf(czlx) === -1) {
+         console.error('非法的操作类型:', czlx);
+         msloadingde();
+         return;
+     }
+     var funcName = 'gl_' + czlx;
+     if (typeof window[funcName] !== 'function') {
+         console.error('未找到操作处理函数:', funcName);
+         msloadingde();
+         return;
+     }
+     var ret = window[funcName]();
      var tmp = document.createElement("div");
      tmp.className="form-group nbvbk border border-cyan";
      tmp.innerHTML= '<label for="web_site_icp">'+'第'+czdhx+'步操作：'+ret[0]+'</label><a href="#!" class="mdi mdi-delete float-right text-dark"></a>'+ret[1];
@@ -15,7 +28,20 @@ function add_cz(czlx){      //添加操作
 
 function add_pt(czlx){      //添加表单(得有预览功能)
      msloading('添加中，请稍后...');  // 加载圈显示
-     var ret=eval('gs_'+czlx+'()');
+     // 安全：白名单验证 czlx 字段，只允许预定义的表单类型
+     var allowedCzlx = ['input','dxk','dxks','urlxz','textarea','file','select','checkbox','radio'];
+     if (allowedCzlx.indexOf(czlx) === -1) {
+         console.error('非法的表单类型:', czlx);
+         msloadingde();
+         return;
+     }
+     var funcName = 'gs_' + czlx;
+     if (typeof window[funcName] !== 'function') {
+         console.error('未找到表单处理函数:', funcName);
+         msloadingde();
+         return;
+     }
+     var ret = window[funcName]();
      var tmp = document.createElement("div");
      tmp.className="nbvbks border border-purple";
      tmp.innerHTML= '<label for="web_site_icp">表单：'+ret[0]+'</label><a href="#!" class="mdi mdi-delete float-right text-dark"></a>'+ret[1];

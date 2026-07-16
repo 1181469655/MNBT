@@ -185,8 +185,8 @@ if(json.qk==1){
 if(bds!=null){
 //添加表单
 $.each(bds,function(is,val){
-var rowr=JSON.stringify(val);
-eval('add_inp("'+val.cz+'",'+is+','+rowr+')');
+// 安全：直接调用 add_inp 函数，移除 eval 拼接字符串
+add_inp(val.cz, is, val);
 })
 $('#inputforms').modal();		//弹出弹窗
 
