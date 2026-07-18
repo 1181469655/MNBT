@@ -1,8 +1,24 @@
 # MNBT 主题开发手册
 
 本文面向需要**新建主题**或**改版默认皮肤**的开发者。
+阅读前请先看 [README.md](./README.md) 了解切换方式与目录结构。
 
-> 阅读前建议先浏览 [README.md](../README.md) 的「主题与模板」章节，了解切换方式与目录结构。
+## 目录
+
+- [1. 设计原则](#1-设计原则)
+- [2. 新建主题（最短路径）](#2-新建主题最短路径)
+- [3. 必选 / 可选视图清单](#3-必选--可选视图清单)
+- [4. 控制器与视图约定](#4-控制器与视图约定)
+- [5. 静态资源隔离](#5-静态资源隔离)
+- [6. 公共交互函数与 DOM 契约](#6-公共交互函数与-dom-契约)
+- [7. 框架页（index.php）实现要点](#7-框架页indexphp实现要点)
+- [8. 主题引擎行为细节](#8-主题引擎行为细节)
+- [9. 混合 UI 框架主题策略](#9-混合-ui-框架主题策略)
+- [10. 官方主题示例](#10-官方主题示例)
+- [11. 发布主题包建议](#11-发布主题包建议)
+- [12. 常见问题](#12-常见问题)
+- [13. 相关文件索引](#13-相关文件索引)
+- [14. 版本与兼容](#14-版本与兼容)
 
 ---
 
@@ -13,89 +29,34 @@
 3. **AJAX 路径不变**：页面内请求仍使用 `./ajax.php`、`../user/ajax.php` 等现有接口。
 4. **缺页回退**：自定义主题只需覆盖要改的页面，其余自动使用 `default`。
 5. **双端独立**：用户端主题与管理端主题可分别选择。
-6. **只改外观，不改交互契约**：保持表单 `id`、关键 `onclick` 函数名、AJAX 返回格式不变。
+6. **DOM 契约保留**：表单 `id`、关键按钮 `onclick` 函数名、`msalert` / `msloading` 等公共函数不能改名（详见 [§6](#6-公共交互函数与-dom-契约)）。
 
 ---
 
-## 2. 主题结构速查
+## 2. 新建主题（最短路径）
+
+### 步骤 1：复制骨架
 
 ```text
 templates/
-├── active_user_theme          # 当前用户端主题 ID
-├── active_admin_theme         # 当前管理端主题 ID
-├── default/                   # 官方默认主题（唯一完整参考实现）
-│   ├── user/
-│   │   ├── head.php           # 公共 <head>
-│   │   ├── index.php          # 框架壳（侧边栏 + 多标签 iframe）
-│   │   ├── login.php          # 登录页
-│   │   ├── sy.php             # 仪表盘
-│   │   ├── set.php            # 站点设置
-│   │   ├── ftp.php            # 在线文件管理
-│   │   ├── webgl.php          # 一键部署
-│   │   ├── sqlgl.php          # 数据库备份
-│   │   ├── monitor.php        # 监控任务
-│   │   ├── monitor_log.php    # 监控日志
-│   │   ├── notice.php         # 通知日志
-│   │   ├── site_stats.php     # 站点统计
-│   │   └── assets/
-│   │       ├── style.min.css  # default 用户端业务页样式
-│   │       └── user-common.css
-│   └── admin/
-│       ├── head.php
-│       ├── index.php
-│       ├── login.php
-│       ├── sy.php
-│       ├── set.php
-│       ├── list.php
-│       ├── add.php
-│       ├── node.php
-│       ├── tutorial.php
-│       ├── update.php
-│       └── assets/
-├── bootstrapui/               # 第三方/自定义主题示例
-├── jqueryui/
-└── my_theme/                  # 你新建的主题
+└── my_theme/                 # 目录名 = 主题 ID（仅字母数字下划线横线）
     ├── theme.json
     ├── user/
-    │   ├── head.php
-    │   ├── index.php
-    │   ├── login.php
     │   └── assets/
-    │       └── theme.css
     └── admin/
-        ├── head.php
-        ├── index.php
-        ├── login.php
         └── assets/
-            └── theme.css
 ```
 
----
+> 当前官方主题包含 `default`（Bootstrap 4 + jQuery）与 `layui`（Layui 2.x）。新建主题建议以 `default` 为基准复制后修改，或参考 `layui` 主题的"混合栈"做法。
 
-## 3. 新建主题（推荐工作流）
-
-### 步骤 1：基于 default 复制
-
-最稳妥的做法是把 `templates/default` 完整复制一份，再改名、精简、改写样式。
-
-```bash
-# Linux / macOS / Git Bash
-cp -r templates/default templates/layuiui
-
-# PowerShell
-Copy-Item -Path "templates\default" -Destination "templates\layuiui" -Recurse
-```
-
-复制后删除不需要的页面，只保留要改的文件；未保留的文件会自动回退到 `default`。
-
-### 步骤 2：编写 theme.json
+### 步骤 2：编写 `theme.json`
 
 ```json
 {
-  "name": "layuiui",
-  "title": "layui 风格主题",
+  "name": "my_theme",
+  "title": "我的主题",
   "version": "1.0.0",
-  "description": "仿 layui 绿白配色的用户端与管理端皮肤",
+  "description": "自定义用户端与管理端皮肤",
   "author": "YourName",
   "scope": ["user", "admin"]
 }
@@ -103,7 +64,7 @@ Copy-Item -Path "templates\default" -Destination "templates\layuiui" -Recurse
 
 | 字段 | 必填 | 说明 |
 |------|------|------|
-| `name` | 建议 | 与目录名一致，仅允许 `[a-zA-Z0-9_-]` |
+| `name` | 建议 | 与目录名一致 |
 | `title` | 是 | 后台「前端模板」列表显示名 |
 | `version` | 否 | 版本号 |
 | `description` | 否 | 简介 |
@@ -112,22 +73,21 @@ Copy-Item -Path "templates\default" -Destination "templates\layuiui" -Recurse
 
 ### 步骤 3：覆盖页面
 
-把要改的文件从 `templates/default/` 复制到 `templates/layuiui/` 同名路径，再修改 HTML/CSS。
+从 `templates/default/user/` 或 `admin/` **复制**要改的文件到 `my_theme` 对应目录，再修改 HTML/CSS。
 
 示例：只改用户登录页外观：
 
 ```text
-templates/layuiui/user/login.php
-templates/layuiui/user/assets/login.css
+templates/my_theme/user/login.php
 ```
 
 其余用户页仍走 `default`。
 
 ### 步骤 4：启用
 
-1. 确保 `templates/` 可写。
-2. 后台 → 系统管理 → **前端模板** → 选择 `layuiui` → 保存。
-3. 或直接写入 `templates/active_user_theme` / `templates/active_admin_theme`。
+1. 确保 `templates/` 可写
+2. 后台 → 系统管理 → **前端模板** → 选择 `my_theme` → 保存
+3. 或写入 `templates/active_user_theme` / `templates/active_admin_theme`
 
 ### 步骤 5：自测清单
 
@@ -136,13 +96,13 @@ templates/layuiui/user/assets/login.css
 - [ ] 至少 2～3 个业务子页（仪表盘、设置、列表）
 - [ ] 表单提交与 AJAX 弹窗
 - [ ] 静态资源 404 检查（CSS/JS/图片）
-- [ ] 切换回 `default` 主题验证无缺页崩溃
+- [ ] **回退页**（未覆盖的页面）样式是否正常
 
 ---
 
-## 4. 必选 / 可选视图清单
+## 3. 必选 / 可选视图清单
 
-### 4.1 用户端 `templates/{theme}/user/`
+### 3.1 用户端 `templates/{theme}/user/`
 
 | 视图文件 | 说明 | 建议 |
 |----------|------|------|
@@ -161,7 +121,7 @@ templates/layuiui/user/assets/login.css
 
 > 不提供的文件会回退 `default`，**不必一次抄全**。
 
-### 4.2 管理端 `templates/{theme}/admin/`
+### 3.2 管理端 `templates/{theme}/admin/`
 
 | 视图文件 | 说明 | 建议 |
 |----------|------|------|
@@ -176,7 +136,7 @@ templates/layuiui/user/assets/login.css
 | `tutorial.php` | 教程与监控说明 | 可选 |
 | `update.php` | 系统更新 | 可选 |
 
-### 4.3 不走主题的路径（一般不要动）
+### 3.3 不走主题的路径（一般不要动）
 
 | 路径 | 原因 |
 |------|------|
@@ -188,9 +148,9 @@ templates/layuiui/user/assets/login.css
 
 ---
 
-## 5. 控制器与视图约定
+## 4. 控制器与视图约定
 
-### 5.1 用户端控制器示例
+### 4.1 用户端控制器示例
 
 ```php
 <?php
@@ -202,7 +162,7 @@ mnbt_user_require_login();
 mnbt_render('sy');
 ```
 
-### 5.2 管理端控制器示例
+### 4.2 管理端控制器示例
 
 ```php
 <?php
@@ -213,7 +173,7 @@ mnbt_admin_require_login();
 mnbt_admin_render('set');
 ```
 
-### 5.3 视图内引入公共头
+### 4.3 视图内引入公共头
 
 ```php
 <?php mnbt_theme_include('head'); ?>
@@ -223,7 +183,7 @@ mnbt_admin_render('set');
 
 `index.php` 一般是完整 HTML 文档，**可不** include head。
 
-### 5.4 视图中可用的常见变量
+### 4.4 视图中可用的常见变量
 
 由 `common.php` / `member.php` 注入，视图可直接使用：
 
@@ -237,6 +197,7 @@ mnbt_admin_render('set');
 | `$user` / `$zjid` / `$ssbt` | 用户端 | 账号、站点 ID、所属宝塔代号 |
 | `$islogin` | 管理端 | 管理员登录态 |
 | `$siteid` | 双端 | 配置站点 ID（通常 1） |
+| `$mn_conf` | 双端 | 内部运行配置（含 `xf` 修复标记） |
 
 部分页面控制器还会准备专用变量，例如：
 
@@ -246,9 +207,9 @@ mnbt_admin_render('set');
 
 ---
 
-## 6. 静态资源隔离
+## 5. 静态资源隔离
 
-### 6.1 两类资源（必须分清）
+### 5.1 两类资源（必须分清）
 
 | 类型 | 目录 | API | 是否随主题切换 |
 |------|------|-----|----------------|
@@ -259,7 +220,7 @@ mnbt_admin_render('set');
 
 **主题私有**（改皮肤放这里）：覆盖样式、登录页背景、主题专属 JS/图片。
 
-### 6.2 公共资源写法
+### 5.2 公共资源写法
 
 ```php
 <link href="<?= mnbt_asset_url('css/bootstrap.min.css') ?>" rel="stylesheet">
@@ -269,7 +230,7 @@ mnbt_admin_render('set');
 
 等价于 `../imsetes/...`。**模板中禁止再写死 `../imsetes/`**，便于以后改公共资源根路径。
 
-### 6.3 主题私有资源
+### 5.3 主题私有资源
 
 ```text
 templates/my_theme/user/assets/login.css
@@ -290,7 +251,7 @@ templates/my_theme/admin/assets/admin-common.css
 <link href="<?= mnbt_theme_url('assets/login.css') ?>" rel="stylesheet">
 ```
 
-### 6.4 资源回退规则
+### 5.4 资源回退规则
 
 与页面模板相同：
 
@@ -300,7 +261,7 @@ templates/my_theme/admin/assets/admin-common.css
 
 因此自定义主题**只需覆盖要改的 CSS**，其余私有资源会用 default 的。
 
-### 6.5 缓存
+### 5.5 缓存
 
 ```php
 <script src="<?= mnbt_asset_url('js/fn-hs.js') ?>?1.80"></script>
@@ -308,23 +269,96 @@ templates/my_theme/admin/assets/admin-common.css
 
 Logo 等已使用 `$conf['auther']` 作为缓存戳。
 
+### 5.6 引入第三方 UI 库（如 Layui）
+
+第三方库**不属于公共资源**，可由主题自行引入：
+
+- 优先：CDN（如 `https://unpkg.com/layui@2.9.8/dist/css/layui.css`）
+- 离线：放入 `templates/{theme}/user/assets/lib/` 后用 `mnbt_theme_asset('lib/layui.css')` 引用
+
+> 注意：如果主题仅覆盖部分页面（其余回退 default），第三方库需在 `head.php` 中加载，使回退页也能取到；但同时**不要移除** Bootstrap / jQuery / `fn-hs.js`，否则回退页会样式错乱或脚本失效（详见 [§9](#9-混合-ui-框架主题策略)）。
+
 ---
 
-## 7. DOM / JS 兼容注意
+## 6. 公共交互函数与 DOM 契约
 
-现有大量页面 JS 依赖固定元素 `id` 与 class（如 `#username`、`#password`、`setwz()`、`msalert` 等）。
+现有大量页面 JS 依赖固定元素 `id`、class 与全局函数。改外观时**必须保留**以下契约。
 
-**改外观时：**
+### 6.1 全局函数（来自 `imsetes/js/fn-hs.js`）
 
-- 可以改 class、布局、样式
-- **不要随意改**表单控件 `id`、关键按钮的 `onclick` 函数名
+| 函数 | 用途 |
+|------|------|
+| `msalert(type, msg, timeout)` | 消息提示（1 成功 / 2 公告 / 3 警告 / 4 错误） |
+| `msalertb(type, title, content, ...)` | 带标题的弹窗 |
+| `msloading(text, ...)` | 显示加载遮罩 |
+| `msloadingde()` | 关闭加载遮罩 |
+| `ylalert(text)` | 用量超限提示 |
+
+### 6.2 登录页契约（用户端 + 管理端）
+
+| 元素 / 函数 | 说明 |
+|------|------|
+| `#username`、`#password` | 输入框 id，登录 JS 直接读取 |
+| `#csyzmiq` | 验证码输入框（开启验证码时） |
+| `#captcha` | 验证码图片（刷新用） |
+| `chkre()` | 登录提交函数（`onclick="chkre()"`） |
+
+### 6.3 框架页契约
+
+| 元素 / 函数 | 说明 |
+|------|------|
+| `#iframe-content` | iframe 容器（多标签插件挂载点） |
+| `#iframe_shuax` | 刷新当前标签按钮 |
+| `chteci()` | 退出登录函数 |
+| `.multitabs` | 多标签点击触发类 |
+| `xiaole()` | 邮箱绑定弹窗（用户端，按需） |
+
+### 6.4 改外观的边界
+
+- ✅ 可以改：class、布局、颜色、字体、间距、图标库
+- ❌ 不要改：表单控件 `id`、关键按钮 `onclick` 函数名、`<script>` 内联逻辑的函数名
 - 若必须改结构，需同步修改页面内 JS 或独立 `assets/*.js`
 
-公共交互函数多在：
+---
 
-- `imsetes/js/fn-hs.js`（`msalert`、`msloading` 等）
-- `imsetes/js/xtset.js`（后台设置页）
-- 各页面内联 `<script>`
+## 7. 框架页（index.php）实现要点
+
+`index.php` 是整套皮肤中**最复杂**的页面，承担：
+
+1. 左侧导航菜单
+2. 顶部工具栏（侧栏开关、刷新、用户菜单、配色切换）
+3. 多标签 iframe 容器（`#iframe-content`）
+4. 退出登录、系统修复等弹窗逻辑
+
+### 7.1 默认主题的实现
+
+默认主题使用 `bootstrap-multitabs` 插件驱动多标签：
+
+```php
+<script src="<?= mnbt_asset_url('js/bootstrap-multitabs/multitabs.min.js') ?>"></script>
+<script src="<?= mnbt_asset_url('js/index.min.js') ?>"></script>
+```
+
+菜单项添加 `class="multitabs"` 即可被插件劫持为 iframe 标签页。
+
+### 7.2 自定义框架页注意
+
+- 必须保留 `#iframe-content` 容器，否则多标签插件无处挂载
+- 保留 `.multitabs` 类与 `data-url` / `data-title` 属性
+- 保留 `#iframe_shuax` 刷新按钮与 `chteci()` 退出函数
+- 保留 iframe loading 占位 HTML（含 `css/index.loading.css`）的结构
+
+### 7.3 插件菜单挂载点
+
+```php
+<?php
+if (function_exists('mnbt_plugin_render_menu_user_html')) {
+  echo mnbt_plugin_render_menu_user_html();
+}
+?>
+```
+
+管理端用 `mnbt_plugin_render_menu_admin_html()`。**必须保留**，否则插件菜单不会显示。
 
 ---
 
@@ -352,82 +386,63 @@ Logo 等已使用 `$conf['auther']` 作为缓存戳。
 
 ---
 
-## 9. 常见样式覆盖点
+## 9. 混合 UI 框架主题策略
 
-若只想换配色与风格，通常只需覆盖以下内容：
+如果主题采用 Bootstrap 之外的 UI 库（如 Layui、Element、Tailwind），同时又想让未覆盖页面**回退到 default**，需要遵守以下策略：
 
-| 目标 | 用户端 | 管理端 | 说明 |
-|------|--------|--------|------|
-| 框架布局 | `index.php` + `theme.css` | `index.php` + `theme.css` | 侧边栏、顶部、iframe 容器 |
-| 登录页 | `login.php` + `login.css` | `login.php` + `login.css` | 独立页面，可大胆重写 |
-| 业务页统一风格 | `head.php` 引入 `theme.css` | `head.php` 引入 `theme.css` | 注意回退到 default 的页面也要加载 |
-| 表格 / 表单 | CSS 覆盖 `.table`、`.form-control`、`.btn` | 同上 | 覆盖 Bootstrap 默认变量 |
-| 仪表盘卡片 | CSS 覆盖 `.card` | 同上 | 改圆角、阴影、配色 |
+### 9.1 head.php 必须同时加载两套栈
 
-**特别提示**：自定义主题的 `head.php` 若被业务子页（`sy.php`、`set.php`、`ftp.php`、`webgl.php` 等）引用，必须保证这些回退到 `default` 的页面能正常渲染。建议至少包含：
+```php
+<!-- 1. 回退页依赖的 Bootstrap / jQuery 栈（保留） -->
+<link href="<?= mnbt_asset_url('css/bootstrap.min.css') ?>" rel="stylesheet">
+<script src="<?= mnbt_asset_url('js/jquery.min.js') ?>"></script>
+<script src="<?= mnbt_asset_url('js/fn-hs.js') ?>"></script>
 
-- `imsetes/css/bootstrap.min.css`
-- `imsetes/css/style.min.css`
-- `imsetes/css/materialdesignicons.min.css`
-- `templates/default/user/assets/user-common.css`（通过 `mnbt_theme_asset('user-common.css')` 回退加载）
+<!-- 2. 主题专属 UI 库（新增） -->
+<link href="https://unpkg.com/layui@2.9.8/dist/css/layui.css" rel="stylesheet">
 
-否则会出现布局错乱、按钮/卡片样式丢失等问题。
-
----
-
-## 10. layui 风格主题示例
-
-`templates/layuiui/` 是一个完整的官方示例主题，采用仿 layui 的白绿配色，展示了如何基于 `default` 改造出一套新皮肤。
-
-### 10.1 覆盖范围
-
-```text
-templates/layuiui/
-├── theme.json
-├── user/
-│   ├── head.php          # 公共头，引入 layui 风格 CSS
-│   ├── index.php         # 框架壳（侧边栏 + 多标签）
-│   ├── login.php         # 登录页
-│   ├── sy.php            # 仪表盘（layui 卡片 + 表格）
-│   └── assets/
-│       └── theme.css     # 主题样式覆盖
-└── admin/
-    ├── head.php
-    ├── index.php
-    ├── login.php
-    └── assets/
-        └── theme.css
+<!-- 3. 主题覆盖样式（最后加载，优先级最高） -->
+<link href="<?= mnbt_theme_asset('theme.css') ?>" rel="stylesheet">
 ```
 
-其余页面走 `default` 回退。
+### 9.2 避免类名冲突
 
-### 10.2 设计要点
+Layui 的 `layui-container`、`layui-row`、`layui-card` 与 Bootstrap 的 `container`、`row`、`card` 互不覆盖，可共存。
 
-- **主色**：`#16baaa`（layui 绿）
-- **侧边栏**：深色背景，layui 风格图标与菜单
-- **按钮**：layui 风格圆角、主色填充
-- **卡片**：白色背景、浅阴影、绿色标题条
-- **表格**：简洁边框、hover 浅绿背景
-- **保持兼容**：不改动表单 `id` 与 JS 函数名，确保业务逻辑正常
+但要注意：
 
-### 10.3 使用方式
+- Layui 的 `layui-btn` 与 Bootstrap 的 `btn` 样式不同，**不要在回退页混用**
+- 自定义类建议加前缀（如 `my-`、`ly-`）避免被覆盖
 
-复制 `templates/layuiui/` 到 `templates/` 后，后台选择 `layuiui` 主题即可。
+### 9.3 仅覆盖少量页面的策略
 
----
+最经济的做法：
 
-## 11. 从 default 改版 vs 独立主题
+| 覆盖文件 | 改造内容 |
+|------|------|
+| `head.php` | 加载两套栈 + 主题覆盖样式 |
+| `login.php` | 完全用新 UI 库重写 |
+| `index.php` | 完全用新 UI 库重写（框架壳） |
+| `sy.php` | 完全用新 UI 库重写（仪表盘） |
 
-| 方式 | 适用 | 优点 | 缺点 |
-|------|------|------|------|
-| 直接改 `templates/default/` | 官方迭代、唯一皮肤 | 简单 | 升级时冲突大 |
-| 新建 `templates/xxx/` 只覆盖部分页 | 多皮肤、客户定制 | 可回退、可切换 | 需维护契约 |
+其余业务页（`set.php`、`ftp.php` 等）回退 default，因 head.php 仍加载 Bootstrap，能正常工作。
 
-**推荐**：客户定制用独立主题目录；核心功能升级只动 `default` 与控制器。
+参考实现：`templates/layui/`（用户端 + 管理端框架壳、登录页、仪表盘用 Layui，业务页回退 default）。
 
 ---
 
-## 12. 发布主题包建议
+## 10. 官方主题示例
+
+| 主题 | 目录 | 技术栈 | 覆盖范围 |
+|------|------|--------|----------|
+| `default` | `templates/default/` | Light Year Admin（Bootstrap 4 + jQuery） | 全部页面 |
+| `layui` | `templates/layui/` | Layui 2.9 + Bootstrap 回退栈 | head/login/index/sy（其余回退 default） |
+
+`layui` 主题是**混合栈**示例：保留 Bootstrap 以兼容回退页，新增 Layui 用于框架壳与登录页，覆盖样式将主色调统一为 Layui 蓝（`#1e9fff`）。
+
+---
+
+## 11. 发布主题包建议
 
 压缩包结构：
 
@@ -449,7 +464,7 @@ my_theme.zip
 
 ---
 
-## 13. 常见问题
+## 12. 常见问题
 
 ### Q: 改了主题文件不生效？
 
@@ -489,9 +504,19 @@ my_theme.zip
 
 或查看 `mnbt_theme_name('user')` / `mnbt_theme_name('admin')`。
 
+### Q: 回退页样式错乱？
+
+通常是 `head.php` 漏加载了 Bootstrap / jQuery / `fn-hs.js` / `style.min.css`。
+检查 head.php 是否完整保留了 default 主题的公共资源引用，再追加新 UI 库。
+
+### Q: 主题加载了 Layui 但 `layui.form.render()` 报错？
+
+业务回退页里没有 `.layui-form` 容器，调用 `render` 无意义。
+仅在自定义页面（如登录页、框架页）里使用 `layui.form.render()`，不要放到 `head.php` 全局执行。
+
 ---
 
-## 14. 相关文件索引
+## 13. 相关文件索引
 
 | 文件 | 职责 |
 |------|------|
@@ -500,18 +525,20 @@ my_theme.zip
 | `admin/set.php?gn=theme` | 切换 UI |
 | `admin/api/setting.php` → `settheme` | 保存接口 |
 | `imsetes/js/xtset.js` → `settheme()` | 前端保存脚本 |
+| `imsetes/js/fn-hs.js` | 公共交互函数（`msalert`、`msloading` 等） |
 | `imsetes/` | 公共静态资源（`mnbt_asset_url`） |
 | `templates/default/**/assets/` | 默认主题私有资源（`mnbt_theme_asset`） |
 | `templates/default/**` | 官方默认视图 |
-| `templates/layuiui/` | layui 风格示例主题 |
+| `templates/layui/**` | Layui 混合栈示例主题 |
 
 ---
 
-## 15. 版本与兼容
+## 14. 版本与兼容
 
 - 主题系统自 MNBT 主题化改造版本起提供（见主仓库 `dev/v1.80` 及后续正式版）
 - 升级程序时：自定义主题目录一般可保留；若官方 `default` 新增页面，旧主题未覆盖则自动用新 default
 - 若官方修改某页 DOM 结构，依赖旧 DOM 的自定义主题可能需跟进调整
 - 资源 API：`mnbt_theme_url` 会对主题私有文件做 default 回退；`mnbt_asset_url` 始终指向 `imsetes/`
+- `layui` 主题自 v1.81 起提供，作为混合栈示例
 
 如有疑问，可在项目 Issue 中反馈并附上主题目录结构与报错截图。
