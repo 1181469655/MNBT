@@ -11,7 +11,7 @@ foreach ($fields as $f) {
 <div class="card">
   <div class="card-header bg-info"><h4>售卖前端设置</h4></div>
   <div class="card-body">
-    <div class="alert alert-info">配置 Vue SPA 售卖网站的显示内容。保存后需刷新前台页面。</div>
+    <div class="alert alert-info">配置售卖网站首页的显示内容。保存后需刷新前台页面。</div>
     <form id="settingsForm">
       <div class="form-group">
         <label>站点标题</label>
