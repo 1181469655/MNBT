@@ -1,0 +1,9 @@
+{
+  "id": "shop_frontend",
+  "name": "售卖前端",
+  "version": "1.0.0",
+  "description": "基于 Vue 3 + Vuetify 的售卖网站 SPA 前端，接管首页，深度融合 hosting_shop / user_info / balance",
+  "author": "MNBT",
+  "type": ["business"],
+  "requires_plugins": ["user_info", "balance", "hosting_shop"]
+}
