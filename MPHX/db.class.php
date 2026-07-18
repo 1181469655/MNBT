@@ -60,6 +60,7 @@ if(defined('SQLITE')==true){
 	}
 }
 elseif(extension_loaded('mysqli') && $nomysqli==false) {
+    mysqli_report(MYSQLI_REPORT_OFF);
     class DB {
         var $link = null;
 

@@ -1,6 +1,7 @@
 <?php
 
 if(extension_loaded('mysqli')) {
+    mysqli_report(MYSQLI_REPORT_OFF);
     class DB {
         private static $link;
 		public static function connect($db_host,$db_user,$db_pass,$db_name,$db_port){
