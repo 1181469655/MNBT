@@ -344,12 +344,11 @@ function hosting_order_set_status($order_id, $status, $remark = '')
 function hosting_asset_list_by_user($user_id)
 {
 	global $DB;
+	// 用户端不查询宝塔节点敏感信息（IP、端口、密钥等），仅保留节点标识 ssbt
 	return $DB->get_all_prepare(
-		"SELECT a.*, zj.user AS host_user, zj.pass AS host_pass, zj.sqldz, zj.ssbt, zj.btid, zj.qk AS host_qk, zj.data, zj.datae,
-		        bt.btip, bt.btdk, bt.ptl
+		"SELECT a.*, zj.user AS host_user, zj.pass AS host_pass, zj.sqldz, zj.ssbt, zj.btid, zj.qk AS host_qk, zj.data, zj.datae
 		 FROM MN_plugin_hosting_asset a
 		 LEFT JOIN MN_zj zj ON zj.id = a.host_id
-		 LEFT JOIN MN_bt bt ON bt.btdh = zj.ssbt
 		 WHERE a.user_id=?
 		 ORDER BY a.id DESC",
 		[(int)$user_id]
