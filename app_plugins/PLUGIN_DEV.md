@@ -668,7 +668,6 @@ $rows = $DB->get_all_prepare("SELECT * FROM plg_my_plugin_log ORDER BY id DESC L
 |------|----------------|
 | **default 管理端** | 菜单 + `plugin.php` 页面 + 小部件（完整支持） |
 | **default 用户端** | 侧栏插件菜单 + `user/plugin.php` + 仪表盘小部件 |
-| **qingliangyun SPA** | 优先提供 JSON AJAX（`user/ajax.php`）；SPA 原生菜单/路由需另约定（当前未内置协议） |
 
 不要在插件里硬编码 `../imsetes/`；公共资源用 `mnbt_asset_url()`，主题资源用 `mnbt_theme_asset()`。
 
@@ -778,4 +777,4 @@ mnbt_add_action('host.created', function ($host, $ctx = []) {
 | V1.81 P2 | 首页接管（`mnbt_register_home`）、通用路由（`mnbt_register_route`）、路径参数匹配、`_router.php` 路由分发 |
 | V1.81 P3 | 支付插件系统（`mnbt_register_payment`、`mnbt_pay_settle_order`）、统一支付设置页、易支付/支付宝官方插件、旧 `notify_url.php`/`return_url.php` 完全废弃 |
 
-后续可能：zip 安装、`gn` 冲突检测 UI、qingliangyun SPA 菜单协议、细粒度能力 ACL。
+后续可能：zip 安装、`gn` 冲突检测 UI、SPA 菜单协议、细粒度能力 ACL。

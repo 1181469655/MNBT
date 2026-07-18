@@ -53,7 +53,6 @@ templates/my_skin/
 | 主题 | 说明 |
 |------|------|
 | `default` | 默认（jQuery + Bootstrap） |
-| `qingliangyun` | **清凉云** v0.1.0：Vue 3 + Element Plus SPA，详见 [qingliangyun/README.md](./qingliangyun/README.md) |
 
 未提供的页面会**自动回退**到 `templates/default/` 同名文件。
 

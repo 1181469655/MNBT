@@ -21,6 +21,7 @@ if (!empty($mn_conf['xf']['qk'])) {
 <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/smoothness/jquery-ui.css">
 <link rel="stylesheet" href="<?=mnbt_asset_url('js/bootstrap-multitabs/multitabs.min.css')?>">
 <link href="<?=mnbt_asset_url('css/animate.min.css')?>" rel="stylesheet">
+<link href="<?=mnbt_asset_url('css/style.min.css')?>" rel="stylesheet">
 <link href="<?=mnbt_asset_url('css/materialdesignicons.min.css')?>" rel="stylesheet">
 <script type="text/javascript" src="<?=mnbt_asset_url('js/jquery.min.js')?>"></script>
 <script type="text/javascript" src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
@@ -32,6 +33,7 @@ if (!empty($mn_conf['xf']['qk'])) {
 <script type="text/javascript" src="<?=mnbt_asset_url('js/fn-hs.js')?>?1.74"></script>
 <link href="<?=mnbt_asset_url('js/bootstrap-table/bootstrap-table.min.css')?>" rel="stylesheet">
 <link href="<?=mnbt_asset_url('js/jquery-confirm/jquery-confirm.min.css')?>" rel="stylesheet">
+<link href="<?=mnbt_theme_asset('user-common.css')?>" rel="stylesheet">
 <link href="<?=mnbt_theme_asset('theme.css')?>" rel="stylesheet">
 </head>
 <body>

@@ -1,6 +1,6 @@
 <?php
 /**
- * 清凉云 / SPA 面板数据接口（JSON 列表与初始化）
+ * SPA 面板数据接口（JSON 列表与初始化）
  * 仅在 $egn 匹配时执行
  */
 $panel_actions = [
