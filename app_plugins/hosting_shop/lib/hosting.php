@@ -33,6 +33,17 @@ function hosting_url($path = '')
 	return $basePath . '/index.php?_r=/' . $p;
 }
 
+/** 生成核心物理文件 URL（如 /user/idcdl.php），带站点 base path。 */
+function hosting_core_url($path = '')
+{
+	$scriptName = isset($_SERVER['SCRIPT_NAME']) ? str_replace('\\', '/', $_SERVER['SCRIPT_NAME']) : '';
+	$basePath = rtrim(str_replace('\\', '/', dirname($scriptName)), '/');
+	if ($basePath === '.' || $basePath === '/') {
+		$basePath = '';
+	}
+	return $basePath . '/' . ltrim($path, '/');
+}
+
 /** 插件静态资源 URL。 */
 function hosting_asset_url($path = '')
 {

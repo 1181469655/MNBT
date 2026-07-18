@@ -83,6 +83,13 @@ mnbt_admin_include('head');
 										</span>
 									</td>
 									<td>
+										<?php if (!empty($a['host_user']) && !empty($a['host_pass'])): ?>
+											<form method="POST" action="<?= htmlspecialchars(hosting_core_url('user/idcdl.php?gn=logine'), ENT_QUOTES) ?>" target="_blank" style="display:inline;">
+												<input type="hidden" name="username" value="<?= htmlspecialchars($a['host_user'], ENT_QUOTES) ?>">
+												<input type="hidden" name="password" value="<?= htmlspecialchars($a['host_pass'], ENT_QUOTES) ?>">
+												<button type="submit" class="btn btn-xs btn-success">一键登录</button>
+											</form>
+										<?php endif; ?>
 										<?php if ($panelUrl): ?>
 											<a href="<?= htmlspecialchars($panelUrl, ENT_QUOTES) ?>" target="_blank" class="btn btn-xs btn-outline-primary" rel="noopener noreferrer">打开面板</a>
 										<?php else: ?>
