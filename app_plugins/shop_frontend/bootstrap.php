@@ -692,7 +692,7 @@ mnbt_register_page('admin', 'settings', 'views/admin/settings.php', '售卖前�
 
 mnbt_register_menu('admin', [
     'title' => '售卖前端',
-    'icon'  => 'mdi-storefront',
+    'icon'  => 'mdi-store',
     'order' => 59,
     'children' => [
         ['title' => '前端设置', 'page' => 'settings', 'icon' => 'mdi-cog', 'multitabs' => true],
