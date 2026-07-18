@@ -412,7 +412,7 @@ function mnbt_apply_filters($hook, $value)
 	return $value;
 }
 
-function mnbt_register_ajax($side, $gn, $callback)
+function mnbt_register_ajax($side, $gn, $callback, $auth = null)
 {
 	$side = $side === 'admin' ? 'admin' : 'user';
 	$gn = (string)$gn;
@@ -426,6 +426,7 @@ function mnbt_register_ajax($side, $gn, $callback)
 	$GLOBALS['mnbt_plugin_ajax'][$side][$gn] = [
 		'cb' => $callback,
 		'plugin' => $GLOBALS['mnbt_plugin_current'],
+		'auth' => $auth,
 	];
 	return true;
 }
@@ -566,6 +567,65 @@ function mnbt_plugin_require_user()
 	}
 }
 
+function mnbt_plugin_auth_check($auth)
+{
+	if ($auth === null || $auth === '' || $auth === 'none') {
+		return true;
+	}
+	if ($auth === 'admin') {
+		global $islogin;
+		if (!isset($islogin) || (int)$islogin !== 1) {
+			return false;
+		}
+		return true;
+	}
+	if ($auth === 'user') {
+		global $islogins;
+		if (!isset($islogins) || (int)$islogins !== 1) {
+			return false;
+		}
+		return true;
+	}
+	if (is_callable($auth)) {
+		return (bool)call_user_func($auth);
+	}
+	return false;
+}
+
+function mnbt_plugin_auth_fail($auth)
+{
+	if ($auth === 'admin') {
+		if (function_exists('json_exit')) {
+			json_exit('请登陆后台');
+		}
+		exit('{"code":"请登陆后台"}');
+	}
+	if ($auth === 'user') {
+		if (function_exists('json_exit')) {
+			json_exit('请登陆');
+		}
+		exit('{"code":"请登陆"}');
+	}
+	if (is_callable($auth)) {
+		$fnName = is_string($auth) ? $auth : gettype($auth);
+		$caller = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2);
+		if (isset($caller[1]['function']) && $caller[1]['function'] === 'mnbt_plugin_dispatch_route') {
+			if (function_exists('user_info_url')) {
+				header('Location: ' . user_info_url('account/login'));
+				exit;
+			}
+		}
+		if (function_exists('json_exit')) {
+			json_exit('请登陆');
+		}
+		exit('{"code":"请登陆"}');
+	}
+	if (function_exists('json_exit')) {
+		json_exit('权限不足');
+	}
+	exit('{"code":"权限不足"}');
+}
+
 function mnbt_plugin_dispatch_ajax($side, $egn)
 {
 	$side = $side === 'admin' ? 'admin' : 'user';
@@ -574,6 +634,9 @@ function mnbt_plugin_dispatch_ajax($side, $egn)
 		return false;
 	}
 	$item = $GLOBALS['mnbt_plugin_ajax'][$side][$egn];
+	if (!mnbt_plugin_auth_check($item['auth'] ?? null)) {
+		mnbt_plugin_auth_fail($item['auth'] ?? null);
+	}
 	$prev = $GLOBALS['mnbt_plugin_current'];
 	$GLOBALS['mnbt_plugin_current'] = $item['plugin'];
 	try {
@@ -1067,9 +1130,10 @@ function mnbt_plugin_dispatch_home()
  * @param string   $path      如 '/landing' 或 '/promo/{id}'
  * @param callable $callback
  * @param int      $priority
+ * @param string|callable|null $auth  鉴权要求：null/'none'=无验证, 'admin'=管理员, 'user'=用户, 回调函数=自定义验证
  * @return bool
  */
-function mnbt_register_route($method, $path, $callback, $priority = 10)
+function mnbt_register_route($method, $path, $callback, $priority = 10, $auth = null)
 {
 	if (!is_callable($callback)) {
 		return false;
@@ -1082,7 +1146,6 @@ function mnbt_register_route($method, $path, $callback, $priority = 10)
 	if ($path === '' || $path[0] !== '/') {
 		$path = '/' . $path;
 	}
-	// 编译路径为正则 + 参数名列表
 	$paramNames = [];
 	$regex = preg_replace_callback('/\{([a-zA-Z_][a-zA-Z0-9_]*)\}/', function ($m) use (&$paramNames) {
 		$paramNames[] = $m[1];
@@ -1100,6 +1163,7 @@ function mnbt_register_route($method, $path, $callback, $priority = 10)
 		'params' => $paramNames,
 		'cb' => $callback,
 		'plugin' => $GLOBALS['mnbt_plugin_current'],
+		'auth' => $auth,
 	];
 	return true;
 }
@@ -1120,19 +1184,19 @@ function mnbt_plugin_dispatch_route()
 	ksort($buckets, SORT_NUMERIC);
 	foreach ($buckets as $list) {
 		foreach ($list as $item) {
-			// 方法匹配
 			if ($item['method'] !== '*' && $item['method'] !== $info['method']) {
 				continue;
 			}
-			// 路径匹配
 			if (!preg_match($item['regex'], $info['path'], $matches)) {
 				continue;
 			}
-			// 提取命名参数
 			$params = [];
-			array_shift($matches); // 去掉完整匹配
+			array_shift($matches);
 			foreach ($item['params'] as $i => $name) {
 				$params[$name] = isset($matches[$i]) ? $matches[$i] : '';
+			}
+			if (!mnbt_plugin_auth_check($item['auth'] ?? null)) {
+				mnbt_plugin_auth_fail($item['auth'] ?? null);
 			}
 			$prev = $GLOBALS['mnbt_plugin_current'];
 			$GLOBALS['mnbt_plugin_current'] = $item['plugin'];
@@ -1151,12 +1215,9 @@ function mnbt_plugin_dispatch_route()
 				continue;
 			}
 			$GLOBALS['mnbt_plugin_current'] = $prev;
-			// 返回 false → 显式不接管，继续匹配
 			if ($result === false) {
 				continue;
 			}
-			// 其他情况（true / null / 字符串）→ 视为已处理
-			// 若回调返回字符串且未自行输出，作为兜底 echo
 			if (is_string($result) && $result !== '' && !headers_sent()) {
 				header('Content-Type: text/html; charset=UTF-8');
 				echo $result;

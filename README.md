@@ -583,6 +583,84 @@ app_plugins/my_plugin/
 | 数据库 | `MN_plugin`、自建表前缀 `plg_*` |
 | 安全与 FAQ | 鉴权、冲突、SPA、在线更新 |
 
+### 框架自动鉴权（V1.81+）
+
+插件系统内置自动鉴权机制，注册路由和 AJAX 时可通过 `auth` 参数声明权限要求，框架会在调用回调前自动验证。
+
+#### 鉴权参数说明
+
+| 值 | 含义 |
+|----|------|
+| `null` / `''` / `'none'` | 无验证（默认） |
+| `'admin'` | 需要管理员登录（`$islogin === 1`） |
+| `'user'` | 需要用户登录（`$islogins === 1`） |
+| 回调函数 | 自定义验证，返回 `true` 通过，`false` 拒绝 |
+
+#### 路由自动鉴权
+
+```php
+// 需要管理员权限
+mnbt_register_route('POST', '/api/admin/config', function ($params, $ctx) {
+    // 框架已自动验证管理员身份
+    // 此处可直接执行管理操作
+}, 10, 'admin');
+
+// 需要用户登录
+mnbt_register_route('GET', '/api/user/profile', function ($params, $ctx) {
+    // 框架已自动验证用户身份
+}, 10, 'user');
+
+// 自定义验证（如插件独立认证）
+mnbt_register_route('GET', '/account/profile', function ($params, $ctx) {
+    // 框架已调用验证函数
+}, 10, function () {
+    return (bool)user_info_auth_current(); // 插件自己的登录检查
+});
+```
+
+#### AJAX 自动鉴权
+
+```php
+// 管理员 AJAX
+mnbt_register_ajax('admin', 'my_plugin_save_config', function () {
+    // 框架已自动验证管理员
+}, 'admin');
+
+// 用户 AJAX
+mnbt_register_ajax('user', 'my_plugin_get_data', function () {
+    // 框架已自动验证用户
+}, 'user');
+
+// 无验证（公开接口）
+mnbt_register_ajax('user', 'my_plugin_public_api', function () {
+    // 无需登录
+});
+```
+
+#### 鉴权失败处理
+
+| `auth` 类型 | 失败响应 |
+|-------------|---------|
+| `'admin'` | `{"code":"请登陆后台"}` |
+| `'user'` | `{"code":"请登陆"}` |
+| 自定义回调 | 自动跳转登录页或返回 `{"code":"请登陆"}` |
+
+#### 核心函数
+
+```php
+// 验证鉴权（返回 bool）
+mnbt_plugin_auth_check($auth);
+
+// 鉴权失败处理（自动 exit）
+mnbt_plugin_auth_fail($auth);
+```
+
+#### 使用建议
+
+1. **优先使用框架鉴权**：避免在回调中手动调用 `mnbt_plugin_require_admin()` 等
+2. **独立认证用回调**：如插件有自己的用户表，使用回调函数验证
+3. **AJAX 与路由统一**：保持前后端鉴权逻辑一致
+
 ### 与主题开发对照
 
 | | 主题 | 插件 |

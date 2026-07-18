@@ -51,15 +51,13 @@ mnbt_register_route('GET', '/account/logout', function ($params, $ctx) {
 
 // 个人信息页（要求登录）
 mnbt_register_route('GET', '/account/profile', function ($params, $ctx) {
-	user_info_auth_require();
 	user_info_render('profile', ['page_title' => '个人信息']);
-});
+}, 10, function () { return (bool)user_info_auth_current(); });
 
 // 修改密码页（要求登录）
 mnbt_register_route('GET', '/account/password', function ($params, $ctx) {
-	user_info_auth_require();
 	user_info_render('password', ['page_title' => '修改密码']);
-});
+}, 10, function () { return (bool)user_info_auth_current(); });
 
 /* ============================================================
  *  API 路由
@@ -151,7 +149,7 @@ mnbt_register_route('POST', '/account/api/register', function ($params, $ctx) {
 // 更新个人信息 API
 mnbt_register_route('POST', '/account/api/update_profile', function ($params, $ctx) {
 	global $DB, $date;
-	$user = user_info_auth_require();
+	$user = user_info_auth_current();
 	$email = trim($_POST['email'] ?? '');
 	$qq = trim($_POST['qq'] ?? '');
 
@@ -174,12 +172,12 @@ mnbt_register_route('POST', '/account/api/update_profile', function ($params, $c
 		user_info_json('保存失败');
 	}
 	user_info_json('保存成功');
-});
+}, 10, function () { return (bool)user_info_auth_current(); });
 
 // 修改密码 API
 mnbt_register_route('POST', '/account/api/change_password', function ($params, $ctx) {
 	global $DB, $date;
-	$user = user_info_auth_require();
+	$user = user_info_auth_current();
 	$old_pass = $_POST['old_password'] ?? '';
 	$new_pass = $_POST['new_password'] ?? '';
 	$new_pass2 = $_POST['new_password2'] ?? '';
@@ -207,10 +205,9 @@ mnbt_register_route('POST', '/account/api/change_password', function ($params, $
 		user_info_json('修改失败');
 	}
 
-	// 刷新 cookie（session_hash 依赖 password_hash，需重新签发）
 	user_info_auth_login($user['id'], $hash);
 	user_info_json('修改成功');
-});
+}, 10, function () { return (bool)user_info_auth_current(); });
 
 /* ============================================================
  *  管理员端页面注册
@@ -230,7 +227,6 @@ mnbt_register_menu('admin', [
 
 // 管理员端 AJAX：重置用户密码
 mnbt_register_ajax('admin', 'user_info_admin_reset_password', function () {
-	mnbt_plugin_require_admin();
 	global $DB, $date;
 	$user_id = (int)($_POST['user_id'] ?? 0);
 	$new_pass = trim((string)($_POST['new_password'] ?? ''));
@@ -254,4 +250,4 @@ mnbt_register_ajax('admin', 'user_info_admin_reset_password', function () {
 		json_exit('重置失败');
 	}
 	json_exit('重置成功');
-});
+}, 'admin');
