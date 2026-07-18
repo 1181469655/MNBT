@@ -29,6 +29,10 @@ $siteurl = ($_SERVER['SERVER_PORT'] == '443' ? 'https://' : 'http://').$_SERVER[
 if(is_file(SYSTEM_ROOT.'360safe/360webscan.php')){//360网站卫士
 require_once(SYSTEM_ROOT.'360safe/360webscan.php');
 }
+if (!is_file(ROOT.'config.php')) {
+	header("Location: /install");
+	exit();
+}
 require ROOT.'config.php';
 if(!defined('SQLITE') && (!$dbconfig['user']||!$dbconfig['pwd']||!$dbconfig['dbname']))//检测安装
 {
