@@ -2,7 +2,7 @@
   "name": "layui",
   "title": "Layui 主题",
   "version": "1.0.0",
-  "description": "基于 Layui 2.9 的混合栈主题：框架壳/登录/仪表盘用 Layui，业务页回退 default（保留 Bootstrap 栈）",
+  "description": "基于 Layui 2.x 的用户端主题：框架壳、登录页、仪表盘使用 Layui 原生组件，业务页回退 default",
   "author": "MNBT",
-  "scope": ["user", "admin"]
+  "scope": ["user"]
 }

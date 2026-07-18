@@ -1,166 +1,484 @@
 /* ============================================================
-   MNBT Layui 主题 - 用户端覆盖样式
-   主色：Layui 蓝 (#1e9fff)
-   策略：保留 Bootstrap 栈以兼容回退页，本文件仅做色调统一与微调
+   Layui 主题覆盖样式
+   主色调：Layui 蓝 #1e9fff / 绿 #16b777
+   框架壳完全用自定义 flex 布局，避免与 layui-layout-admin 的栅格冲突
    ============================================================ */
 
-:root {
-  --ly-primary: #1e9fff;
-  --ly-primary-dark: #1890e8;
-  --ly-bg: #f4f6f8;
-  --ly-border: #e6e6e6;
-  --ly-text: #333;
-  --ly-text-muted: #999;
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+  background: #f2f3f5;
+  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue",
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
 }
 
-/* ---------- 全局基调 ---------- */
-body {
-  background: var(--ly-bg);
-  color: var(--ly-text);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-  font-size: 14px;
+a { text-decoration: none; transition: color .15s; }
+
+/* ============================================================
+   框架壳
+   ============================================================ */
+.ly-app {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
 }
 
-/* 回退页的 Bootstrap 链接主色调统一为 Layui 蓝 */
-a { color: var(--ly-primary); }
-a:hover { color: var(--ly-primary-dark); }
-
-/* 回退页按钮主色调（不覆盖 btn-default 等中性按钮） */
-.btn-primary,
-.btn-cyan { background-color: var(--ly-primary); border-color: var(--ly-primary); }
-.btn-primary:hover,
-.btn-primary:focus,
-.btn-cyan:hover,
-.btn-cyan:focus { background-color: var(--ly-primary-dark); border-color: var(--ly-primary-dark); }
-
-.btn-info { background-color: #2db7f5; border-color: #2db7f5; }
-.btn-info:hover { background-color: #1aa5e8; border-color: #1aa5e8; }
-
-/* ---------- 框架壳（index.php）---------- */
-.ly-app .ly-layout { height: 100vh; }
-
-.ly-side {
-  background: #283849 !important;
+/* —— 侧边栏 —— */
+.ly-sidebar {
   width: 220px;
-  transition: width .2s ease;
+  min-width: 220px;
+  background: #001529;
+  display: flex;
+  flex-direction: column;
+  color: rgba(255, 255, 255, 0.7);
+  transition: width .25s ease, min-width .25s ease;
+  z-index: 100;
 }
-.ly-side-logo {
-  height: 56px; line-height: 56px; text-align: center;
-  background: rgba(0,0,0,.12);
+.ly-sidebar.collapsed {
+  width: 0;
+  min-width: 0;
+  overflow: hidden;
 }
-.ly-side-logo img { max-height: 36px; max-width: 160px; vertical-align: middle; }
-.ly-side-scroll { height: calc(100vh - 56px); overflow-y: auto; }
-.ly-side-scroll::-webkit-scrollbar { width: 6px; }
-.ly-side-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius: 3px; }
 
-/* Layui 导航色覆盖（深色侧栏） */
-.ly-nav.layui-nav-tree {
-  background: #283849 !important;
+.ly-sidebar-header {
+  height: 60px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 0 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
-.ly-nav.layui-nav-tree .layui-nav-item a {
-  color: rgba(255,255,255,.85); height: 44px; line-height: 44px; padding: 0 18px;
+.ly-sidebar-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow: hidden;
+  white-space: nowrap;
 }
-.ly-nav.layui-nav-tree .layui-nav-item a:hover { background: rgba(30,159,255,.12) !important; color: #fff; }
-.ly-nav.layui-nav-tree .layui-nav-item.layui-this > a,
-.ly-nav.layui-nav-tree .layui-nav-item.layui-this > a:hover { background: var(--ly-primary) !important; color: #fff; }
-.ly-nav.layui-nav-tree .layui-nav-item a i { margin-right: 8px; font-size: 16px; }
-.ly-nav.layui-nav-tree .layui-nav-item a cite { font-style: normal; font-size: 14px; }
-.ly-nav.layui-nav-tree .layui-nav-child {
-  background: rgba(0,0,0,.18) !important;
+.ly-sidebar-logo img {
+  max-height: 32px;
+  max-width: 140px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+.ly-logo-text {
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ly-sidebar-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.ly-sidebar-body::-webkit-scrollbar { width: 5px; }
+.ly-sidebar-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+}
+
+.ly-menu {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+}
+.ly-menu-item { position: relative; }
+.ly-menu-item > a {
+  display: flex;
+  align-items: center;
+  padding: 0 18px;
+  height: 44px;
+  line-height: 44px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  border-left: 3px solid transparent;
+  transition: all .15s;
+  white-space: nowrap;
+}
+.ly-menu-item > a:hover {
+  color: #fff;
+  background: rgba(30, 159, 255, 0.08);
+}
+.ly-menu-item.active > a,
+.ly-menu-item.open > a {
+  color: #fff;
+  background: rgba(30, 159, 255, 0.12);
+  border-left-color: #1e9fff;
+}
+.ly-menu-item > a > .mdi:first-child {
+  width: 26px;
+  text-align: center;
+  font-size: 18px;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+.ly-menu-item > a > span {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ly-arrow {
+  font-size: 15px;
+  margin-left: auto;
+  transition: transform .18s;
+  flex-shrink: 0;
+}
+.ly-submenu.open > a .ly-arrow { transform: rotate(90deg); }
+
+.ly-submenu-list {
+  list-style: none;
+  margin: 0;
   padding: 4px 0;
+  background: rgba(0, 0, 0, 0.25);
+  display: none;
 }
-.ly-nav.layui-nav-tree .layui-nav-child a {
-  height: 36px; line-height: 36px; padding-left: 46px; color: rgba(255,255,255,.75); font-size: 13px;
+.ly-submenu-list li a {
+  display: block;
+  padding: 0 18px 0 52px;
+  height: 36px;
+  line-height: 36px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.ly-nav.layui-nav-tree .layui-nav-child a:hover { color: #fff; background: transparent !important; }
-
-.ly-side-footer {
-  padding: 12px 16px; color: rgba(255,255,255,.45); font-size: 12px; line-height: 1.6;
+.ly-submenu-list li a:hover {
+  color: #fff;
+  background: rgba(30, 159, 255, 0.08);
 }
-
-.ly-header {
-  background: #fff !important; height: 56px !important; border-bottom: 1px solid var(--ly-border);
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0 16px; box-shadow: 0 1px 4px rgba(0,0,0,.04);
-}
-.ly-header-left { display: flex; align-items: center; }
-.ly-header-left .ml-2 { margin-left: 12px; color: #666; }
-.ly-header-left .ml-2:hover { color: var(--ly-primary); }
-
-.ly-aside-toggler {
-  display: inline-block; width: 22px; height: 18px; cursor: pointer; position: relative;
-}
-.ly-aside-toggler span {
-  display: block; height: 2px; width: 100%; background: #666; border-radius: 1px;
-  margin-bottom: 4px; transition: all .2s;
-}
-.ly-aside-toggler span:last-child { margin-bottom: 0; }
-.ly-aside-toggler:hover span { background: var(--ly-primary); }
-
-.ly-header-right {
-  list-style: none; margin: 0; padding: 0;
-  display: flex; align-items: center;
-}
-.ly-header-right .img-avatar { border-radius: 50%; }
-
-.ly-body {
-  background: var(--ly-bg);
-  padding: 12px;
-  overflow: auto;
+.ly-submenu-list li.active a {
+  color: #1e9fff;
+  background: rgba(30, 159, 255, 0.08);
 }
 
-/* 多标签栏（bootstrap-multitabs 注入）样式微调 */
-.mt-nav-bar { background: #fff; border-bottom: 1px solid var(--ly-border); padding: 4px 8px; }
-.mt-nav-bar .nav-tabs { border-bottom: none; }
-.mt-nav-bar .nav-tabs .nav-link {
-  border: 1px solid #e6e6e6; border-radius: 3px; padding: 4px 12px;
-  color: #666; font-size: 13px; margin-right: 4px; cursor: pointer;
+.ly-sidebar-footer {
+  flex-shrink: 0;
+  padding: 12px 18px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.35);
+  text-align: center;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.mt-nav-bar .nav-tabs .nav-link:hover { color: var(--ly-primary); border-color: var(--ly-primary); }
-.mt-nav-bar .nav-tabs .nav-link.active { background: var(--ly-primary); color: #fff; border-color: var(--ly-primary); }
-.mt-nav-bar .nav-tabs .nav-link .mt-close { margin-left: 8px; color: rgba(255,255,255,.7); }
-.mt-nav-bar .nav-tabs .nav-link .mt-close:hover { color: #fff; }
 
-/* iframe 主体区域 */
-.ly-body iframe { border: none; width: 100%; height: 100%; }
-
-/* ---------- 侧栏折叠态 ---------- */
-body.ly-side-collapse .ly-side { width: 0 !important; overflow: hidden; }
-body.ly-side-collapse .ly-body { left: 0 !important; }
-
-/* Layui 默认布局会固定 left:200px，需要用 JS 同步或用 !important 覆盖 */
-.ly-side { position: absolute; left: 0; top: 0; }
-.ly-body { position: absolute; left: 220px; right: 0; bottom: 0; top: 56px; transition: left .2s ease; }
-.ly-header { position: absolute; left: 220px; right: 0; top: 0; transition: left .2s ease; }
-body.ly-side-collapse .ly-body,
-body.ly-side-collapse .ly-header { left: 0 !important; }
-
-/* ---------- 回退页（业务子页）卡片微调 ---------- */
-.card {
-  border-radius: 4px; border-color: var(--ly-border); box-shadow: 0 1px 3px rgba(0,0,0,.03);
-  margin-bottom: 16px;
+/* —— 主区域 —— */
+.ly-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: #f2f3f5;
 }
-.card-header { border-bottom-color: #f0f0f0; }
-.card-header.bg-info { background: var(--ly-primary) !important; color: #fff; }
-.card-header.bg-info h4 { color: #fff; font-size: 15px; font-weight: 600; }
 
-/* 进度条统一为 Layui 蓝 */
-.progress-bar-cyan { background-color: var(--ly-primary); }
+/* —— 顶部栏 —— */
+.ly-topbar {
+  height: 60px;
+  min-height: 60px;
+  background: #fff;
+  border-bottom: 1px solid #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  flex-shrink: 0;
+}
+.ly-topbar-left,
+.ly-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ly-toggle,
+.ly-refresh {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #555;
+  cursor: pointer;
+  transition: all .15s;
+}
+.ly-toggle:hover,
+.ly-refresh:hover { background: #f2f3f5; color: #1e9fff; }
 
-/* Bootstrap badge 主色 */
-.badge-success { background-color: #5fb878; }
-.badge-danger { background-color: #ff5722; }
-.badge-warning { background-color: #ffb800; color: #fff; }
+.ly-usermenu { position: relative; }
+.ly-user-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  color: #555;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background .15s;
+}
+.ly-user-toggle:hover { background: #f2f3f5; }
+.ly-user-toggle img {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #eee;
+}
+.ly-user-toggle .mdi-chevron-down { font-size: 16px; color: #999; }
 
-/* 回退页表格细微调整 */
-.table-bordered { border-color: var(--ly-border); }
-.table-bordered td, .table-bordered th { border-color: var(--ly-border); }
+.ly-user-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  min-width: 130px;
+  margin: 6px 0 0;
+  padding: 5px 0;
+  list-style: none;
+  background: #fff;
+  border: 1px solid #eee;
+  border-radius: 4px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  display: none;
+  z-index: 9999;
+}
+.ly-usermenu.open .ly-user-dropdown { display: block; }
+.ly-user-dropdown li a {
+  display: block;
+  padding: 8px 16px;
+  color: #555;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.ly-user-dropdown li a:hover {
+  color: #1e9fff;
+  background: #f7f8fa;
+}
+.ly-user-dropdown li a .mdi { margin-right: 6px; font-size: 15px; }
 
-/* ---------- 响应式 ---------- */
+/* —— 内容区 —— */
+.ly-content {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+.ly-content #iframe-content { height: 100%; overflow: hidden; }
+
+/* 让 multitabs 标签栏占内容区上方，iframe 占剩余高度 */
+.ly-content .mt-nav-bar {
+  background: #fff;
+  border-bottom: 1px solid #f0f0f0;
+  padding: 8px 10px 0;
+  height: 42px;
+}
+.ly-content .mt-nav-bar .nav-tabs { border-bottom: 0; }
+.ly-content .mt-nav-bar .nav-tabs > li > a {
+  border-radius: 4px 4px 0 0;
+  font-size: 13px;
+  color: #666;
+  padding: 7px 14px;
+  border: 1px solid transparent;
+}
+.ly-content .mt-nav-bar .nav-tabs > li > a:hover { background: #f7f8fa; border-color: transparent; }
+.ly-content .mt-nav-bar .nav-tabs > li.active > a,
+.ly-content .mt-nav-bar .nav-tabs > li.active > a:focus,
+.ly-content .mt-nav-bar .nav-tabs > li.active > a:hover {
+  background: #1e9fff;
+  color: #fff;
+  border: 1px solid #1e9fff;
+}
+.ly-content .mt-nav-bar .nav-tabs > li > a .close {
+  font-size: 14px; margin-left: 6px; opacity: .7;
+}
+.ly-content .mt-nav-bar .nav-tabs > li > a .close:hover { opacity: 1; }
+.ly-content .mt-tab-content { height: calc(100% - 42px); }
+.ly-content .mt-tab-content > .tab-pane > iframe {
+  border: 0; display: block; width: 100%; height: 100%;
+}
+
+/* ============================================================
+   登录页
+   ============================================================ */
+body.login-page {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  background: linear-gradient(135deg, #1e9fff 0%, #16b777 100%);
+  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+.ly-login-wrap { width: 100%; max-width: 410px; }
+.ly-login-card {
+  background: #fff;
+  border-radius: 8px;
+  padding: 40px 36px 28px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+.ly-login-brand { text-align: center; margin-bottom: 28px; }
+.ly-login-brand img { max-height: 48px; max-width: 200px; object-fit: contain; }
+.ly-login-brand .title {
+  margin: 14px 0 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e9fff;
+  letter-spacing: -0.01em;
+}
+.ly-login-brand .sub { margin: 6px 0 0; font-size: 13px; color: #999; }
+.ly-login-form .layui-input-wrap { margin-bottom: 18px; }
+.ly-login-form .layui-input {
+  height: 44px;
+  border-radius: 4px;
+  border: 1px solid #eee;
+  background: #f7f8fa;
+  padding-left: 40px;
+  font-size: 14px;
+  transition: border-color .15s, background .15s, box-shadow .15s;
+}
+.ly-login-form .layui-input:focus {
+  border-color: #1e9fff;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(30, 159, 255, 0.12);
+}
+.ly-login-form .layui-input-prefix {
+  width: 40px;
+  color: #999;
+  font-size: 18px;
+  text-align: center;
+}
+.ly-login-captcha { display: flex; gap: 10px; align-items: stretch; }
+.ly-login-captcha .layui-input-wrap { flex: 1; min-width: 0; margin-bottom: 0; }
+.ly-login-captcha .captcha-img {
+  height: 44px;
+  width: 110px;
+  border-radius: 4px;
+  border: 1px solid #eee;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.ly-login-btn {
+  height: 44px;
+  border-radius: 4px;
+  font-size: 15px;
+  font-weight: 500;
+  width: 100%;
+  margin-top: 6px;
+  letter-spacing: 4px;
+  background: #1e9fff;
+}
+.ly-login-btn:hover { opacity: .92; }
+.ly-login-footer {
+  margin: 20px 0 0;
+  text-align: center;
+  font-size: 12px;
+  color: #bbb;
+  line-height: 1.5;
+}
+@media (max-width: 420px) {
+  .ly-login-card { padding: 32px 22px 24px; }
+}
+
+/* ============================================================
+   仪表盘（sy.php）
+   ============================================================ */
+.ly-dash { padding: 15px; }
+.ly-dash .layui-card {
+  border-radius: 4px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  margin-bottom: 0;
+}
+.ly-dash .layui-card-header {
+  border-bottom: 1px solid #f0f0f0;
+  padding: 12px 16px;
+  background: #fff;
+  border-radius: 4px 4px 0 0;
+}
+.ly-dash .layui-card-body {
+  background: #fff;
+  border-radius: 0 0 4px 4px;
+}
+
+/* 用量卡片文本（保留 #web/#sql/#lls 三段式 DOM 契约：3 个直接子元素） */
+.ly-stat-current { display: inline-block; font-size: 13px; color: #666; }
+.ly-stat-max { display: inline-block; float: right; font-size: 13px; color: #999; }
+.ly-progress { height: 16px; margin-top: 4px; background: #f0f2f5; border-radius: 8px; overflow: hidden; }
+.ly-progress-bar {
+  height: 100%; background: #1e9fff; border-radius: 8px;
+  transition: width .3s ease; color: #fff; font-size: 11px;
+  line-height: 16px; text-align: right; padding-right: 8px; box-sizing: border-box;
+}
+
+/* 信息表格 */
+.ly-info-table { width: 100%; border-collapse: collapse; margin: 0; }
+.ly-info-table tr td { padding: 9px 12px; font-size: 13px; border-bottom: 1px solid #f6f6f6; }
+.ly-info-table tr:last-child td { border-bottom: 0; }
+.ly-info-table td:first-child { color: #999; width: 90px; white-space: nowrap; }
+.ly-info-table td:last-child { color: #333; }
+
+/* PHP 版本下拉 */
+.ly-dropdown { position: relative; display: inline-block; }
+.ly-dropdown-menu {
+  position: absolute; top: 100%; right: 0; min-width: 140px;
+  background: #fff; border: 1px solid #e6e6e6; border-radius: 4px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  padding: 5px 0; margin: 4px 0 0; list-style: none;
+  display: none; z-index: 9999;
+}
+.ly-dropdown-menu.show { display: block; }
+.ly-dropdown-menu .dropdown-item {
+  display: block; padding: 6px 14px; color: #555; font-size: 13px;
+  text-decoration: none; cursor: pointer; white-space: nowrap;
+}
+.ly-dropdown-menu .dropdown-item:hover { background: #f2f2f2; color: #1e9fff; text-decoration: none; }
+
+/* 功能菜单网格 */
+.ly-func-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px;
+}
+.ly-func-item {
+  display: flex; flex-direction: column; align-items: center; padding: 18px 8px;
+  background: #fff; border: 1px solid #eee; border-radius: 4px;
+  cursor: pointer; transition: all .15s; color: #555; text-decoration: none;
+}
+.ly-func-item:hover {
+  border-color: #1e9fff; color: #1e9fff; text-decoration: none;
+  box-shadow: 0 2px 10px rgba(30, 159, 255, 0.1);
+}
+.ly-func-item .mdi { font-size: 28px; margin-bottom: 6px; color: #999; transition: color .15s; }
+.ly-func-item:hover .mdi { color: #1e9fff; }
+.ly-func-item span { font-size: 12px; text-align: center; }
+
+.ly-card-title { font-size: 14px; font-weight: 500; color: #333; }
+.ly-card-extra { font-size: 13px; color: #999; }
+
+@media (max-width: 420px) {
+  .ly-func-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ============================================================
+   回退页兼容
+   业务页回退 default 后，head.php 已加载 Bootstrap + layui 两套栈
+   ============================================================ */
+.layui-btn:not(.btn) { background-color: #1e9fff; }
+
+/* ============================================================
+   响应式
+   ============================================================ */
 @media (max-width: 768px) {
-  .ly-side { width: 200px; }
-  .ly-body, .ly-header { left: 200px; }
-  body.ly-side-collapse .ly-side { width: 0 !important; }
-  body.ly-side-collapse .ly-body,
-  body.ly-side-collapse .ly-header { left: 0 !important; }
+  .ly-sidebar {
+    position: fixed; left: 0; top: 0; height: 100vh;
+    transform: translateX(-100%);
+  }
+  .ly-sidebar.show { transform: translateX(0); }
+  .ly-main { margin-left: 0; }
 }

@@ -17,7 +17,7 @@ if (!empty($mn_conf['xf']['qk'])) {
 <title><?=$title ?? 'MNBT'?></title>
 <link rel="icon" href="<?=mnbt_asset_url('upload_logo/logo.head.png')?>?<?=$conf['auther'] ?? ''?>" type="image/ico">
 <meta name="author" content="yinqi">
-<!-- 公共资源（保留 default 栈，供回退页使用） -->
+<?php /* —— 1. 回退页依赖的 Bootstrap / jQuery 栈（保留，不可移除）—— */ ?>
 <link href="<?=mnbt_asset_url('css/bootstrap.min.css')?>" rel="stylesheet">
 <link href="<?=mnbt_asset_url('css/materialdesignicons.min.css')?>" rel="stylesheet">
 <link rel="stylesheet" href="<?=mnbt_asset_url('js/bootstrap-multitabs/multitabs.min.css')?>">
@@ -32,9 +32,10 @@ if (!empty($mn_conf['xf']['qk'])) {
 <script type="text/javascript" src="<?=mnbt_asset_url('js/fn-hs.js')?>?1.74"></script>
 <link href="<?=mnbt_asset_url('js/bootstrap-table/bootstrap-table.min.css')?>" rel="stylesheet">
 <link href="<?=mnbt_asset_url('js/jquery-confirm/jquery-confirm.min.css')?>" rel="stylesheet">
-<!-- Layui 主题专属 UI 库 -->
-<link rel="stylesheet" href="https://unpkg.com/layui@2.9.8/dist/css/layui.css">
-<!-- 主题私有覆盖样式（最后加载，优先级最高） -->
+<?php /* —— 2. 主题专属 UI 库（Layui 2.9.x）—— */ ?>
+<link href="https://unpkg.com/layui@2.9.8/dist/css/layui.css" rel="stylesheet">
+<script src="https://unpkg.com/layui@2.9.8/dist/layui.js"></script>
+<?php /* —— 3. 默认主题私有样式 + 当前主题覆盖样式（最后加载）—— */ ?>
 <link href="<?=mnbt_theme_asset('user-common.css')?>" rel="stylesheet">
 <link href="<?=mnbt_theme_asset('theme.css')?>" rel="stylesheet">
 </head>
