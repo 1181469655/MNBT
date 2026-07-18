@@ -26,17 +26,21 @@ session_start();
 $scriptpath=str_replace('\\','/',$_SERVER['SCRIPT_NAME']);
 $sitepath = substr($scriptpath, 0, strrpos($scriptpath, '/'));
 $siteurl = ($_SERVER['SERVER_PORT'] == '443' ? 'https://' : 'http://').$_SERVER['HTTP_HOST'].$sitepath.'/';
+$docRoot = rtrim(str_replace('\\', '/', isset($_SERVER['DOCUMENT_ROOT']) ? realpath($_SERVER['DOCUMENT_ROOT']) : ''), '/');
+$projFs = rtrim(str_replace('\\', '/', realpath(ROOT)), '/');
+$siteWebRoot = ($docRoot && strpos($projFs, $docRoot) === 0) ? rtrim(substr($projFs, strlen($docRoot)), '/') . '/' : '/';
+$install_url = ($_SERVER['SERVER_PORT'] == '443' ? 'https://' : 'http://') . $_SERVER['HTTP_HOST'] . $siteWebRoot . 'install';
 if(is_file(SYSTEM_ROOT.'360safe/360webscan.php')){//360网站卫士
 require_once(SYSTEM_ROOT.'360safe/360webscan.php');
 }
 if (!is_file(ROOT.'config.php')) {
-	header("Location: /install");
+	header("Location: " . $install_url);
 	exit();
 }
 require ROOT.'config.php';
 if(!defined('SQLITE') && (!$dbconfig['user']||!$dbconfig['pwd']||!$dbconfig['dbname']))//检测安装
 {
-header("Location: /install");
+header("Location: " . $install_url);
 exit();
 }
 //连接数据库
@@ -44,7 +48,7 @@ include_once(SYSTEM_ROOT."db.class.php");
 $DB=new DB($dbconfig['host'],$dbconfig['user'],$dbconfig['pwd'],$dbconfig['dbname'],$dbconfig['port']);
 if(!$DB->get_all_prepare("select * from MN_config where 1"))//检测安装2
 {
-header("Location: /install");
+header("Location: " . $install_url);
 exit();
 }
 	
