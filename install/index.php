@@ -867,7 +867,7 @@
 
     const request=async (action,data={})=>{
         try{
-            return $.ajax({
+            return await $.ajax({
                 url: './install.api.php?action='+action,
                 type: 'POST',
                 data: data,
@@ -888,6 +888,7 @@
             console.log(error);
             NEXT_BTN_FUN.TipsShow('安装模块异常，请联系官方，QQ群：994752422');
             alert('安装模块异常，请联系官方，QQ群：994752422');
+            return {code: -1, msg: '网络异常，请刷新重试'};
         }
     }
 
