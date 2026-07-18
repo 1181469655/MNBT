@@ -751,16 +751,21 @@ function mnbt_plugin_menus($side)
 function _mnbt_plugin_render_menu_item($it, $depth = 0)
 {
 	$title = htmlspecialchars($it['title'] ?? '', ENT_QUOTES, 'UTF-8');
-	$icon  = htmlspecialchars($it['icon'] ?? 'mdi-puzzle', ENT_QUOTES, 'UTF-8');
+	$iconHtml = '';
+	if (!empty($it['icon'])) {
+		$icon = htmlspecialchars($it['icon'], ENT_QUOTES, 'UTF-8');
+		$iconHtml = '<i class="mdi ' . $icon . '"></i> ';
+	}
 	if (!empty($it['children'])) {
 		$childrenHtml = _mnbt_plugin_render_menu_children($it['children'], $depth + 1);
+		$parentIconHtml = $iconHtml !== '' ? $iconHtml : '<i class="mdi mdi-puzzle"></i> ';
 		return '<li class="nav-item nav-item-has-subnav">'
-			. '<a href="javascript:void(0)"><i class="mdi ' . $icon . '"></i> <span>' . $title . '</span></a>'
+			. '<a href="javascript:void(0)">' . $parentIconHtml . '<span>' . $title . '</span></a>'
 			. '<ul class="nav nav-subnav">' . $childrenHtml . '</ul></li>';
 	}
 	$url = htmlspecialchars($it['url'] ?? 'javascript:void(0)', ENT_QUOTES, 'UTF-8');
 	$mt = !empty($it['multitabs']) || strpos($url, 'plugin.php') !== false ? ' multitabs' : '';
-	return '<li> <a class="' . trim($mt) . '" href="' . $url . '"><i class="mdi ' . $icon . '"></i> ' . $title . '</a> </li>';
+	return '<li> <a class="' . trim($mt) . '" href="' . $url . '">' . $iconHtml . $title . '</a> </li>';
 }
 
 function _mnbt_plugin_render_menu_children($children, $depth = 1)

@@ -26,9 +26,13 @@ mnbt_register_theme_menu_renderer('user', function ($items) {
 			foreach ($it['children'] as $child) {
 				$childTitle = htmlspecialchars($child['title'] ?? '', ENT_QUOTES, 'UTF-8');
 				$childUrl   = htmlspecialchars($child['url'] ?? 'javascript:void(0)', ENT_QUOTES, 'UTF-8');
-				$childIcon  = htmlspecialchars($child['icon'] ?? 'mdi-circle-small', ENT_QUOTES, 'UTF-8');
+				$childIconHtml = '';
+				if (!empty($child['icon'])) {
+					$childIcon = htmlspecialchars($child['icon'], ENT_QUOTES, 'UTF-8');
+					$childIconHtml = '<i class="mdi ' . $childIcon . '"></i> ';
+				}
 				$mt = !empty($child['multitabs']) || strpos($childUrl, 'plugin.php') !== false ? ' multitabs' : '';
-				$childrenHtml .= '<li><a href="' . $childUrl . '" class="' . trim($mt) . '"><i class="mdi ' . $childIcon . '"></i> ' . $childTitle . '</a></li>';
+				$childrenHtml .= '<li><a href="' . $childUrl . '" class="' . trim($mt) . '">' . $childIconHtml . $childTitle . '</a></li>';
 			}
 			$html .= '<li class="ly-menu-item ly-submenu">'
 				. '<a href="javascript:;"><i class="mdi ' . $icon . '"></i><span>' . $title . '</span><i class="mdi mdi-chevron-right ly-arrow"></i></a>'
