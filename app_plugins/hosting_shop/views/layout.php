@@ -39,5 +39,6 @@ $content = $content ?? '';
 
 <div class="ly-page-wide"><?= $content ?></div>
 
+<script src="https://unpkg.com/layui@2.9.8/dist/layui.js"></script>
 </body>
 </html>

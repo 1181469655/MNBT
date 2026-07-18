@@ -311,3 +311,87 @@ function balance_admin_logs($page = 1, $per_page = 30, $filters = [])
 
 	return ['list' => $list, 'total' => $total, 'page' => $page, 'per_page' => $per_page];
 }
+
+/* ============================================================
+ *  余额支付（作为支付插件）
+ * ============================================================ */
+
+/**
+ * 渲染余额支付错误页（用于 build 回调返回的 HTML 字符串）。
+ *
+ * @param string $msg          错误信息
+ * @param string $rechargeUrl  可选，"去充值"按钮链接
+ * @return string  完整 HTML 文档
+ */
+function balance_pay_render_error($msg, $rechargeUrl = '')
+{
+	$msgEsc = htmlspecialchars($msg, ENT_QUOTES, 'UTF-8');
+	$rechargeLink = '';
+	if ($rechargeUrl) {
+		$u = htmlspecialchars($rechargeUrl, ENT_QUOTES, 'UTF-8');
+		$rechargeLink = '<a href="' . $u . '" style="display:inline-block;padding:10px 24px;background:#1677ff;color:#fff;text-decoration:none;border-radius:8px;margin:8px;">去充值</a>';
+	}
+	$backUrl = balance_url('balance');
+	return <<<HTML
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>余额支付</title></head>
+<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;text-align:center;padding:60px 16px;background:#f5f7fa;color:#1e293b;">
+<div style="max-width:440px;margin:0 auto;background:#fff;border-radius:16px;padding:40px 32px;box-shadow:0 4px 24px rgba(15,23,42,.06);">
+<div style="width:64px;height:64px;border-radius:50%;background:#b91c1c15;color:#b91c1c;font-size:32px;line-height:64px;margin:0 auto 16px;">✕</div>
+<h1 style="font-size:22px;font-weight:600;margin:0 0 8px;color:#b91c1c;">余额支付失败</h1>
+<p style="color:#475569;margin:0 0 8px;">{$msgEsc}</p>
+<div style="margin-top:24px;">{$rechargeLink}<a href="{$backUrl}" style="display:inline-block;padding:10px 24px;background:#fff;color:#475569;text-decoration:none;border-radius:8px;margin:8px;border:1px solid #e2e8f0;">返回余额页</a></div>
+</div>
+</body></html>
+HTML;
+}
+
+/**
+ * 输出余额支付结果页并退出。
+ *
+ * @param string $type     success / error
+ * @param string $msg      结果说明
+ * @param array  $extra    ['order_no'=>..., 'amount'=>..., 'redirect'=>..., 'redirect_text'=>...]
+ */
+function balance_pay_show_result($type, $msg, $extra = [])
+{
+	@header('Content-Type: text/html; charset=UTF-8');
+	$isSuccess = $type === 'success';
+	$title = $isSuccess ? '支付成功' : '支付失败';
+	$color = $isSuccess ? '#16a34a' : '#b91c1c';
+	$icon = $isSuccess ? '✓' : '✕';
+	$msgEsc = htmlspecialchars($msg, ENT_QUOTES, 'UTF-8');
+
+	$orderNo = isset($extra['order_no']) ? (string)$extra['order_no'] : '';
+	$amount = isset($extra['amount']) ? (string)$extra['amount'] : '';
+	$redirect = isset($extra['redirect']) ? (string)$extra['redirect'] : '';
+	$redirectText = isset($extra['redirect_text']) ? (string)$extra['redirect_text'] : '继续';
+
+	$orderLine = $orderNo ? '<div style="font-size:12px;color:#94a3b8;margin-top:12px;">订单号：' . htmlspecialchars($orderNo, ENT_QUOTES, 'UTF-8') . '</div>' : '';
+	$amountLine = $amount ? '<div style="font-size:14px;color:#475569;margin-top:8px;">支付金额：¥' . htmlspecialchars($amount, ENT_QUOTES, 'UTF-8') . '</div>' : '';
+
+	$links = '';
+	if ($redirect) {
+		$u = htmlspecialchars($redirect, ENT_QUOTES, 'UTF-8');
+		$t = htmlspecialchars($redirectText, ENT_QUOTES, 'UTF-8');
+		$links .= '<a href="' . $u . '" style="display:inline-block;padding:10px 24px;background:#1677ff;color:#fff;text-decoration:none;border-radius:8px;margin:8px;">' . $t . '</a>';
+	}
+	$backUrl = balance_url('balance');
+	$links .= '<a href="' . $backUrl . '" style="display:inline-block;padding:10px 24px;background:#fff;color:#475569;text-decoration:none;border-radius:8px;margin:8px;border:1px solid #e2e8f0;">返回余额页</a>';
+
+	echo <<<HTML
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{$title}</title></head>
+<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;text-align:center;padding:60px 16px;background:#f5f7fa;color:#1e293b;">
+<div style="max-width:440px;margin:0 auto;background:#fff;border-radius:16px;padding:40px 32px;box-shadow:0 4px 24px rgba(15,23,42,.06);">
+<div style="width:64px;height:64px;border-radius:50%;background:{$color}15;color:{$color};font-size:32px;line-height:64px;margin:0 auto 16px;">{$icon}</div>
+<h1 style="font-size:22px;font-weight:600;margin:0 0 8px;color:{$color};">{$title}</h1>
+<p style="color:#475569;margin:0 0 8px;">{$msgEsc}</p>
+{$amountLine}
+{$orderLine}
+<div style="margin-top:24px;">{$links}</div>
+</div>
+</body></html>
+HTML;
+	exit;
+}

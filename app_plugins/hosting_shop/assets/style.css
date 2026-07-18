@@ -48,3 +48,17 @@
 .ly-pager a:hover{border-color:#1e9fff;background:#f0f8ff;}
 .ly-pager-info{color:#888;}
 @media(max-width:600px){.hs-plan-grid{grid-template-columns:1fr;}}
+
+/* 订单页原生表单样式（不依赖 layui.form.render） */
+.hs-order-form .layui-form-label{width:90px;padding:9px 10px;text-align:right;box-sizing:border-box;}
+.hs-order-form .layui-input-block{margin-left:110px;min-height:36px;line-height:36px;}
+.hs-form-choices{display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
+.hs-choice{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:#f7f9fa;border:1px solid #e4e7ed;border-radius:6px;cursor:pointer;font-size:14px;color:#333;transition:border-color .15s,background .15s;}
+.hs-choice:hover{border-color:#1e9fff;background:#f0f8ff;}
+.hs-choice input[type="radio"]{margin:0;cursor:pointer;}
+.hs-choice.active{border-color:#1e9fff;background:#e6f4ff;color:#1e9fff;}
+@media(max-width:600px){
+  .hs-order-form .layui-form-label{width:auto;display:block;text-align:left;padding-left:0;}
+  .hs-order-form .layui-input-block{margin-left:0;}
+  .hs-form-choices{gap:8px;}
+}

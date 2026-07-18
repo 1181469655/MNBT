@@ -21,15 +21,18 @@ ob_start();
       <li><span>域名绑定</span><b><?= (int)$plan['spec_domain'] ?> 个</b></li>
     </ul>
 
-    <form class="layui-form" id="orderForm">
+    <form class="hs-order-form" id="orderForm">
       <div class="layui-form-item">
         <label class="layui-form-label">购买周期</label>
-        <div class="layui-input-block" style="padding-top:8px;">
+        <div class="layui-input-block hs-form-choices" style="padding-top:8px;">
           <?php if ((int)$plan['price_month_cents'] > 0): ?>
-            <input type="radio" name="period" value="month" title="月付 ¥<?= hosting_format_cents($plan['price_month_cents']) ?>" <?= (int)$plan['price_year_cents']<=0?'checked':'') ?>>
+            <label class="hs-choice"><input type="radio" name="period" value="month" <?= (int)$plan['price_year_cents']<=0?'checked':'' ?>> 月付 ¥<?= hosting_format_cents($plan['price_month_cents']) ?></label>
           <?php endif; ?>
           <?php if ((int)$plan['price_year_cents'] > 0): ?>
-            <input type="radio" name="period" value="year" title="年付 ¥<?= hosting_format_cents($plan['price_year_cents']) ?>" <?= (int)$plan['price_month_cents']<=0?'checked':'') ?>>
+            <label class="hs-choice"><input type="radio" name="period" value="year" <?= (int)$plan['price_month_cents']<=0?'checked':'' ?>> 年付 ¥<?= hosting_format_cents($plan['price_year_cents']) ?></label>
+          <?php endif; ?>
+          <?php if ((int)$plan['price_month_cents'] <= 0 && (int)$plan['price_year_cents'] <= 0): ?>
+            <span style="color:#999;">该套餐未设置价格</span>
           <?php endif; ?>
         </div>
       </div>
@@ -53,9 +56,9 @@ ob_start();
       <?php if (!empty($methods)): ?>
         <div class="layui-form-item">
           <label class="layui-form-label">支付方式</label>
-          <div class="layui-input-block" style="padding-top:6px;">
+          <div class="layui-input-block hs-form-choices" style="padding-top:6px;">
             <?php foreach ($methods as $m): ?>
-              <input type="radio" name="type" value="<?= htmlspecialchars($m['plugin'].'__'.$m['method']) ?>" title="<?= htmlspecialchars($m['display_name'] ?: ($m['plugin'].' / '.$m['method'])) ?>" required>
+              <label class="hs-choice"><input type="radio" name="type" value="<?= htmlspecialchars($m['plugin'].'__'.$m['method']) ?>" required> <?= htmlspecialchars($m['display_name'] ?: ($m['plugin'].' / '.$m['method'])) ?></label>
             <?php endforeach; ?>
           </div>
         </div>
@@ -76,9 +79,29 @@ ob_start();
 
 <script>
 (function(){
+  // 确保单选框有默认选中项（layui 不渲染原生表单时也生效）
+  var periodRadios = document.querySelectorAll('input[name="period"]');
+  if (periodRadios.length && !document.querySelector('input[name="period"]:checked')) {
+    periodRadios[0].checked = true;
+  }
+  var typeRadios = document.querySelectorAll('input[name="type"]');
+  if (typeRadios.length && !document.querySelector('input[name="type"]:checked')) {
+    typeRadios[0].checked = true;
+  }
+
   var form=document.getElementById('orderForm');if(!form)return;
   var msg=document.getElementById('msg'),btn=document.getElementById('submitBtn');
   function showMsg(text,type){msg.textContent=text;msg.className='ly-msg show '+(type==='success'?'ly-msg-success':'ly-msg-error');}
+  // 单选框选中态样式（兼容不支持 :has() 的浏览器）
+  function updateChoiceStyles(){
+    form.querySelectorAll('.hs-choice').forEach(function(l){l.classList.remove('active');});
+    form.querySelectorAll('input[type="radio"]:checked').forEach(function(r){
+      var p=r.closest('.hs-choice');if(p)p.classList.add('active');
+    });
+  }
+  form.addEventListener('change',updateChoiceStyles);
+  updateChoiceStyles();
+
   form.addEventListener('submit',function(e){
     e.preventDefault();if(!btn)return;btn.disabled=true;btn.textContent='正在创建订单...';msg.className='ly-msg';
     var body=new URLSearchParams();
