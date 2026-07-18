@@ -38,24 +38,41 @@ mnbt_admin_include('head');
 							<th>套餐</th>
 							<th>主机ID</th>
 							<th>主机账号</th>
+							<th>控制面板密码</th>
 							<th>节点</th>
 							<th>宝塔站点ID</th>
 							<th>开通时间</th>
 							<th>到期时间</th>
 							<th>状态</th>
+							<th>操作</th>
 						</tr>
 					</thead>
 					<tbody>
 						<?php if (empty($assets['list'])): ?>
-							<tr><td colspan="10" class="text-center text-muted">暂无资产</td></tr>
+							<tr><td colspan="12" class="text-center text-muted">暂无资产</td></tr>
 						<?php else: ?>
 							<?php foreach ($assets['list'] as $a): ?>
+								<?php
+								$panelUrl = '';
+								if (!empty($a['btip']) && !empty($a['btdk'])) {
+									$panelUrl = (($a['ptl'] ?? '') === 'true' ? 'https' : 'http') . '://' . $a['btip'] . ':' . $a['btdk'];
+								}
+								?>
 								<tr>
 									<td><?= (int)$a['id'] ?></td>
 									<td><?= (int)$a['user_id'] ?></td>
 									<td><?= htmlspecialchars($a['plan_name'], ENT_QUOTES) ?></td>
 									<td><?= (int)$a['host_id'] > 0 ? (int)$a['host_id'] : '-' ?></td>
 									<td class="small"><?= htmlspecialchars($a['host_user'] ?? '-', ENT_QUOTES) ?></td>
+									<td class="small">
+										<?php if (!empty($a['host_pass'])): ?>
+											<span class="hs-pass-mask" data-pass="<?= htmlspecialchars($a['host_pass'], ENT_QUOTES) ?>">********</span>
+											<button type="button" class="btn btn-xs btn-link hs-toggle-pass" title="显示/隐藏密码">👁</button>
+											<button type="button" class="btn btn-xs btn-link hs-copy-btn" data-copy="<?= htmlspecialchars($a['host_pass'], ENT_QUOTES) ?>" title="复制密码">📋</button>
+										<?php else: ?>
+											-
+										<?php endif; ?>
+									</td>
 									<td><?= htmlspecialchars($a['ssbt'] ?? '-', ENT_QUOTES) ?></td>
 									<td class="small text-muted"><?= htmlspecialchars($a['btid'] ?? '-', ENT_QUOTES) ?></td>
 									<td class="small"><?= htmlspecialchars($a['data'] ?? $a['created_at']) ?></td>
@@ -64,6 +81,13 @@ mnbt_admin_include('head');
 										<span class="badge <?= htmlspecialchars($status_classes[$a['status']] ?? 'badge-secondary', ENT_QUOTES) ?>">
 											<?= htmlspecialchars($status_labels[$a['status']] ?? $a['status']) ?>
 										</span>
+									</td>
+									<td>
+										<?php if ($panelUrl): ?>
+											<a href="<?= htmlspecialchars($panelUrl, ENT_QUOTES) ?>" target="_blank" class="btn btn-xs btn-outline-primary" rel="noopener noreferrer">打开面板</a>
+										<?php else: ?>
+											<span class="text-muted small">无节点信息</span>
+										<?php endif; ?>
 									</td>
 								</tr>
 							<?php endforeach; ?>
@@ -92,3 +116,44 @@ mnbt_admin_include('head');
 		</div>
 	</div>
 </div>
+<style>
+.hs-pass-mask{display:inline-block;min-width:64px;user-select:all;font-family:Consolas,Monaco,monospace;}
+.hs-pass-mask.revealed{background:#e6f4ff;padding:2px 6px;border-radius:4px;color:#1e9fff;}
+.hs-toggle-pass,.hs-copy-btn{padding:0 2px;font-size:14px;line-height:1;}
+</style>
+<script>
+(function(){
+  document.querySelectorAll('.hs-toggle-pass').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var span = this.parentNode.querySelector('.hs-pass-mask');
+      if (!span) return;
+      if (span.textContent === '********') {
+        span.textContent = span.getAttribute('data-pass');
+        span.classList.add('revealed');
+      } else {
+        span.textContent = '********';
+        span.classList.remove('revealed');
+      }
+    });
+  });
+  document.querySelectorAll('.hs-copy-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var text = this.getAttribute('data-copy');
+      if (!text) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function(){ alert('已复制：' + text); }).catch(function(){ fallbackCopy(text); });
+      } else {
+        fallbackCopy(text);
+      }
+    });
+  });
+  function fallbackCopy(text){
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); alert('已复制：' + text); }
+    catch (err) { alert('复制失败，请手动复制'); }
+    document.body.removeChild(ta);
+  }
+})();
+</script>

@@ -334,9 +334,11 @@ function hosting_asset_list_by_user($user_id)
 {
 	global $DB;
 	return $DB->get_all_prepare(
-		"SELECT a.*, zj.user AS host_user, zj.sqldz, zj.ssbt, zj.btid, zj.qk AS host_qk, zj.data, zj.datae
+		"SELECT a.*, zj.user AS host_user, zj.pass AS host_pass, zj.sqldz, zj.ssbt, zj.btid, zj.qk AS host_qk, zj.data, zj.datae,
+		        bt.btip, bt.btdk, bt.ptl
 		 FROM MN_plugin_hosting_asset a
 		 LEFT JOIN MN_zj zj ON zj.id = a.host_id
+		 LEFT JOIN MN_bt bt ON bt.btdh = zj.ssbt
 		 WHERE a.user_id=?
 		 ORDER BY a.id DESC",
 		[(int)$user_id]
@@ -353,9 +355,11 @@ function hosting_asset_list_all($page = 1, $per_page = 30)
 	$count_row = $DB->get_row_prepare("SELECT COUNT(*) AS cnt FROM MN_plugin_hosting_asset WHERE 1");
 	$total = $count_row ? (int)$count_row['cnt'] : 0;
 	$list = $DB->get_all_prepare(
-		"SELECT a.*, zj.user AS host_user, zj.sqldz, zj.ssbt, zj.btid, zj.qk AS host_qk, zj.data, zj.datae
+		"SELECT a.*, zj.user AS host_user, zj.pass AS host_pass, zj.sqldz, zj.ssbt, zj.btid, zj.qk AS host_qk, zj.data, zj.datae,
+		        bt.btip, bt.btdk, bt.ptl
 		 FROM MN_plugin_hosting_asset a
 		 LEFT JOIN MN_zj zj ON zj.id = a.host_id
+		 LEFT JOIN MN_bt bt ON bt.btdh = zj.ssbt
 		 ORDER BY a.id DESC LIMIT {$offset},{$per_page}"
 	) ?: [];
 	return ['list' => $list, 'total' => $total, 'page' => $page, 'per_page' => $per_page];

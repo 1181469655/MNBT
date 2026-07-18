@@ -62,3 +62,15 @@
   .hs-order-form .layui-input-block{margin-left:0;}
   .hs-form-choices{gap:8px;}
 }
+
+/* 我的主机列表：密码显示/复制、打开面板 */
+.hs-asset-table td{vertical-align:middle;}
+.hs-pass-mask{display:inline-block;min-width:64px;user-select:all;}
+.hs-pass-mask.revealed{background:#e6f4ff;padding:2px 6px;border-radius:4px;color:#1e9fff;}
+.hs-icon-btn{background:none;border:none;cursor:pointer;padding:2px 4px;font-size:14px;line-height:1;opacity:.7;transition:opacity .15s;}
+.hs-icon-btn:hover{opacity:1;}
+.hs-copy-text{cursor:pointer;border-bottom:1px dashed #999;}
+.hs-copy-text:hover{border-bottom-color:#1e9fff;color:#1e9fff;}
+@media(max-width:600px){
+  .hs-asset-table{display:block;overflow-x:auto;white-space:nowrap;}
+}
