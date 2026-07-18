@@ -302,7 +302,7 @@ img{max-width:100%;display:block}
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <a class="btn btn-fill btn-lg" href="<?= $url('/shop') ?>">浏览套餐</a>
         <?php if (!$user): ?>
-          <a class="btn btn-outline btn-lg" style="border-color:rgba(255,255,255,.3);color:#fff" href="<?= $url('/account/register') ?>">创建账号</a>
+          <a class="btn btn-fill btn-lg" href="<?= $url('/account/register') ?>">创建账号</a>
         <?php endif; ?>
       </div>
     </div>
