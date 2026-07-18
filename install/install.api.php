@@ -24,6 +24,9 @@ function send_post()
         $ins_tall = true;
         if (!$ins_tall) return array('code' => 1, 'authcode' => '您安装时使用的为离线安装！');
         global $mn_conf;
+        if (empty($mn_conf['url']) || empty($mn_conf['aet']) || empty($mn_conf['install_wj'])) {
+            return array('code' => 1, 'authcode' => '');
+        }
         include("../MPHX/BL.php");
         $url = $mn_conf['aet'] . "://" . $mn_conf['url'] . ":" . $mn_conf['port'] . "/" . $mn_conf['install_wj'] . "/coder.php";
         $post_data = array(
@@ -36,14 +39,17 @@ function send_post()
                 'method' => 'POST',
                 'header' => 'Content-type:application/x-www-form-urlencoded',
                 'content' => $postdata,
-                'timeout' => 8 // 超时时间（单位:s）
+                'timeout' => 5 // 缩短超时
             )
         );
         $context = stream_context_create($options);
-        $result = file_get_contents($url, false, $context);
-        return json_decode($result, true);
+        $result = @file_get_contents($url, false, $context);
+        if ($result === false) return array('code' => 1, 'authcode' => '');
+        $decoded = json_decode($result, true);
+        if (!is_array($decoded)) return array('code' => 1, 'authcode' => '');
+        return $decoded;
     } catch (Exception $e) {
-        return false;
+        return array('code' => 1, 'authcode' => '');
     }
 }
 
@@ -62,7 +68,7 @@ switch ($action) {
         ]);
         break;
     case 'database_info_wire':
-        require './db.class.php';
+        require_once './db.class.php';
         $db_host = isset($_POST['db_host']) ? $_POST['db_host'] : NULL;
         $db_port = isset($_POST['db_port']) ? $_POST['db_port'] : NULL;
         $db_user = isset($_POST['db_user']) ? $_POST['db_user'] : NULL;
@@ -134,7 +140,7 @@ switch ($action) {
         if (!$dbconfig['user'] || !$dbconfig['pwd'] || !$dbconfig['dbname']) {
             exit(Res(0,'请先填写好数据库并保存后再安装！',null,1));
         }
-        require './db.class.php';
+        require_once './db.class.php';
         $cn = DB::connect($dbconfig['host'], $dbconfig['user'], $dbconfig['pwd'], $dbconfig['dbname'], $dbconfig['port']);
         if (!$cn) {
             exit(Res(0, '数据库错误：' . DB::connect_error(), null, 1));

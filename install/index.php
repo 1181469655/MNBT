@@ -770,10 +770,12 @@
         //展示页面
         $('body.d-none').removeClass('d-none');
         let info=await request('index');
-        $('.mn-vs').html(info.data.vs);
-        if(info.data.is_install){
-            $('.mn-install-lock').removeClass('d-none');
-            NEXT_BTN_FUN.loading('您已安装！');
+        if(info.data){
+            $('.mn-vs').html(info.data.vs);
+            if(info.data.is_install){
+                $('.mn-install-lock').removeClass('d-none');
+                NEXT_BTN_FUN.loading('您已安装！');
+            }
         }
     });
 
