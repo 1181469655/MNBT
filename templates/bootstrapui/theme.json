@@ -1,0 +1,8 @@
+{
+  "name": "bootstrapui",
+  "title": "Bootstrap UI 主题",
+  "version": "1.0.0",
+  "description": "基于 Bootstrap 4 组件的用户端主题，使用 Navbar/Collapse/Cards/Progress 等原生组件，不使用 SPA",
+  "author": "MNBT",
+  "scope": ["user"]
+}

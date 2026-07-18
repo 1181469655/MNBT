@@ -1,0 +1,8 @@
+{
+  "name": "jqueryui",
+  "title": "jQueryUI 主题",
+  "version": "1.0.0",
+  "description": "基于 jQueryUI 的用户端主题，使用 jQueryUI Accordion/Tabs/Progressbar/Button 等组件，不使用 SPA",
+  "author": "MNBT",
+  "scope": ["user"]
+}

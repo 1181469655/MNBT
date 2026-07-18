@@ -1,0 +1,581 @@
+/* ============================================================
+   jQueryUI 主题 — 覆盖与补充样式
+   使用 jQueryUI smoothness 为基础，叠加 MNBT 品牌色
+   ============================================================ */
+
+/* ---- 全局微调 ---- */
+html, body {
+  height: 100%;
+  background: #f5f5f5;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+a {
+  color: #2c3e50;
+  transition: color .15s;
+}
+a:hover {
+  color: #1abc9c;
+  text-decoration: none;
+}
+
+/* ---- 登录页 ---- */
+body.login-page {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  background: linear-gradient(135deg, #e8f5e9 0%, #b2dfdb 50%, #80cbc4 100%);
+}
+.login-wrap {
+  width: 100%;
+  max-width: 420px;
+}
+.login-card {
+  background: #fff;
+  border: 0;
+  border-radius: 8px;
+  padding: 36px 32px 28px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+}
+.login-brand {
+  text-align: center;
+  margin-bottom: 28px;
+}
+.login-brand img {
+  max-height: 52px;
+  max-width: 200px;
+  object-fit: contain;
+}
+.login-brand .title {
+  margin: 14px 0 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #2c3e50;
+}
+.login-brand .sub {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: #95a5a6;
+}
+.login-form .ui-button {
+  width: 100%;
+  margin-top: 8px;
+  padding: 10px 0;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: 4px;
+}
+.login-form input.ui-input {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 14px;
+  border: 1px solid #d5dbdb;
+  border-radius: 4px;
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+  box-sizing: border-box;
+}
+.login-form input.ui-input:focus {
+  border-color: #1abc9c;
+  box-shadow: 0 0 0 3px rgba(26,188,156,0.15);
+}
+.login-form .field-group {
+  margin-bottom: 16px;
+}
+.login-form .captcha-row {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+.login-form .captcha-row .captcha-input {
+  flex: 1;
+  min-width: 0;
+}
+.login-form .captcha-img {
+  height: 40px;
+  border-radius: 4px;
+  border: 1px solid #d5dbdb;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.login-footer {
+  margin: 20px 0 0;
+  text-align: center;
+  font-size: 12px;
+  color: #95a5a6;
+  line-height: 1.5;
+}
+
+/* ---- 框架布局 ---- */
+.jqui-layout-web {
+  width: 100%;
+  height: 100%;
+}
+.jqui-layout-container {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* 侧边栏 - 老网站主机面板风格 */
+.jqui-layout-sidebar {
+  width: 220px;
+  min-width: 220px;
+  background: #f5f5f5;
+  color: #333;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 100;
+  border-right: 1px solid #d9d9d9;
+  font-family: Arial, "Microsoft YaHei", "SimSun", sans-serif;
+  font-size: 12px;
+}
+.sidebar-header {
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(to bottom, #e6f2ff 0%, #cfe5f7 100%);
+  flex-shrink: 0;
+  border-bottom: 1px solid #b8d4f0;
+}
+.sidebar-header-text {
+  color: #0066cc;
+  font-size: 14px;
+  font-weight: bold;
+  text-decoration: none;
+}
+.sidebar-header-text:hover {
+  color: #ff6600;
+  text-decoration: underline;
+}
+.sidebar-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0;
+}
+
+/* jQueryUI accordion 作为侧栏导航 */
+#jqui-sidebar-accordion {
+  border: 0;
+  background: transparent;
+  color: #333;
+}
+#jqui-sidebar-accordion .ui-accordion-header {
+  background: #f5f5f5;
+  border: 0;
+  border-bottom: 1px solid #e0e0e0;
+  color: #333;
+  font-size: 12px;
+  font-weight: normal;
+  padding: 10px 12px;
+  margin: 0;
+  border-radius: 0;
+  outline: none;
+  cursor: pointer;
+}
+#jqui-sidebar-accordion .ui-accordion-header:hover,
+#jqui-sidebar-accordion .ui-accordion-header.ui-state-hover {
+  background: #e6f2ff;
+  color: #0066cc;
+}
+#jqui-sidebar-accordion .ui-accordion-header.ui-state-active {
+  background: #d9edff;
+  color: #0066cc;
+  border-bottom: 1px solid #b8d4f0;
+  font-weight: bold;
+}
+#jqui-sidebar-accordion .ui-accordion-header .ui-icon {
+  display: none;
+}
+#jqui-sidebar-accordion .ui-accordion-header .mdi {
+  margin-right: 8px;
+  font-size: 15px;
+  vertical-align: middle;
+  color: #666;
+}
+#jqui-sidebar-accordion .ui-accordion-header.ui-state-active .mdi,
+#jqui-sidebar-accordion .ui-accordion-header:hover .mdi {
+  color: #0066cc;
+}
+#jqui-sidebar-accordion .ui-accordion-content {
+  background: #fff;
+  border: 0;
+  border-bottom: 1px solid #e0e0e0;
+  border-radius: 0;
+  padding: 0;
+  margin: 0;
+  color: #333;
+}
+
+/* 侧栏顶级链接（无子项） */
+.jqui-sidebar-nav {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.jqui-sidebar-nav > li > a {
+  display: block;
+  padding: 10px 12px;
+  color: #333;
+  font-size: 12px;
+  border-bottom: 1px solid #e0e0e0;
+}
+.jqui-sidebar-nav > li > a:hover,
+.jqui-sidebar-nav > li.active > a {
+  background: #e6f2ff;
+  color: #0066cc;
+  text-decoration: none;
+}
+.jqui-sidebar-nav > li > a .mdi {
+  margin-right: 8px;
+  font-size: 15px;
+  vertical-align: middle;
+  color: #666;
+}
+.jqui-sidebar-nav > li > a:hover .mdi,
+.jqui-sidebar-nav > li.active > a .mdi {
+  color: #0066cc;
+}
+
+/* 子导航 */
+.jqui-subnav {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.jqui-subnav li a {
+  display: block;
+  padding: 8px 12px 8px 36px;
+  color: #555;
+  font-size: 12px;
+  border-bottom: 1px dotted #e0e0e0;
+  background: #fff;
+}
+.jqui-subnav li a:hover,
+.jqui-subnav li.active a {
+  background: #e6f2ff;
+  color: #0066cc;
+  text-decoration: none;
+}
+.jqui-subnav li:last-child a {
+  border-bottom: 0;
+}
+
+/* 侧栏底部版权 */
+.sidebar-footer {
+  flex-shrink: 0;
+  padding: 10px;
+  font-size: 11px;
+  color: #999;
+  text-align: center;
+  border-top: 1px solid #e0e0e0;
+  background: #f5f5f5;
+}
+
+/* ---- 顶部栏 ---- */
+.jqui-layout-header {
+  height: 60px;
+  min-height: 60px;
+  background: #fff;
+  border-bottom: 1px solid #e0e0e0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  flex-shrink: 0;
+}
+.jqui-header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.jqui-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.jqui-toggler-bar {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: #7f8c8d;
+  margin: 4px 0;
+  border-radius: 1px;
+  transition: background .15s;
+}
+.jqui-aside-toggler {
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+}
+.jqui-aside-toggler:hover .jqui-toggler-bar {
+  background: #1abc9c;
+}
+.jqui-header-right .ui-button {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 3px;
+}
+.jqui-header-right .ui-button .mdi {
+  font-size: 16px;
+  vertical-align: middle;
+  margin-right: 2px;
+}
+
+/* 用户下拉菜单 */
+.jqui-user-dropdown {
+  position: relative;
+}
+.jqui-user-dropdown .ui-button {
+  background: transparent;
+  border: 1px solid #e0e0e0;
+  color: #2c3e50;
+  font-size: 13px;
+  padding: 4px 12px;
+  border-radius: 20px;
+}
+.jqui-user-dropdown .ui-button:hover {
+  border-color: #1abc9c;
+  color: #1abc9c;
+}
+.jqui-dropdown-menu {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: 100%;
+  min-width: 160px;
+  background: #fff;
+  border: 1px solid #d5dbdb;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  z-index: 1000;
+  margin-top: 4px;
+  list-style: none;
+  padding: 4px 0;
+}
+.jqui-dropdown-menu li a {
+  display: block;
+  padding: 8px 16px;
+  color: #2c3e50;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background .15s;
+}
+.jqui-dropdown-menu li a:hover {
+  background: #f0f0f0;
+}
+.jqui-dropdown-menu .divider {
+  height: 1px;
+  background: #e0e0e0;
+  margin: 4px 0;
+}
+
+/* ---- 内容区 ---- */
+.jqui-layout-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #f5f5f5;
+}
+#iframe-content {
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ---- 页面内容通用 ---- */
+.container-jqui {
+  padding: 20px;
+}
+
+/* jQueryUI progressbar 替换 Bootstrap progress */
+.ui-progressbar {
+  height: 18px;
+  border-radius: 4px;
+  border: 1px solid #d5dbdb;
+  background: #ecf0f1;
+  position: relative;
+  margin: 8px 0;
+}
+.ui-progressbar .ui-progressbar-value {
+  background: linear-gradient(135deg, #1abc9c, #16a085);
+  border-radius: 3px;
+  border: 0;
+  margin: 0;
+}
+.ui-progressbar .progress-label {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 11px;
+  font-weight: 600;
+  color: #2c3e50;
+  text-shadow: 0 0 2px rgba(255,255,255,0.8);
+  z-index: 1;
+}
+
+/* jQueryUI tabs 覆盖 */
+.jqui-tabs {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+}
+.jqui-tabs .ui-tabs-nav {
+  border: 0;
+  background: transparent;
+  border-bottom: 2px solid #e0e0e0;
+  padding: 0;
+  border-radius: 0;
+}
+.jqui-tabs .ui-tabs-nav li {
+  border: 0;
+  background: transparent;
+  margin: 0 4px -2px 0;
+  border-radius: 0;
+}
+.jqui-tabs .ui-tabs-nav li.ui-tabs-active {
+  border-bottom: 2px solid #1abc9c;
+}
+.jqui-tabs .ui-tabs-nav li a {
+  padding: 10px 18px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #7f8c8d;
+  float: none;
+}
+.jqui-tabs .ui-tabs-nav li.ui-tabs-active a {
+  color: #1abc9c;
+}
+.jqui-tabs .ui-tabs-nav li.ui-state-hover a {
+  color: #2c3e50;
+}
+.jqui-tabs .ui-tabs-panel {
+  padding: 16px 0;
+  background: transparent;
+  border: 0;
+}
+
+/* 仪表盘卡片重构 */
+.dash-card {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+.dash-card-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.dash-card-header h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #2c3e50;
+}
+.dash-card-body {
+  padding: 16px 18px;
+}
+.dash-card-stat {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  color: #7f8c8d;
+  margin-bottom: 4px;
+}
+
+/* 功能菜单网格 */
+.func-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 12px;
+}
+.func-grid .func-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 18px 8px;
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: border-color .15s, box-shadow .15s;
+  color: #2c3e50;
+  text-decoration: none;
+}
+.func-grid .func-item:hover {
+  border-color: #1abc9c;
+  box-shadow: 0 2px 12px rgba(26,188,156,0.12);
+  color: #1abc9c;
+  text-decoration: none;
+}
+.func-grid .func-item .mdi {
+  font-size: 28px;
+  margin-bottom: 6px;
+  color: #7f8c8d;
+}
+.func-grid .func-item:hover .mdi {
+  color: #1abc9c;
+}
+.func-grid .func-item span {
+  font-size: 12px;
+  text-align: center;
+  line-height: 1.3;
+}
+
+/* ---- 参数信息表格 ---- */
+.info-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.info-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 13px;
+  color: #2c3e50;
+}
+.info-table td:first-child {
+  font-weight: 500;
+  color: #7f8c8d;
+  white-space: nowrap;
+  width: 110px;
+}
+
+/* ---- 响应式 ---- */
+@media (max-width: 768px) {
+  .jqui-layout-sidebar {
+    position: fixed;
+    left: -240px;
+    transition: left .25s ease;
+    height: 100%;
+    z-index: 1000;
+  }
+  .jqui-layout-sidebar.open {
+    left: 0;
+  }
+  .jqui-layout-container {
+    flex-direction: column;
+  }
+  .func-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+@media (max-width: 420px) {
+  .login-card {
+    padding: 28px 18px 24px;
+  }
+  .func-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

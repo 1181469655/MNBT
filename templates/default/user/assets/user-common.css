@@ -33,6 +33,20 @@
   word-wrap: normal;
   display: inline-block;
 }
+
+/* 文件管理页操作图标详解横向排布 */
+.ftp-icon-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin: 8px 0 12px;
+}
+.ftp-icon-legend .wqbr {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
 .zcwj {
   color: #B22222;
   text-align: center;

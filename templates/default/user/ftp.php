@@ -215,17 +215,18 @@ if($conf['hxw']=='amftp' || $conf['hxw']==''){
                 </header>
                 <div class="card-body">
                     <div class="callout callout-info">
-                        <p class="small"> <b>操作图标详解</b><br/>
-                        <div class="wqbr"><a href="#!" class="btn btn-xs btn-default" title="下载文件" data-toggle="tooltip"><i class="mdi mdi-cloud-download-outline"></i></a>：下载文件</div>
-                        <div class="wqbr"><a href="#!" class="btn btn-xs btn-default" title="编辑文件内容" data-toggle="tooltip"><i class="mdi mdi-pencil"></i></a>：编辑文件内容</div>
-                        <div class="wqbr"><a href="#!" class="btn btn-xs btn-default" title="重命名文件" data-toggle="tooltip"><i class="mdi mdi-format-italic"></i></a>：重命名文件</div>
-                        <div class="wqbr"><a href="#!" class="btn btn-xs btn-default" title="解压文件" data-toggle="tooltip"><i class="mdi mdi-arrow-up-bold-box"></i></a>：解压文件</div>
-                        <div class="wqbr"><a href="#!" class="btn btn-xs btn-default" title="复制文件" data-toggle="tooltip"><i class="mdi mdi-content-copy"></i></a>：复制文件</div>
-                        <div class="wqbr"><a href="#!" class="btn btn-xs btn-default" title="剪切文件" data-toggle="tooltip"><i class="mdi mdi-content-cut"></i></a>：剪切文件</div>
-                        <div class="wqbr"><a href="#!" class="btn btn-xs btn-default" title="删除" data-toggle="tooltip"><i class="mdi mdi-window-close"></i></a>：删除文件 </div>
-                        <div class="wqbr"><a href="#!" class="btn btn-xs btn-default" title="导入SQL文件" data-toggle="tooltip"><i class="mdi mdi-import mdi-rotate-90"></i></a>：导入到数据库</div>
-                        <div class="wqbr"><a href="#!" class="btn btn-xs btn-default" title="导入SQL文件" data-toggle="tooltip"><i class="mdi mdi-image-search-outline"></i></a>：图片预览</div>
-                        </p>
+                        <p class="small"><b>操作图标详解</b></p>
+                        <div class="ftp-icon-legend">
+                            <div class="wqbr"><a href="#!" class="btn btn-xs btn-default" title="下载文件" data-toggle="tooltip"><i class="mdi mdi-cloud-download-outline"></i></a>：下载文件</div>
+                            <div class="wqbr"><a href="#!" class="btn btn-xs btn-default" title="编辑文件内容" data-toggle="tooltip"><i class="mdi mdi-pencil"></i></a>：编辑文件内容</div>
+                            <div class="wqbr"><a href="#!" class="btn btn-xs btn-default" title="重命名文件" data-toggle="tooltip"><i class="mdi mdi-format-italic"></i></a>：重命名文件</div>
+                            <div class="wqbr"><a href="#!" class="btn btn-xs btn-default" title="解压文件" data-toggle="tooltip"><i class="mdi mdi-arrow-up-bold-box"></i></a>：解压文件</div>
+                            <div class="wqbr"><a href="#!" class="btn btn-xs btn-default" title="复制文件" data-toggle="tooltip"><i class="mdi mdi-content-copy"></i></a>：复制文件</div>
+                            <div class="wqbr"><a href="#!" class="btn btn-xs btn-default" title="剪切文件" data-toggle="tooltip"><i class="mdi mdi-content-cut"></i></a>：剪切文件</div>
+                            <div class="wqbr"><a href="#!" class="btn btn-xs btn-default" title="删除" data-toggle="tooltip"><i class="mdi mdi-window-close"></i></a>：删除文件</div>
+                            <div class="wqbr"><a href="#!" class="btn btn-xs btn-default" title="导入SQL文件" data-toggle="tooltip"><i class="mdi mdi-import mdi-rotate-90"></i></a>：导入到数据库</div>
+                            <div class="wqbr"><a href="#!" class="btn btn-xs btn-default" title="导入SQL文件" data-toggle="tooltip"><i class="mdi mdi-image-search-outline"></i></a>：图片预览</div>
+                        </div>
                         <small><b>注意：只有部分文件类型才会显示特定按钮</b></small>
                     </div>
                     <div id="toolbar" class="toolbar-btn-action">
