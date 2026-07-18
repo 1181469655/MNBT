@@ -460,9 +460,30 @@ function mnbt_register_menu($side, $item)
 	$slug = $GLOBALS['mnbt_plugin_current'];
 	$item['plugin'] = $slug;
 	$item['order'] = isset($item['order']) ? (int)$item['order'] : 50;
-	if (empty($item['url']) && !empty($item['page'])) {
-		$base = $side === 'admin' ? 'plugin.php' : 'plugin.php';
-		$item['url'] = $base . '?p=' . rawurlencode($slug) . '&page=' . rawurlencode($item['page']);
+	if (empty($item['children'])) {
+		if (empty($item['url']) && !empty($item['page'])) {
+			$base = $side === 'admin' ? 'plugin.php' : 'plugin.php';
+			$item['url'] = $base . '?p=' . rawurlencode($slug) . '&page=' . rawurlencode($item['page']);
+		}
+	} else {
+		foreach ($item['children'] as $k => $child) {
+			$item['children'][$k]['plugin'] = $slug;
+			$item['children'][$k]['order'] = isset($child['order']) ? (int)$child['order'] : 50;
+			if (empty($child['url']) && !empty($child['page'])) {
+				$base = $side === 'admin' ? 'plugin.php' : 'plugin.php';
+				$item['children'][$k]['url'] = $base . '?p=' . rawurlencode($slug) . '&page=' . rawurlencode($child['page']);
+			}
+			if (!empty($child['children'])) {
+				foreach ($child['children'] as $ck => $gc) {
+					$item['children'][$k]['children'][$ck]['plugin'] = $slug;
+					$item['children'][$k]['children'][$ck]['order'] = isset($gc['order']) ? (int)$gc['order'] : 50;
+					if (empty($gc['url']) && !empty($gc['page'])) {
+						$base = $side === 'admin' ? 'plugin.php' : 'plugin.php';
+						$item['children'][$k]['children'][$ck]['url'] = $base . '?p=' . rawurlencode($slug) . '&page=' . rawurlencode($gc['page']);
+					}
+				}
+			}
+		}
 	}
 	$GLOBALS['mnbt_plugin_menus'][$side][] = $item;
 	return true;
@@ -579,6 +600,34 @@ function mnbt_plugin_menus($side)
 	return $items;
 }
 
+function _mnbt_plugin_render_menu_item($it, $depth = 0)
+{
+	$title = htmlspecialchars($it['title'] ?? '', ENT_QUOTES, 'UTF-8');
+	$icon  = htmlspecialchars($it['icon'] ?? 'mdi-puzzle', ENT_QUOTES, 'UTF-8');
+	if (!empty($it['children'])) {
+		$childrenHtml = _mnbt_plugin_render_menu_children($it['children'], $depth + 1);
+		$cls = $depth > 0 ? 'nav-item-has-subnav' : 'nav-item nav-item-has-subnav';
+		return '<li class="' . $cls . '">'
+			. ' <a href="javascript:void(0)"><i class="mdi ' . $icon . '"></i> <span>' . $title . '</span></a>'
+			. '<ul class="nav nav-subnav">' . $childrenHtml . '</ul></li>';
+	}
+	$url = htmlspecialchars($it['url'] ?? 'javascript:void(0)', ENT_QUOTES, 'UTF-8');
+	$mt = !empty($it['multitabs']) || strpos($url, 'plugin.php') !== false ? ' multitabs' : '';
+	return '<li> <a class="' . trim($mt) . '" href="' . $url . '"><i class="mdi ' . $icon . '"></i> ' . $title . '</a> </li>';
+}
+
+function _mnbt_plugin_render_menu_children($children, $depth = 1)
+{
+	usort($children, function ($a, $b) {
+		return ($a['order'] ?? 50) - ($b['order'] ?? 50);
+	});
+	$html = '';
+	foreach ($children as $child) {
+		$html .= _mnbt_plugin_render_menu_item($child, $depth);
+	}
+	return $html;
+}
+
 function mnbt_plugin_render_menu_side_html($side)
 {
 	$side = $side === 'admin' ? 'admin' : 'user';
@@ -586,18 +635,29 @@ function mnbt_plugin_render_menu_side_html($side)
 	if (!$items) {
 		return '';
 	}
-	$html = '';
+	$groups = [];
+	$flat   = [];
 	foreach ($items as $it) {
-		$title = htmlspecialchars($it['title'] ?? '', ENT_QUOTES, 'UTF-8');
-		$url = htmlspecialchars($it['url'] ?? 'javascript:void(0)', ENT_QUOTES, 'UTF-8');
-		$icon = htmlspecialchars($it['icon'] ?? 'mdi-puzzle', ENT_QUOTES, 'UTF-8');
-		$mt = !empty($it['multitabs']) || strpos($url, 'plugin.php') !== false ? ' multitabs' : '';
-		$html .= '<li> <a class="' . trim($mt) . '" href="' . $url . '"><i class="mdi ' . $icon . '"></i> ' . $title . '</a> </li>';
+		if (!empty($it['children'])) {
+			$groups[] = $it;
+		} else {
+			$flat[] = $it;
+		}
 	}
-	if ($html === '') {
-		return '';
+	$out = '';
+	// Groups (items with children) → top-level nav-item-has-subnav
+	foreach ($groups as $g) {
+		$out .= _mnbt_plugin_render_menu_item($g, 0);
 	}
-	return '<li class="nav-item nav-item-has-subnav"> <a href="javascript:void(0)"> <i class="mdi mdi-puzzle"></i> <span>插件</span> </a><ul class="nav nav-subnav">' . $html . '</ul></li>';
+	// Flat items → legacy "插件" wrapper
+	if ($flat) {
+		$flatHtml = '';
+		foreach ($flat as $f) {
+			$flatHtml .= _mnbt_plugin_render_menu_item($f, 1);
+		}
+		$out .= '<li class="nav-item nav-item-has-subnav"> <a href="javascript:void(0)"> <i class="mdi mdi-puzzle"></i> <span>插件</span> </a><ul class="nav nav-subnav">' . $flatHtml . '</ul></li>';
+	}
+	return $out;
 }
 
 function mnbt_plugin_render_menu_admin_html()

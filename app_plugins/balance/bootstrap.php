@@ -161,19 +161,13 @@ mnbt_register_page('admin', 'balances', 'views/admin/balances.php', '余额管�
 mnbt_register_page('admin', 'balance_logs', 'views/admin/logs.php', '余额流水');
 
 mnbt_register_menu('admin', [
-	'title' => '余额管理 - 用户余额',
-	'page'  => 'balances',
-	'icon'  => 'mdi-cash-multiple',
+	'title' => '余额管理',
+	'icon'  => 'mdi-wallet',
 	'order' => 71,
-	'multitabs' => true,
-]);
-
-mnbt_register_menu('admin', [
-	'title' => '余额管理 - 流水记录',
-	'page'  => 'balance_logs',
-	'icon'  => 'mdi-history',
-	'order' => 72,
-	'multitabs' => true,
+	'children' => [
+		['title' => '用户余额', 'page' => 'balances', 'icon' => 'mdi-cash-multiple', 'multitabs' => true],
+		['title' => '流水记录', 'page' => 'balance_logs', 'icon' => 'mdi-history', 'multitabs' => true],
+	],
 ]);
 
 // 管理员端 AJAX：调整用户余额

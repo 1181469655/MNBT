@@ -220,11 +220,12 @@ mnbt_register_page('admin', 'users', 'views/admin/users.php', '用户管理');
 mnbt_register_page('admin', 'user_edit', 'views/admin/user_edit.php', '用户编辑');
 
 mnbt_register_menu('admin', [
-	'title' => '用户管理 - 用户列表',
-	'page'  => 'users',
-	'icon'  => 'mdi-account-multiple',
+	'title' => '用户管理',
+	'icon'  => 'mdi-account-group',
 	'order' => 70,
-	'multitabs' => true,
+	'children' => [
+		['title' => '用户列表', 'page' => 'users', 'icon' => 'mdi-format-list-bulleted', 'multitabs' => true],
+	],
 ]);
 
 // 管理员端 AJAX：重置用户密码

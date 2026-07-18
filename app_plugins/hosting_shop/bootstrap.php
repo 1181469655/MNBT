@@ -220,7 +220,14 @@ mnbt_register_page('admin', 'plan_edit', 'views/admin/plan_edit.php', '套餐编
 mnbt_register_page('admin', 'orders', 'views/admin/orders.php', '订单管理');
 mnbt_register_page('admin', 'assets', 'views/admin/assets.php', '资产管理');
 
-// 侧边栏菜单
-mnbt_register_menu('admin', ['title' => '主机售卖 - 套餐管理', 'page' => 'plans', 'order' => 60]);
-mnbt_register_menu('admin', ['title' => '主机售卖 - 订单管理', 'page' => 'orders', 'order' => 61]);
-mnbt_register_menu('admin', ['title' => '主机售卖 - 资产管理', 'page' => 'assets', 'order' => 62]);
+// 侧边栏菜单（三级结构）
+mnbt_register_menu('admin', [
+	'title' => '主机售卖',
+	'icon'  => 'mdi-cart',
+	'order' => 60,
+	'children' => [
+		['title' => '套餐管理', 'page' => 'plans', 'icon' => 'mdi-package-variant', 'multitabs' => true],
+		['title' => '订单管理', 'page' => 'orders', 'icon' => 'mdi-receipt', 'multitabs' => true],
+		['title' => '资产管理', 'page' => 'assets', 'icon' => 'mdi-server', 'multitabs' => true],
+	],
+]);
