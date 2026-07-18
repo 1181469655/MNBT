@@ -4,9 +4,12 @@
  * 迁移自 MPHX/lib/pay.function.php 的 $ddxx['lx']=='ymgm' 分支
  *
  * 由 order.paid 钩子触发，处理：
- * 1. 调宝塔 API 绑定域名到用户主机
- * 2. 写 plg_domain_product.json 购买者列表
- * 3. 【新增】自动创建 DNS A 记录指向节点 IP
+ * 1. 调宝塔 API 绑定域名到用户主机（所有通道都做）
+ * 2. 共享主机（type==1）改 hosts 文件 + 反向代理（所有通道都做）
+ * 3. 写 plg_domain_product.json 购买者列表（所有通道都做）
+ * 4. 根据 channel 分支：
+ *    - pan（泛解析）：不调 DNS API，依赖域名整体泛 A 记录到节点 IP
+ *    - dnsapi：通过商品的 provider_id 调对应 DNS 服务商 API 建 A 记录指向节点 IP
  */
 if (!defined('IN_CRONLITE')) exit;
 
@@ -110,19 +113,26 @@ function domain_shop_settle_ymgm($order, $ctx = [])
 		return;
 	}
 
-	// 【新增】自动创建 DNS A 记录指向节点 IP
-	$provider = dns_provider_get_by_slug('dnspod');
-	if ($provider) {
+	// 【通道分支】根据商品的 channel 决定是否调 DNS API 建 A 记录
+	// - pan（泛解析）：不调 DNS API，依赖域名整体泛解析到节点 IP
+	// - dnsapi：通过商品的 provider_id 调对应 DNS 服务商 API 建 A 记录
+	$channel = $bscx['channel'] ?? 'pan';
+	$providerId = (int)($bscx['provider_id'] ?? 0);
+
+	if ($channel === 'dnsapi' && $providerId > 0) {
 		// 主机记录：购买时使用的前缀（url_qz），如果随机化了则用实际前缀
 		$prefix = explode('.', $ul_url_ym)[0];
 		$recordName = ($prefix === $ddxx_cs['url_qz']) ? $ddxx_cs['url_qz'] : $prefix;
 		$ip = $cert['btip'];
 		if ($ip) {
-			dns_record_create($user, $provider['id'], $ddxx_url, $recordName, 'A', $ip, 600, 1);
+			$r = dns_record_create($user, $providerId, $ddxx_url, $recordName, 'A', $ip, 600, 1);
+			if (function_exists('mnbt_pay_log') && empty($r['ok'])) {
+				mnbt_pay_log('DNS A 记录自动创建失败：' . ($r['msg'] ?? ''), '处理警告', $out_trade_no);
+			}
 		}
 	}
 
 	if (function_exists('mnbt_pay_log')) {
-		mnbt_pay_log('域名购买处理成功 用户' . $user . ' 域名' . $ul_url_ym, '处理成功', $out_trade_no);
+		mnbt_pay_log('域名购买处理成功 用户' . $user . ' 域名' . $ul_url_ym . '（通道：' . $channel . '）', '处理成功', $out_trade_no);
 	}
 }

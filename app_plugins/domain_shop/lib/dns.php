@@ -145,7 +145,11 @@ function dns_record_list_all()
 
 /**
  * 为主机自动创建 A 记录
- * 在 host.created 钩子触发时调用：为用户创建一条 A 记录指向节点 IP
+ * 在 host.created 钩子触发时调用：为用户在每个 DNS API 通道域名商品下
+ * 创建一条 A 记录指向节点 IP。
+ *
+ * 仅处理 channel='dnsapi' 的商品；泛解析（pan）商品依赖域名整体泛 A 记录，
+ * 无需逐主机建记录。
  *
  * @param array $host 主机行（含 user/ssbt/sqldz 等）
  * @param array $ctx 钩子上下文
@@ -165,16 +169,23 @@ function dns_record_auto_create_for_host($host, $ctx = [])
 	$ip = $bt['btip'];
 	if (!$ip) return ['ok' => false, 'msg' => '节点 IP 为空'];
 
-	// 取 DNSPod 凭证
-	$provider = dns_provider_get_by_slug('dnspod');
-	if (!$provider) return ['ok' => false, 'msg' => '未配置 DNSPod 凭证，跳过'];
-
-	// 取该节点下所有上架域名作为可解析主域名
+	// 取该节点下所有上架域名商品
 	$products = domain_product_list_by_node($ssbt);
 	if (!$products) return ['ok' => false, 'msg' => '该节点无上架域名商品'];
 
-	$created = 0; $failed = 0;
+	$created = 0; $failed = 0; $skipped = 0;
 	foreach ($products as $prod) {
+		// 仅 DNS API 通道商品需要自动建记录
+		if (($prod['channel'] ?? 'pan') !== 'dnsapi') {
+			$skipped++;
+			continue;
+		}
+		$providerId = (int)($prod['provider_id'] ?? 0);
+		if ($providerId <= 0) {
+			$failed++;
+			continue;
+		}
+
 		$domain = $prod['url'];
 		$name = $user;  // 用用户名作为主机记录
 
@@ -185,9 +196,9 @@ function dns_record_auto_create_for_host($host, $ctx = [])
 		);
 		if ($exists) continue;
 
-		$r = dns_record_create($user, $provider['id'], $domain, $name, 'A', $ip, 600, 1);
+		$r = dns_record_create($user, $providerId, $domain, $name, 'A', $ip, 600, 1);
 		if (!empty($r['ok'])) $created++; else $failed++;
 	}
 
-	return ['ok' => true, 'msg' => "自动创建 {$created} 条，失败 {$failed} 条"];
+	return ['ok' => true, 'msg' => "自动创建 {$created} 条，失败 {$failed} 条，跳过泛解析 {$skipped} 条"];
 }

@@ -11,9 +11,12 @@ CREATE TABLE IF NOT EXISTS `plg_domain_product` (
   `js` varchar(50) NOT NULL COMMENT '域名介绍',
   `json` text NOT NULL COMMENT '已购用户列表 JSON',
   `qk` varchar(50) NOT NULL DEFAULT 'true' COMMENT '上架状态 true/false',
+  `channel` varchar(32) NOT NULL DEFAULT 'pan' COMMENT '通道: pan=泛解析 / dnsapi=DNS API',
+  `provider_id` int(11) NOT NULL DEFAULT 0 COMMENT 'DNS 服务商 ID（channel=dnsapi 时关联 plg_dns_provider.id）',
   PRIMARY KEY (`id`),
   KEY `url` (`url`),
-  KEY `btdh` (`btdh`)
+  KEY `btdh` (`btdh`),
+  KEY `channel` (`channel`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='域名商品表';
 
 -- DNS 服务商凭证（管理员配置，共享给所有用户）

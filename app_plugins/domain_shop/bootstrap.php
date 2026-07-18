@@ -12,6 +12,9 @@ if (!defined('IN_CRONLITE')) exit;
 require_once __DIR__ . '/lib/domain.php';
 require_once __DIR__ . '/lib/dns.php';
 
+// 已有站点自动升级表结构（补齐 channel / provider_id 字段）
+domain_product_schema_upgrade();
+
 mnbt_plugin_register('domain_shop', ['name' => '域名商品与 DNS 解析']);
 
 /* ============================================================
@@ -69,12 +72,15 @@ mnbt_register_page('user', 'bind',        'user/bind.php',        '域名绑定'
  * ============================================================ */
 mnbt_register_ajax('admin', 'p_domain_addym', function () {
 	mnbt_plugin_require_admin();
-	$url = $_POST['url'] ?? '';
-	$bt  = $_POST['bt'] ?? '';
-	$jg  = $_POST['jg'] ?? '';
-	$js  = $_POST['ymjs'] ?? '';
-	$kg  = isset($_POST['kg']) ? (bool)$_POST['kg'] : true;
-	$r = domain_product_add($url, $bt, $jg, $js, $kg);
+	$url     = $_POST['url'] ?? '';
+	$bt      = $_POST['bt'] ?? '';
+	$jg      = $_POST['jg'] ?? '';
+	$js      = $_POST['ymjs'] ?? '';
+	$kg      = isset($_POST['kg']) ? (bool)$_POST['kg'] : true;
+	$channel = $_POST['channel'] ?? 'pan';
+	$channel = ($channel === 'dnsapi') ? 'dnsapi' : 'pan';
+	$providerId = (int)($_POST['provider_id'] ?? 0);
+	$r = domain_product_add($url, $bt, $jg, $js, $kg, $channel, $providerId);
 	json_exit($r['ok'] ? $r['msg'] : $r['msg']);
 });
 
@@ -84,7 +90,12 @@ mnbt_register_ajax('admin', 'p_domain_xgym', function () {
 	$js = $_POST['js'] ?? '';
 	$jg = $_POST['jg'] ?? '';
 	$kg = isset($_POST['kg']) ? (bool)$_POST['kg'] : true;
-	$r = domain_product_update($id, $js, $jg, $kg);
+	$channel = $_POST['channel'] ?? null;
+	if ($channel !== null) {
+		$channel = ($channel === 'dnsapi') ? 'dnsapi' : 'pan';
+	}
+	$providerId = isset($_POST['provider_id']) ? (int)$_POST['provider_id'] : null;
+	$r = domain_product_update($id, $js, $jg, $kg, $channel, $providerId);
 	json_exit($r['ok'] ? $r['msg'] : $r['msg']);
 });
 
@@ -194,7 +205,7 @@ mnbt_register_ajax('user', 'p_dns_record_list', function () {
 
 mnbt_register_ajax('user', 'p_dns_record_add', function () {
 	mnbt_plugin_require_user();
-	global $yhc;
+	global $yhc, $DB;
 	$user = $yhc['user'] ?? '';
 	$providerId = (int)($_POST['provider_id'] ?? 0);
 	$domain = $_POST['domain'] ?? '';
@@ -208,7 +219,20 @@ mnbt_register_ajax('user', 'p_dns_record_add', function () {
 		json_exit_error('您未购买该域名，无权添加记录');
 	}
 
-	$r = dns_record_create($user, $providerId, $domain, $name, $type, $value, $ttl, 0);
+	// 限制：仅 DNS API 通道域名允许用户管理 DNS 记录
+	$prod = $DB->get_row_prepare("SELECT * FROM plg_domain_product WHERE url=? limit 1", [$domain]);
+	if (!$prod) json_exit_error('域名商品不存在');
+	if (($prod['channel'] ?? 'pan') !== 'dnsapi') {
+		json_exit_error('该域名为泛解析通道，无需单独管理 DNS 记录');
+	}
+
+	// 服务商以商品配置为准，忽略前端传值
+	$productProviderId = (int)$prod['provider_id'];
+	if ($productProviderId <= 0) {
+		json_exit_error('该域名未关联 DNS 服务商，请联系管理员');
+	}
+
+	$r = dns_record_create($user, $productProviderId, $domain, $name, $type, $value, $ttl, 0);
 	if (!$r['ok']) json_exit_error($r['msg']);
 	json_exit_success($r['msg']);
 });
@@ -234,12 +258,10 @@ require_once __DIR__ . '/user/api/bind.php';
 
 /* ============================================================
  * 7. 钩子：host.created - 自动创建 A 记录
+ *    仅对 channel='dnsapi' 的域名商品生效；泛解析商品依赖域名整体
+ *    泛 A 记录，无需逐主机建记录（详见 lib/dns.php）。
  * ============================================================ */
 mnbt_add_action('host.created', function ($host, $ctx = []) {
-	// 仅当 DNSPod 凭证已配置时才尝试
-	$provider = dns_provider_get_by_slug('dnspod');
-	if (!$provider) return;
-
 	$r = dns_record_auto_create_for_host($host, $ctx);
 	if (!empty($r['ok']) && function_exists('mnbt_log')) {
 		mnbt_log('系统', '插件-domain_shop', '主机开通自动建 DNS：' . $r['msg'], '成功', $GLOBALS['DB']);

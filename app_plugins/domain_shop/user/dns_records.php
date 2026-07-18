@@ -17,14 +17,16 @@ $providers = dns_provider_list_enabled();
 $providerMap = [];
 foreach ($providers as $p) $providerMap[$p['id']] = $p;
 
-// 用户已购的二级域名（用于添加记录时选择主域名）
+// 用户已购的二级域名（仅 DNS API 通道，泛解析通道无需用户管理 DNS 记录）
 $ownedDomains = [];
+$domainProviderMap = [];  // url -> provider_id
 if ($user) {
-	$products = $DB->get_all_prepare("SELECT * FROM plg_domain_product order by id asc") ?: [];
+	$products = $DB->get_all_prepare("SELECT * FROM plg_domain_product WHERE channel='dnsapi' order by id asc") ?: [];
 	foreach ($products as $prod) {
 		$buyers = json_decode($prod['json'] ?? '[]', true);
 		if (is_array($buyers) && in_array($user, $buyers, true)) {
 			$ownedDomains[] = $prod['url'];
+			$domainProviderMap[$prod['url']] = (int)$prod['provider_id'];
 		}
 	}
 }
@@ -58,6 +60,13 @@ if ($user) {
             <div class="card border-light mb-3">
               <div class="card-header bg-light">添加 DNS 记录</div>
               <div class="card-body">
+                <?php if (empty($ownedDomains)): ?>
+                  <div class="text-muted" style="padding:15px 0;">
+                    <i class="mdi mdi-information-outline"></i>
+                    您尚未购买任何 <b>DNS API 通道</b>的二级域名。<br/>
+                    泛解析通道的域名通过整体泛 A 记录访问，无需单独管理 DNS 记录。
+                  </div>
+                <?php else: ?>
                 <form id="dnsAddForm" onsubmit="return false;">
                   <div class="row">
                     <div class="col-md-3">
@@ -65,12 +74,10 @@ if ($user) {
                       <select class="form-control" id="domain" required>
                         <option value="">选择已购域名</option>
                         <?php foreach ($ownedDomains as $d): ?>
-                          <option value="<?= htmlspecialchars($d) ?>"><?= htmlspecialchars($d) ?></option>
+                          <option value="<?= htmlspecialchars($d) ?>" data-provider="<?= (int)($domainProviderMap[$d] ?? 0) ?>"><?= htmlspecialchars($d) ?></option>
                         <?php endforeach; ?>
                       </select>
-                      <?php if (empty($ownedDomains)): ?>
-                        <small class="text-danger">您尚未购买任何二级域名</small>
-                      <?php endif; ?>
+                      <small>DNS API 通道已购域名</small>
                     </div>
                     <div class="col-md-2">
                       <label>主机记录</label>
@@ -99,8 +106,8 @@ if ($user) {
                       <button type="button" class="btn btn-primary btn-block" onclick="addRecord()">添加</button>
                     </div>
                   </div>
-                  <input type="hidden" id="provider_id" value="<?= !empty($providers[0]['id']) ? (int)$providers[0]['id'] : 0 ?>">
                 </form>
+                <?php endif; ?>
               </div>
             </div>
 
@@ -161,9 +168,11 @@ function loadRecords() {
 }
 
 function addRecord() {
+  var selOpt = domain.options[domain.selectedIndex];
+  var pid = selOpt ? parseInt(selOpt.getAttribute('data-provider') || '0', 10) : 0;
   var data = {
     gn: 'p_dns_record_add',
-    provider_id: provider_id.value,
+    provider_id: pid,
     domain: domain.value,
     name: name.value,
     type: type.value,

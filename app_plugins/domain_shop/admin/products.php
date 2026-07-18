@@ -6,7 +6,13 @@
  */
 if (!defined('IN_CRONLITE')) exit;
 mnbt_admin_include('head');
+global $DB;
+$providers = $DB->get_all_prepare("SELECT * FROM plg_dns_provider WHERE qk='true' order by id asc") ?: [];
+$providerMap = [];
+foreach ($providers as $p) $providerMap[(int)$p['id']] = $p;
 ?>
+<script type="text/javascript" src="<?=mnbt_asset_url('js/bootstrap-table/bootstrap-table.min.js')?>"></script>
+<script type="text/javascript" src="<?=mnbt_asset_url('js/bootstrap-table/locale/bootstrap-table-zh-CN.min.js')?>"></script>
 <div class="container-fluid p-t-15">
 
   <!-- 编辑弹窗 -->
@@ -27,6 +33,22 @@ mnbt_admin_include('head');
             <div class="form-group">
               <label class="control-label">解析价格：</label>
               <input type="number" class="form-control" id="messagetext">
+            </div>
+            <div class="form-group">
+              <label class="control-label">解析通道：</label>
+              <select class="form-control" id="edt_channel" onchange="toggleEditChannel()">
+                <option value="pan">泛解析</option>
+                <option value="dnsapi" <?= empty($providers) ? 'disabled' : '' ?>>DNS API</option>
+              </select>
+            </div>
+            <div class="form-group" id="edt_provider_group" style="display:none;">
+              <label class="control-label">DNS 服务商：</label>
+              <select class="form-control" id="edt_provider_id">
+                <option value="0">请选择服务商</option>
+                <?php foreach ($providers as $p): ?>
+                  <option value="<?= (int)$p['id'] ?>"><?= htmlspecialchars($p['name']) ?>（<?= htmlspecialchars($p['slug']) ?>）</option>
+                <?php endforeach; ?>
+              </select>
             </div>
             <div class="form-group">
               <label class="btn-block">是否上架</label>
@@ -97,11 +119,23 @@ function xzdelbt() {
   });
 }
 
+function toggleEditChannel() {
+  var ch = edt_channel.value;
+  edt_provider_group.style.display = (ch === 'dnsapi') ? '' : 'none';
+}
+
 function bj_bc() {
   var id = idr.value, ipe = recipientname.value, dke = messagetext.value, kge = ymkg.checked;
+  var ch = edt_channel.value, pid = edt_provider_id.value;
   if (ipe == "" || dke == "") { msalert(3, '表单不能为空！', 2000, '#tanchuang'); return; }
+  if (ch === 'dnsapi' && (pid === '0' || pid === '')) {
+    msalert(3, 'DNS API 通道必须选择 DNS 服务商！', 2000, '#tanchuang'); return;
+  }
   msloading('正在加载中');
-  $.post('ajax.php', { gn: 'p_domain_xgym', id: id, js: ipe, jg: dke, kg: kge }, function (date) {
+  $.post('ajax.php', {
+    gn: 'p_domain_xgym', id: id, js: ipe, jg: dke, kg: kge,
+    channel: ch, provider_id: pid
+  }, function (date) {
     var jsoe = JSON.parse(date);
     var qk = jsoe.code;
     if (qk == '修改成功') {
@@ -155,6 +189,16 @@ $('#tb_departments').bootstrapTable({
   }, {
     field: 'btdh', title: '绑定的宝塔', sortable: true
   }, {
+    field: 'channel', title: '通道', sortable: true,
+    formatter: function (value, row) {
+      if (value === 'dnsapi') {
+        var pName = row.provider_id > 0 && window._providerNames && window._providerNames[row.provider_id]
+          ? window._providerNames[row.provider_id] : ('#' + row.provider_id);
+        return '<span class="badge badge-info"><b>DNS API</b></span> <small>' + escapeHtml(pName) + '</small>';
+      }
+      return '<span class="badge badge-secondary"><b>泛解析</b></span>';
+    }
+  }, {
     field: 'jg', title: '价格', sortable: true
   }, {
     field: 'date', title: '添加时间', sortable: true
@@ -195,6 +239,10 @@ function editUser(row) {
   document.getElementById("messagetext").value = row.jg;
   document.getElementById("idr").value = row.id;
   document.getElementById("ymkg").checked = (row.qk != 'false');
+  var ch = row.channel === 'dnsapi' ? 'dnsapi' : 'pan';
+  document.getElementById("edt_channel").value = ch;
+  document.getElementById("edt_provider_id").value = row.provider_id > 0 ? row.provider_id : '0';
+  toggleEditChannel();
   $('#tanchuang').modal();
 }
 
@@ -206,6 +254,19 @@ function delUser(row) {
     msloadingde();
     msalert(jsoe.code == '删除成功' ? 1 : 4, jsoe.code, 3000);
     $("#tb_departments").bootstrapTable('refreshOptions', { pageNumber: 1 });
+  });
+}
+
+// 服务商 ID -> 显示名映射，供列表通道列展示
+window._providerNames = {
+<?php foreach ($providerMap as $id => $p): ?>
+  <?= (int)$id ?>: <?= json_encode(htmlspecialchars($p['name'] . '（' . $p['slug'] . ')')) ?>,
+<?php endforeach; ?>
+};
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
   });
 }
 </script>
