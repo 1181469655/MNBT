@@ -47,63 +47,88 @@
       <div class="lyear-layout-sidebar-info lyear-scroll">
         <nav class="sidebar-main">
           <ul class="nav-drawer">
-            <li class="nav-item active"> <a href="sy.php" class="multitabs"> <i class="mdi mdi-home"></i> <span>后台首页</span> </a> </li>
-            <li class="nav-item nav-item-has-subnav"> <a href="javascript:void(0)"> <i class="mdi mdi-console"></i> <span>系统管理</span> </a>
+            <li class="nav-item active">
+              <a href="sy.php" class="multitabs"><i class="mdi mdi-home"></i><span>后台首页</span></a>
+            </li>
+
+            <li class="nav-item nav-item-has-subnav">
+              <a href="javascript:void(0)"><i class="mdi mdi-console"></i><span>系统管理</span></a>
               <ul class="nav nav-subnav">
-                <li> <a class="multitabs" href="set.php?gn=wz">网站设置</a> </li>
-                <li> <a class="multitabs" href="set.php?gn=gl">管理设置</a> </li>
-                <li> <a class="multitabs" href="set.php?gn=api">API设置</a> </li>
-                <li> <a class="multitabs" href="pay_settings.php">支付设置</a> </li>
-                <li> <a class="multitabs" href="set.php?gn=mail">邮箱设置</a> </li>
-                <li> <a class="multitabs" href="set.php?gn=jk">监控主机删除设置</a> </li>
-                <li> <a class="multitabs" href="set.php?gn=kzmb">控制面板管理</a> </li>
-                <li> <a class="multitabs" href="set.php?gn=theme">前端模板</a> </li>
-                <li> <a class="multitabs" href="plugin.php">插件管理</a> </li>
-                <li> <a class="multitabs" href="tutorial.php">教程及监控</a> </li>
-                <li> <a class="multitabs" href="update.php">系统更新</a> </li>
-                <li> <a class="multitabs" href="list.php?gn=log">操作日志</a> </li>
+                <li><a class="multitabs" href="set.php?gn=wz">网站设置</a></li>
+                <li><a class="multitabs" href="set.php?gn=gl">管理设置</a></li>
+                <li><a class="multitabs" href="set.php?gn=api">API设置</a></li>
+                <li><a class="multitabs" href="set.php?gn=mail">邮箱设置</a></li>
+                <li><a class="multitabs" href="set.php?gn=kzmb">控制面板管理</a></li>
+                <li><a class="multitabs" href="update.php">系统更新</a></li>
+                <li><a class="multitabs" href="list.php?gn=log">操作日志</a></li>
               </ul>
             </li>
+
+            <li class="nav-item">
+              <a href="pay_settings.php" class="multitabs"><i class="mdi mdi-credit-card-outline"></i><span>支付设置</span></a>
+            </li>
+
+            <li class="nav-item">
+              <a href="set.php?gn=theme" class="multitabs"><i class="mdi mdi-palette"></i><span>前端模板</span></a>
+            </li>
+
+            <li class="nav-item">
+              <a href="plugin.php" class="multitabs"><i class="mdi mdi-puzzle-outline"></i><span>插件列表</span></a>
+            </li>
+
             <?php
             if (function_exists('mnbt_plugin_render_menu_admin_html')) {
               echo mnbt_plugin_render_menu_admin_html();
             }
             ?>
-            <li class="nav-item nav-item-has-subnav"> <a href="javascript:void(0)"> <i class="mdi mdi-domain"></i> <span>二级域名</span> </a>
-              <ul class="nav nav-subnav">
-                <li> <a class="multitabs" href="list.php?gn=ym">域名列表</a> </li>
-                <li> <a class="multitabs" href="add.php?gn=ym">添加域名</a> </li>
-              </ul>
-            </li>
-            <li class="nav-item nav-item-has-subnav"> <a href="javascript:void(0)"> <i class="mdi mdi-server"></i> <span>宝塔管理</span> </a>
-              <ul class="nav nav-subnav">
-                <li> <a class="multitabs" href="list.php?gn=bt">宝塔列表</a> </li>
-                <li> <a class="multitabs" href="add.php?gn=bt">添加宝塔</a> </li>
-              </ul>
-            </li>
-            <li class="nav-item nav-item-has-subnav"> <a href="javascript:void(0)"> <i class="mdi mdi-server-network"></i> <span>节点管理</span> </a>
-              <ul class="nav nav-subnav">
-                <li> <a class="multitabs" href="node.php">节点列表</a> </li>
-                <li> <a class="multitabs" href="node.php?tab=scan">违禁词扫描</a> </li>
-              </ul>
-            </li>
-            <li class="nav-item nav-item-has-subnav"> <a href="javascript:void(0)"> <i class="mdi mdi-locker-multiple"></i> <span>主机管理</span> </a>
-              <ul class="nav nav-subnav">
-                <li> <a class="multitabs" href="list.php?gn=zj">主机列表</a> </li>
-                <li> <a class="multitabs" href="add.php?gn=zj">添加主机</a> </li>
-              </ul>
-            </li>
+
             <li class="nav-item nav-item-has-subnav">
-            <li class="nav-item nav-item-has-subnav"> <a href="javascript:void(0)"> <i class="mdi mdi-webpack"></i> <span>一键部署</span> </a>
+              <a href="javascript:void(0)"><i class="mdi mdi-locker-multiple"></i><span>主机管理</span></a>
               <ul class="nav nav-subnav">
-                <li> <a class="multitabs" href="list.php?gn=dd">订单列表</a> </li>
-                <li> <a class="multitabs" href="list.php?gn=cx">程序列表</a> </li>
-                <li> <a class="multitabs" href="add.php?gn=cx">添加程序</a> </li>
-                <li> <a class="multitabs" href="add.php?gn=dr">导入程序</a> </li>
+                <li><a class="multitabs" href="list.php?gn=zj">主机列表</a></li>
+                <li><a class="multitabs" href="add.php?gn=zj">添加主机</a></li>
               </ul>
-              <li class="nav-item"> <a href="javascript:void(0)" data-toggle="modal" data-target="#exampleModal" data-whatever="@mdo" data-backdrop="false"> <i class="mdi mdi-backup-restore"></i> <span>系统修复</span> </a> </li>
-          </ul>
-          </li>
+            </li>
+
+            <li class="nav-item nav-item-has-subnav">
+              <a href="javascript:void(0)"><i class="mdi mdi-server-network"></i><span>节点与宝塔</span></a>
+              <ul class="nav nav-subnav">
+                <li><a class="multitabs" href="list.php?gn=bt">宝塔列表</a></li>
+                <li><a class="multitabs" href="add.php?gn=bt">添加宝塔</a></li>
+                <li><a class="multitabs" href="node.php">节点列表</a></li>
+                <li><a class="multitabs" href="node.php?tab=scan">违禁词扫描</a></li>
+              </ul>
+            </li>
+
+            <li class="nav-item nav-item-has-subnav">
+              <a href="javascript:void(0)"><i class="mdi mdi-domain"></i><span>域名管理</span></a>
+              <ul class="nav nav-subnav">
+                <li><a class="multitabs" href="list.php?gn=ym">域名列表</a></li>
+                <li><a class="multitabs" href="add.php?gn=ym">添加域名</a></li>
+              </ul>
+            </li>
+
+            <li class="nav-item nav-item-has-subnav">
+              <a href="javascript:void(0)"><i class="mdi mdi-webpack"></i><span>一键部署</span></a>
+              <ul class="nav nav-subnav">
+                <li><a class="multitabs" href="list.php?gn=dd">订单列表</a></li>
+                <li><a class="multitabs" href="list.php?gn=cx">程序列表</a></li>
+                <li><a class="multitabs" href="add.php?gn=cx">添加程序</a></li>
+                <li><a class="multitabs" href="add.php?gn=dr">导入程序</a></li>
+              </ul>
+            </li>
+
+            <li class="nav-item nav-item-has-subnav">
+              <a href="javascript:void(0)"><i class="mdi mdi-monitor-dashboard"></i><span>监控与教程</span></a>
+              <ul class="nav nav-subnav">
+                <li><a class="multitabs" href="set.php?gn=jk">监控主机删除设置</a></li>
+                <li><a class="multitabs" href="tutorial.php">教程及监控</a></li>
+              </ul>
+            </li>
+
+            <li class="nav-item">
+              <a href="javascript:void(0)" data-toggle="modal" data-target="#exampleModal" data-whatever="@mdo" data-backdrop="false"><i class="mdi mdi-backup-restore"></i><span>系统修复</span></a>
+            </li>
           </ul>
         </nav>
         <div class="sidebar-footer">

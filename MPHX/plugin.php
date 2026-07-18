@@ -704,7 +704,7 @@ function mnbt_plugin_render_menu_side_html($side)
 	if ($inner === '') {
 		return '';
 	}
-	return '<li class="nav-item nav-item-has-subnav"> <a href="javascript:void(0)"> <i class="mdi mdi-puzzle"></i> <span>插件</span> </a><ul class="nav nav-subnav">' . $inner . '</ul></li>';
+	return '<li class="nav-item nav-item-has-subnav"> <a href="javascript:void(0)"> <i class="mdi mdi-puzzle"></i> <span>插件管理</span> </a><ul class="nav nav-subnav">' . $inner . '</ul></li>';
 }
 
 function mnbt_plugin_render_menu_admin_html()
