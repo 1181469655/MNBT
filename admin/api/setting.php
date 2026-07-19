@@ -12,12 +12,11 @@ if($egn=='setwz') {
 if($egn=='setapi') {
 	$apikey=daddslashes($_POST['apikey']);
 	$apiqk=daddslashes($_POST['apiqk']);
-	$php=daddslashes($_POST['php']);
 	$lin=daddslashes($_POST['linux']);
 	$win=daddslashes($_POST['windows']);
 	logjl($user,'API设置','对网站的API设置进行了修改','修改成功',$DB);
-	$sql="update `MN_config` set `api` =?, `apiqk` =?, `hxu` =?, `hxi` =?, `hxo` =? where `id`=?";
-	if($DB->query_prepare($sql,[$apikey,$apiqk,$php,$lin,$win,$siteid]))json_exit('修改成功'); else json_exit('修改失败'.$DB->error());
+	$sql="update `MN_config` set `api` =?, `apiqk` =?, `hxi` =?, `hxo` =? where `id`=?";
+	if($DB->query_prepare($sql,[$apikey,$apiqk,$lin,$win,$siteid]))json_exit('修改成功'); else json_exit('修改失败'.$DB->error());
 	return;
 }
 if($egn=='setkzmb') {

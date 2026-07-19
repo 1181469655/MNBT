@@ -46,7 +46,7 @@ CREATE TABLE `MN_plugin_hosting_order` (
   KEY `idx_order_no` (`order_no`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 
--- 资产表：用户已开通的主机（关联 MN_zj.id）
+-- 资产表
 DROP TABLE IF EXISTS `MN_plugin_hosting_asset`;
 CREATE TABLE `MN_plugin_hosting_asset` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
@@ -62,3 +62,6 @@ CREATE TABLE `MN_plugin_hosting_asset` (
   KEY `idx_user` (`user_id`),
   KEY `idx_host` (`host_id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+-- 为 MN_bt 表追加节点默认 PHP 版本列（V1.82 起每个宝塔节点独立管理 PHP 版本）
+ALTER TABLE `MN_bt` ADD COLUMN `mrbts_php` varchar(10) NOT NULL DEFAULT '' AFTER `qk`;

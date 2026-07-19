@@ -237,6 +237,27 @@ if($egn=='addzj') {
 	include("./class.php");
 	//实例化对象
 	$api = new bt_api($btipe,$btkeye);
+	// 获取节点默认 PHP 版本（优先节点设置，否则自动检测最新版本）
+	$phpVersion = $cxbt['mrbts_php'] ?? '';
+	if ($phpVersion === '' || $phpVersion === '00') {
+		$phpList = $api->btapi_listphp();
+		if (is_array($phpList)) {
+			$versions = [];
+			foreach ($phpList as $v) {
+				if (($v['status'] ?? false) && ($v['version'] ?? '') !== '00') {
+					$versions[] = $v['version'];
+				}
+			}
+			if (!empty($versions)) {
+				usort($versions, function($a, $b) { return strcmp($b, $a); });
+				$phpVersion = $versions[0];
+				$DB->query_prepare("UPDATE MN_bt SET mrbts_php=? WHERE btdh=? LIMIT 1", [$phpVersion, $btdh]);
+			}
+		}
+	}
+	if ($phpVersion === '' || $phpVersion === '00') {
+		json_exit('错误！无法获取该节点的 PHP 版本，请先在宝塔面板安装 PHP 或在节点管理中设置默认 PHP 版本');
+	}
 	//目录设置
 	$mrwww=$cxbt['btos']=='1' ? $conf['hxi'].'/'.$btserw : $conf['hxo'].'/'.$btserw;
 	if($cptype!='1') {
@@ -245,7 +266,7 @@ if($egn=='addzj') {
 		// 本地查重，BT面板的数据库/FTP重复由webkt接口自行处理并返回错误
 	}
 	//开通网站
-	$r_data = $api->webkt($user,$pass,$btserw,$cp_eh_lx,$cp_eh_ftp,$cp_eh_sql,$conf['hxu'],$mrwww);
+	$r_data = $api->webkt($user,$pass,$btserw,$cp_eh_lx,$cp_eh_ftp,$cp_eh_sql,$phpVersion,$mrwww);
 	$cjqk=$r_data['siteStatus'];
 	//创建情况
 	$zdide=$r_data['siteId'];

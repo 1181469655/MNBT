@@ -74,7 +74,7 @@ if($set=='bt'){?>
           <button class="btn btn-primary form-control" type="button" onclick="tjbt()"><label><i class="mdi mdi-checkbox-marked-circle-outline"></i></label>确认添加</button>
 
 <h6 class="mt-3">注意：</h6>
-<p>您所对接的宝塔必须安装PHP<?=$conf['hxu']/10?>否则会出现无法创建网站的问题！<br/>推荐添加的宝塔面板版本为7.9.0(包括7.9.0)以上！否则可能会出现错误！我们所使用的测试宝塔也是这个版本！
+<p>您所对接的宝塔必须安装至少一个 PHP 版本，系统会自动检测并使用最新版本！<br/>推荐添加的宝塔面板版本为7.9.0(包括7.9.0)以上！否则可能会出现错误！我们所使用的测试宝塔也是这个版本！
 </p>
 </div>
 
@@ -219,7 +219,7 @@ $bt_list=$DB->get_all_prepare("SELECT * FROM MN_bt order by id desc limit 100");
           <button class="btn btn-primary form-control" type="button" onclick="tjzj()"><label><i class="mdi mdi-checkbox-marked-circle-outline"></i></label>确认添加</button>
 
 <div class="panel-footer">
-<span class="glyphicon glyphicon-info-sign"></span> 注意：<b>您所对接的宝塔必须安装PHP<?=$conf['hxu']/10?>否则会出现创建网站失败的问题！</b><br/>CDN产品由于部分原因导致1台主机只能解析一个域名<br/>到期时间留空即为不启用到期时间（即该主机本系统不会对主机进行到期检测）<br/>最大流量：即该主机每个月最多可用多少流量！每月1日重置，<b>如果不开启流量监控则无法控制流量（开启方法：系统设置->使用教程->系统监控）</b>
+<span class="glyphicon glyphicon-info-sign"></span> 注意：<b>系统会自动检测并使用该节点的最新 PHP 版本，请确保宝塔面板已安装 PHP！</b><br/>CDN产品由于部分原因导致1台主机只能解析一个域名<br/>到期时间留空即为不启用到期时间（即该主机本系统不会对主机进行到期检测）<br/>最大流量：即该主机每个月最多可用多少流量！每月1日重置，<b>如果不开启流量监控则无法控制流量（开启方法：系统设置->使用教程->系统监控）</b>
 </div>
 </div>
 </div>

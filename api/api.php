@@ -59,6 +59,28 @@ if($gn=='cfif'){
     }
     if($cptype=='1'){$cplxch='CDN'; $cp_eh_ftp='false'; $cp_eh_sql='false';}else{$cplxch='主机'; $cp_eh_ftp='true'; $cp_eh_sql='true';}
     $api = new bt_api($btipe,$btkeye);
+    // 获取节点默认 PHP 版本（优先节点设置，否则自动检测最新版本）
+    $phpVersion = $cert['mrbts_php'] ?? '';
+    if ($phpVersion === '' || $phpVersion === '00') {
+        $phpList = $api->btapi_listphp();
+        if (is_array($phpList)) {
+            $versions = [];
+            foreach ($phpList as $v) {
+                if (($v['status'] ?? false) && ($v['version'] ?? '') !== '00') {
+                    $versions[] = $v['version'];
+                }
+            }
+            if (!empty($versions)) {
+                usort($versions, function($a, $b) { return strcmp($b, $a); });
+                $phpVersion = $versions[0];
+                $DB->query_prepare("UPDATE MN_bt SET mrbts_php=? WHERE btdh=? LIMIT 1", [$phpVersion, $bh]);
+            }
+        }
+    }
+    if ($phpVersion === '' || $phpVersion === '00') {
+        api_lifecycle_log('API开通主机','开通'.$user.'失败：无法获取节点PHP版本','开通失败');
+        api_json_exit(100, '错误！无法获取该节点的 PHP 版本，请先在宝塔面板安装 PHP 或联系管理员设置节点默认 PHP 版本');
+    }
     if($cptype!='1'){
         if(mb_strlen($user)<6 || mb_strlen($pass)<6){
             api_lifecycle_log('API开通主机','开通'.$user.'失败：账号或密码过短','开通失败');
@@ -76,7 +98,7 @@ if($gn=='cfif'){
     $wjler=substr($rqsj, $hskr , 3);
     $btserw='mnbt.'.$id.mt_rand(1,999).$wjler;
     $mrwww=$cert['btos']=='1' ? $conf['hxi'].'/'.$btserw : $conf['hxo'].'/'.$btserw;
-    $r_data = $api->webkt($user,$pass,$btserw,$cplxch,$cp_eh_ftp,$cp_eh_sql,$conf['hxu'],$mrwww);
+    $r_data = $api->webkt($user,$pass,$btserw,$cplxch,$cp_eh_ftp,$cp_eh_sql,$phpVersion,$mrwww);
     $cjqk=$r_data['siteStatus'] ?? false;
     $zdide=$r_data['siteId'] ?? 0;
     if($cjqk=='1' || $cjqk=='true' || $cjqk===true){

@@ -72,23 +72,6 @@ if ($set == 'wz') {
       </div>
     </div>
     <div class="mn-set-field">
-      <label for="mrphp">默认 PHP 版本</label>
-      <select class="form-control" id="mrphp" name="mrphp" size="1">
-        <option value="52" <?php if ($conf['hxu'] == '52') echo 'selected'; ?>>PHP-5.2</option>
-        <option value="53" <?php if ($conf['hxu'] == '53') echo 'selected'; ?>>PHP-5.3</option>
-        <option value="54" <?php if ($conf['hxu'] == '54') echo 'selected'; ?>>PHP-5.4</option>
-        <option value="55" <?php if ($conf['hxu'] == '55') echo 'selected'; ?>>PHP-5.5</option>
-        <option value="56" <?php if ($conf['hxu'] == '56') echo 'selected'; ?>>PHP-5.6</option>
-        <option value="70" <?php if ($conf['hxu'] == '70') echo 'selected'; ?>>PHP-7.0</option>
-        <option value="71" <?php if ($conf['hxu'] == '71') echo 'selected'; ?>>PHP-7.1</option>
-        <option value="72" <?php if ($conf['hxu'] == '72') echo 'selected'; ?>>PHP-7.2</option>
-        <option value="73" <?php if ($conf['hxu'] == '73') echo 'selected'; ?>>PHP-7.3</option>
-        <option value="74" <?php if ($conf['hxu'] == '74') echo 'selected'; ?>>PHP-7.4</option>
-        <option value="80" <?php if ($conf['hxu'] == '80') echo 'selected'; ?>>PHP-8.0</option>
-        <option value="81" <?php if ($conf['hxu'] == '81') echo 'selected'; ?>>PHP-8.1</option>
-      </select>
-    </div>
-    <div class="mn-set-field">
       <label for="linuxml">Linux 建站目录</label>
       <input type="text" name="linuxml" id="linuxml" value="<?php echo $conf['hxi']; ?>" class="form-control" placeholder="Linux宝塔面板的建站目录" required/>
       <small>默认 /www/wwwroot</small>

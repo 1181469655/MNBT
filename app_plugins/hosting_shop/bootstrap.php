@@ -242,6 +242,7 @@ mnbt_register_page('admin', 'plans', 'views/admin/plans.php', '套餐管理');
 mnbt_register_page('admin', 'plan_edit', 'views/admin/plan_edit.php', '套餐编辑');
 mnbt_register_page('admin', 'orders', 'views/admin/orders.php', '订单管理');
 mnbt_register_page('admin', 'assets', 'views/admin/assets.php', '资产管理');
+mnbt_register_page('admin', 'node_php', 'views/admin/node_php.php', '节点PHP管理');
 
 // 侧边栏菜单（三级结构）
 mnbt_register_menu('admin', [
@@ -252,5 +253,53 @@ mnbt_register_menu('admin', [
 		['title' => '套餐管理', 'page' => 'plans', 'icon' => 'mdi-package-variant', 'multitabs' => true],
 		['title' => '订单管理', 'page' => 'orders', 'icon' => 'mdi-receipt', 'multitabs' => true],
 		['title' => '资产管理', 'page' => 'assets', 'icon' => 'mdi-server', 'multitabs' => true],
+		['title' => '节点PHP管理', 'page' => 'node_php', 'icon' => 'mdi-language-php', 'multitabs' => true],
 	],
 ]);
+
+/* ============================================================
+ *  管理员端 AJAX：节点 PHP 版本管理
+ * ============================================================ */
+
+// 获取指定节点的 PHP 版本列表（从宝塔 API 实时拉取）
+mnbt_register_ajax('admin', 'p_hosting_node_php_list', function () {
+	mnbt_plugin_require_admin();
+	$btdh = trim((string)($_POST['btdh'] ?? ''));
+	if ($btdh === '') {
+		json_exit_error('请指定节点');
+	}
+	$result = hosting_node_php_list($btdh);
+	if (!$result['ok']) {
+		json_exit_error($result['msg']);
+	}
+	$currentDefault = hosting_node_get_default_php($btdh);
+	json_exit_success('ok', ['versions' => $result['versions'], 'latest' => $result['latest'], 'current_default' => $currentDefault]);
+});
+
+// 自动检测并设置节点的默认 PHP 版本
+mnbt_register_ajax('admin', 'p_hosting_node_php_auto_detect', function () {
+	mnbt_plugin_require_admin();
+	$btdh = trim((string)($_POST['btdh'] ?? ''));
+	if ($btdh === '') {
+		json_exit_error('请指定节点');
+	}
+	$result = hosting_node_auto_detect_php($btdh);
+	if (!$result['ok']) {
+		json_exit_error($result['msg']);
+	}
+	json_exit_success($result['msg'], ['version' => $result['version']]);
+});
+
+// 手动设置节点的默认 PHP 版本
+mnbt_register_ajax('admin', 'p_hosting_node_php_set', function () {
+	mnbt_plugin_require_admin();
+	$btdh = trim((string)($_POST['btdh'] ?? ''));
+	$version = trim((string)($_POST['version'] ?? ''));
+	if ($btdh === '' || $version === '') {
+		json_exit_error('参数不完整');
+	}
+	if (!hosting_node_set_default_php($btdh, $version)) {
+		json_exit_error('保存失败');
+	}
+	json_exit_success('已设置节点 ' . htmlspecialchars($btdh) . ' 的默认 PHP 版本为 ' . $version);
+});
