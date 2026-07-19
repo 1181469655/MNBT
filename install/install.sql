@@ -340,5 +340,3 @@ CREATE TABLE `MN_plugin_option` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_plugin_k` (`plugin_slug`,`k`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
-
-ALTER TABLE `MN_bt` ADD COLUMN `mrbts_php` varchar(10) NOT NULL DEFAULT '' AFTER `qk`;
