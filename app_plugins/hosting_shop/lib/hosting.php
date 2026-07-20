@@ -165,6 +165,103 @@ function hosting_format_cents($cents)
 	return number_format((int)$cents / 100, 2, '.', '');
 }
 
+/* ============================================================
+ *  套餐分类管理（存储于 MN_plugin_option）
+ * ============================================================ */
+
+/** 获取分类列表（一维数组）。 */
+function hosting_category_list()
+{
+	$list = mnbt_plugin_option_get('hosting_shop', 'categories', []);
+	if (!is_array($list)) {
+		$list = [];
+	}
+	// 去重、去空、重新索引
+	$clean = [];
+	foreach ($list as $v) {
+		$v = trim((string)$v);
+		if ($v !== '' && !in_array($v, $clean, true)) {
+			$clean[] = $v;
+		}
+	}
+	return $clean;
+}
+
+/** 添加分类，返回 true 或错误消息。 */
+function hosting_category_add($name)
+{
+	$name = trim((string)$name);
+	if ($name === '') {
+		return '分类名称不能为空';
+	}
+	$list = hosting_category_list();
+	if (in_array($name, $list, true)) {
+		return '分类已存在';
+	}
+	$list[] = $name;
+	mnbt_plugin_option_set('hosting_shop', 'categories', $list);
+	return true;
+}
+
+/** 删除分类，返回 true 或错误消息。 */
+function hosting_category_delete($name)
+{
+	$name = trim((string)$name);
+	$list = hosting_category_list();
+	$key = array_search($name, $list, true);
+	if ($key === false) {
+		return '分类不存在';
+	}
+	unset($list[$key]);
+	$list = array_values($list);
+	mnbt_plugin_option_set('hosting_shop', 'categories', $list);
+	// 把使用该分类的套餐清空分类
+	global $DB;
+	$DB->query_prepare("UPDATE hosting_plans SET category = '' WHERE category = ?", [$name]);
+	return true;
+}
+
+/** 重命名分类，返回 true 或错误消息。 */
+function hosting_category_rename($old, $new)
+{
+	$old = trim((string)$old);
+	$new = trim((string)$new);
+	if ($old === '' || $new === '') {
+		return '分类名称不能为空';
+	}
+	if ($old === $new) {
+		return true;
+	}
+	$list = hosting_category_list();
+	$key = array_search($old, $list, true);
+	if ($key === false) {
+		return '原分类不存在';
+	}
+	if (in_array($new, $list, true)) {
+		return '新分类名称已存在';
+	}
+	$list[$key] = $new;
+	mnbt_plugin_option_set('hosting_shop', 'categories', $list);
+	// 同步更新套餐表
+	global $DB;
+	$DB->query_prepare("UPDATE hosting_plans SET category = ? WHERE category = ?", [$new, $old]);
+	return true;
+}
+
+/** 统计每个分类下的套餐数量。 */
+function hosting_category_counts()
+{
+	global $DB;
+	$rows = $DB->get_all_prepare("SELECT category, COUNT(*) AS cnt FROM hosting_plans WHERE category != '' GROUP BY category");
+	$map = [];
+	if (is_array($rows)) {
+		foreach ($rows as $r) {
+			$map[$r['category']] = (int)$r['cnt'];
+		}
+	}
+	return $map;
+}
+
 /** 获取当前登录的 user_info 用户，未登录跳转登录页。 */
 function hosting_require_user()
 {

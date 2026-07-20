@@ -54,7 +54,7 @@ mnbt_admin_include('head');
 				<div class="alert alert-<?= htmlspecialchars($msg_type ?? 'danger', ENT_QUOTES) ?>"><?= htmlspecialchars($msg) ?></div>
 			<?php endif; ?>
 
-			<form method="post">
+			<form method="post" onsubmit="var b=this.querySelector('button[type=submit]');b.disabled=true;b.textContent='保存中...';">
 				<input type="hidden" name="act" value="save">
 				<div class="form-group row">
 					<label class="col-sm-3 col-form-label">套餐名称</label>
@@ -71,7 +71,13 @@ mnbt_admin_include('head');
 				<div class="form-row">
 					<div class="form-group col-md-6">
 						<label>套餐分类</label>
-						<input type="text" name="category" class="form-control" placeholder="如：入门型、标准型、企业型" value="<?= htmlspecialchars($plan['category'] ?? '', ENT_QUOTES) ?>">
+						<select name="category" class="form-control">
+							<option value="">未分类</option>
+							<?php foreach (hosting_category_list() as $cat): ?>
+								<option value="<?= htmlspecialchars($cat, ENT_QUOTES) ?>" <?= (($plan['category'] ?? '') === $cat) ? 'selected' : '' ?>><?= htmlspecialchars($cat, ENT_QUOTES) ?></option>
+							<?php endforeach; ?>
+						</select>
+						<small class="form-text text-muted">没有需要的分类？请前往套餐分类页面添加。</small>
 					</div>
 					<div class="form-group col-md-6">
 						<label>固定开通节点 <span class="text-danger">*</span></label>
