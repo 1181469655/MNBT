@@ -43,7 +43,6 @@ msloadingde();  // 隐藏
 }
 function setapi() {
 var apikey=apimy.value;
-var php=mrphp.value;
 var lml=linuxml.value;
 var wml=winml.value;
 var apiqk=apikg.checked;
@@ -56,7 +55,6 @@ msloading('正在修改中！请稍后...','text-info','text-info');  // 加载�
 let data = {};
 data["gn"]="setapi";
 data["apikey"]=apikey;
-data["php"]=php;
 data["linux"]=lml;
 data["windows"]=wml;
 data["apiqk"]=apiqk;
