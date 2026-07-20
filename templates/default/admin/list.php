@@ -99,11 +99,10 @@ if($set=='bt'){
           <p class="small">
           <strong>操作图标详解</strong><br/>
         <a href="#!" class="btn btn-xs btn-default" title="编辑" data-toggle="tooltip"><i class="mdi mdi-pencil"></i></a>：编辑纪录
-        <a href="#!" class="btn btn-xs btn-default" title="swapidc对接文档" data-toggle="tooltip"><i class="mdi mdi-buffer"></i></a>：SWAPIDC对接文档<br/>
         <a href="#!" class="btn btn-xs btn-default" title="删除" data-toggle="tooltip"><i class="mdi mdi-window-close"></i></a>：删除纪录
         <a href="#!" class="btn btn-xs btn-default" title="魔方对接文档" data-toggle="tooltip"><i class="mdi mdi-cube-outline"></i></a>：魔方对接文档<br/>
         <a href="#!" class="btn btn-xs btn-info" title="获取PHP版本" data-toggle="tooltip"><i class="mdi mdi-cloud-download"></i></a>：获取PHP版本
-        <a href="#!" class="btn btn-xs btn-success" title="自动设置最新PHP" data-toggle="tooltip"><i class="mdi mdi-magic"></i></a>：自动设置最新PHP
+        <a href="#!" class="btn btn-xs btn-success" title="自动设置最新PHP" data-toggle="tooltip"><i class="mdi mdi-update"></i></a>：自动设置最新PHP
           </p></div>
           <div id="toolbar" class="toolbar-btn-action">
             <button id="btn_add" type="button" class="btn btn-primary m-r-5 js-create-tab" aria-hidden="true" data-title="添加宝塔" data-url="add.php?gn=bt">
@@ -372,9 +371,6 @@ $('#tb_departments').bootstrapTable({
             'click .del-btn': function (event, value, row, index) {
                 delUser(row);
             },
-            'click .dj-sw': function (event, value, row, index) {
-                window.location.href='tutorial.php?gn=sw&sz='+row.id;
-            },
             'click .dj-mf': function (event, value, row, index) {
                 window.location.href='tutorial.php?gn=mr&sz='+row.id;
             },
@@ -407,11 +403,10 @@ function btnGroup ()
 {
     let html =
         '<a href="#!" class="btn btn-xs btn-default edit-btn" title="编辑" data-toggle="tooltip"><i class="mdi mdi-pencil"></i></a>' +
-        '<a href="#!" class="btn btn-xs btn-default dj-sw" title="swapidc对接文档" data-toggle="tooltip"><i class="mdi mdi-buffer"></i></a>' +
         '<a href="#!" class="btn btn-xs btn-default dj-mf" title="魔方对接文档" data-toggle="tooltip"><i class="mdi mdi-cube-outline"></i></a>'+
         '<a href="#!" class="btn btn-xs btn-default del-btn" title="删除" data-toggle="tooltip"><i class="mdi mdi-window-close"></i></a>' +
         '<a href="#!" class="btn btn-xs btn-info php-fetch-btn" title="获取PHP版本" data-toggle="tooltip"><i class="mdi mdi-cloud-download"></i></a>' +
-        '<a href="#!" class="btn btn-xs btn-success php-detect-btn" title="自动设置最新PHP" data-toggle="tooltip"><i class="mdi mdi-magic"></i></a>';
+        '<a href="#!" class="btn btn-xs btn-success php-detect-btn" title="自动设置最新PHP" data-toggle="tooltip"><i class="mdi mdi-update"></i></a>';
     return html;
 }
 
