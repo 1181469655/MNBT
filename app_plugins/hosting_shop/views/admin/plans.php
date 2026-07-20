@@ -44,7 +44,6 @@ mnbt_admin_include('head');
 							<tr>
 								<th>ID</th>
 								<th>名称</th>
-								<th>类型</th>
 								<th>网页/数据库/流量</th>
 								<th>域名数</th>
 								<th>价格（启用周期）</th>
@@ -59,7 +58,6 @@ mnbt_admin_include('head');
 								<tr>
 									<td><?= (int)$p['id'] ?></td>
 									<td><?= htmlspecialchars($p['name'], ENT_QUOTES) ?></td>
-									<td><?= (int)$p['spec_type'] === 1 ? 'CDN' : '主机' ?></td>
 									<td><?= (int)$p['spec_web'] ?>MB / <?= (int)$p['spec_sql'] ?>MB / <?= (int)$p['spec_flow'] > 0 ? ((int)$p['spec_flow'] . 'GB') : '不限' ?></td>
 									<td><?= (int)$p['spec_domain'] ?></td>
 									<td>

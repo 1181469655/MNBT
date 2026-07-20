@@ -162,14 +162,6 @@ $bt_list=$DB->get_all_prepare("SELECT * FROM MN_bt order by id desc limit 100");
             </div>
               </br>
 <div class="form-group">
-	  <label for="web_site_icp">产品类型</label>
-                <select class="form-control" id="cplx" onchange="_sel(this.options[this.options.selectedIndex])" name="cplx" size="1">
-                  <option value="2">主机</option>
-                   <option value="1">CDN</option>
-                </select>
-            </div>
-              </br>
-<div class="form-group">
                 <label for="web_site_logo">账号</label>
                 <div class="input-group">
                   <input type="text" class="form-control" name="user" id="user" placeholder="FTP和SQL的账号"/>
@@ -219,7 +211,7 @@ $bt_list=$DB->get_all_prepare("SELECT * FROM MN_bt order by id desc limit 100");
           <button class="btn btn-primary form-control" type="button" onclick="tjzj()"><label><i class="mdi mdi-checkbox-marked-circle-outline"></i></label>确认添加</button>
 
 <div class="panel-footer">
-<span class="glyphicon glyphicon-info-sign"></span> 注意：<b>系统会自动检测并使用该节点的最新 PHP 版本，请确保宝塔面板已安装 PHP！</b><br/>CDN产品由于部分原因导致1台主机只能解析一个域名<br/>到期时间留空即为不启用到期时间（即该主机本系统不会对主机进行到期检测）<br/>最大流量：即该主机每个月最多可用多少流量！每月1日重置，<b>如果不开启流量监控则无法控制流量（开启方法：系统设置->使用教程->系统监控）</b>
+<span class="glyphicon glyphicon-info-sign"></span> 注意：<b>系统会自动检测并使用该节点的最新 PHP 版本，请确保宝塔面板已安装 PHP！</b><br/>到期时间留空即为不启用到期时间（即该主机本系统不会对主机进行到期检测）<br/>最大流量：即该主机每个月最多可用多少流量！每月1日重置，<b>如果不开启流量监控则无法控制流量（开启方法：系统设置->使用教程->系统监控）</b>
 </div>
 </div>
 </div>
@@ -231,18 +223,6 @@ $bt_list=$DB->get_all_prepare("SELECT * FROM MN_bt order by id desc limit 100");
 <script src="<?=mnbt_asset_url('js/bootstrap-datepicker/locales/bootstrap-datepicker.zh-CN.min.js')?>"></script>
 <script type="text/javascript" src="<?=mnbt_asset_url('js/main.min.js')?>"></script>
  <script type="text/javascript">
-function _sel(val){
-var vio=val.value;
-if(vio=='1'){
-document.getElementById("irth").style.display="none";
-document.getElementById("yms").value="1";
-document.getElementById("yms").readOnly="true";
-}else{
-document.getElementById("yms").value="";
-document.getElementById("yms").readOnly="";
-document.getElementById("irth").style.display="block";
-}
-}
  
 function szsce(bho) {
 msloading('正在生成中...');
@@ -256,7 +236,6 @@ msloadingde();
 }
  function tjzj() {
 var btbh=btdh.value;
-var cpty=cplx.value;
 var usere=user.value;
 var passe=pass.value;
 var datae=datar.value;
@@ -273,7 +252,6 @@ let data = {};
 data["gn"]="addzj";
 data["user"]=usere;
 data["pass"]=passe;
-data["cplx"]=cpty;
 data["btdh"]=btbh;
 data["datae"]=datae;
 data["webkj"]=webdx;

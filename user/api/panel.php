@@ -333,10 +333,9 @@ if ($egn === 'set_init') {
 		if (is_array($msg['access'])) {
 			$msg['access'] = $msg['access']['dataAccess'] ?? '127.0.0.1';
 		}
-	} elseif ($section === 'url' || $section === 'CDN_url') {
+	} elseif ($section === 'url') {
 		$msg['btip'] = $cert['btip'] ?? '';
 		$msg['als'] = $cert['als'] ?? 'false';
-		$msg['is_cdn'] = (string)($yhc['hxc'] ?? '') === '1';
 	} elseif ($section === 'pass') {
 		// 仅元信息；列表走 pass_list
 		$msg['ok'] = true;

@@ -14,7 +14,6 @@ ob_start();
     </div>
 
     <ul class="hs-plan-spec" style="margin-bottom:20px;">
-      <li><span>产品类型</span><b><?= (int)$plan['spec_type'] === 1 ? 'CDN' : '虚拟主机' ?></b></li>
       <li><span>网页空间</span><b><?= (int)$plan['spec_web'] ?> MB</b></li>
       <li><span>数据库</span><b><?= (int)$plan['spec_sql'] ?> MB</b></li>
       <li><span>流量</span><b><?= (int)$plan['spec_flow'] > 0 ? ((int)$plan['spec_flow'].' GB') : '不限' ?></b></li>

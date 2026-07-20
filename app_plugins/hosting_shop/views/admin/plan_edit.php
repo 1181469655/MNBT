@@ -15,7 +15,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['act'] ?? '') === 'save') {
 		'id' => $id,
 		'name' => $_POST['name'] ?? '',
 		'description' => $_POST['description'] ?? '',
-		'spec_type' => (int)($_POST['spec_type'] ?? 0),
 		'spec_web' => (int)($_POST['spec_web'] ?? 0),
 		'spec_sql' => (int)($_POST['spec_sql'] ?? 0),
 		'spec_flow' => (int)($_POST['spec_flow'] ?? 0),
@@ -67,60 +66,51 @@ mnbt_admin_include('head');
 						<textarea name="description" class="form-control" rows="3"><?= htmlspecialchars($plan['description'] ?? '', ENT_QUOTES) ?></textarea>
 					</div>
 				</div>
-				<div class="form-group row">
-					<label class="col-sm-3 col-form-label">产品类型</label>
-					<div class="col-sm-9">
-						<select name="spec_type" class="form-control">
-							<option value="0" <?= ((int)($plan['spec_type'] ?? 0) === 0) ? 'selected' : '' ?>>虚拟主机（开通 FTP + 数据库）</option>
-							<option value="1" <?= ((int)($plan['spec_type'] ?? 0) === 1) ? 'selected' : '' ?>>CDN（不开通 FTP/数据库）</option>
-						</select>
-					</div>
-				</div>
 				<div class="form-row">
-					<div class="form-group col-md-3">
-						<label>网页空间 (MB)</label>
-						<input type="number" name="spec_web" class="form-control" required min="0" value="<?= (int)($plan['spec_web'] ?? 1024) ?>">
-					</div>
-					<div class="form-group col-md-3">
-						<label>数据库空间 (MB)</label>
-						<input type="number" name="spec_sql" class="form-control" required min="0" value="<?= (int)($plan['spec_sql'] ?? 256) ?>">
-					</div>
-					<div class="form-group col-md-3">
-						<label>流量 (GB，0=不限)</label>
-						<input type="number" name="spec_flow" class="form-control" required min="0" value="<?= (int)($plan['spec_flow'] ?? 0) ?>">
-					</div>
-					<div class="form-group col-md-3">
-						<label>域名绑定数</label>
-						<input type="number" name="spec_domain" class="form-control" required min="0" value="<?= (int)($plan['spec_domain'] ?? 5) ?>">
-					</div>
+				<div class="form-group col-md-3">
+					<label>网页空间 (MB)</label>
+					<input type="number" name="spec_web" class="form-control" required min="0" value="<?= (int)($plan['spec_web'] ?? 1024) ?>">
 				</div>
-				<div class="form-group row">
-					<label class="col-sm-3 col-form-label">购买周期与价格 (元)</label>
-					<div class="col-sm-9">
-						<div class="form-row">
-							<?php
-								$enabledPeriods = hosting_plan_enabled_periods($plan ?: []);
-								foreach (hosting_periods() as $p => $cfg):
-									$field = hosting_period_price_field($p);
-									$checked = in_array($p, $enabledPeriods, true) ? 'checked' : '';
-									$price = isset($plan[$field]) ? hosting_format_cents((int)$plan[$field]) : '0.00';
-							?>
-								<div class="form-group col-md-4">
-									<div class="input-group">
-										<div class="input-group-prepend">
-											<div class="input-group-text">
-												<input type="checkbox" name="enabled_periods[]" value="<?= htmlspecialchars($p, ENT_QUOTES) ?>" <?= $checked ?>>
-											</div>
+				<div class="form-group col-md-3">
+					<label>数据库空间 (MB)</label>
+					<input type="number" name="spec_sql" class="form-control" required min="0" value="<?= (int)($plan['spec_sql'] ?? 256) ?>">
+				</div>
+				<div class="form-group col-md-3">
+					<label>流量 (GB，0=不限)</label>
+					<input type="number" name="spec_flow" class="form-control" required min="0" value="<?= (int)($plan['spec_flow'] ?? 0) ?>">
+				</div>
+				<div class="form-group col-md-3">
+					<label>域名绑定数</label>
+					<input type="number" name="spec_domain" class="form-control" required min="0" value="<?= (int)($plan['spec_domain'] ?? 5) ?>">
+				</div>
+			</div>
+			<div class="form-group row">
+				<label class="col-sm-3 col-form-label">购买周期与价格 (元)</label>
+				<div class="col-sm-9">
+					<div class="form-row">
+						<?php
+							$enabledPeriods = hosting_plan_enabled_periods($plan ?: []);
+							foreach (hosting_periods() as $p => $cfg):
+								$field = hosting_period_price_field($p);
+								$checked = in_array($p, $enabledPeriods, true) ? 'checked' : '';
+								$price = isset($plan[$field]) ? hosting_format_cents((int)$plan[$field]) : '0.00';
+						?>
+							<div class="form-group col-md-4">
+								<div class="input-group">
+									<div class="input-group-prepend">
+										<div class="input-group-text">
+											<input type="checkbox" name="enabled_periods[]" value="<?= htmlspecialchars($p, ENT_QUOTES) ?>" <?= $checked ?>>
 										</div>
-										<span class="input-group-text" style="min-width:60px;justify-content:center;"><?= htmlspecialchars($cfg['label']) ?></span>
-										<input type="number" name="price[<?= htmlspecialchars($p, ENT_QUOTES) ?>]" class="form-control" step="0.01" min="0" value="<?= htmlspecialchars($price, ENT_QUOTES) ?>">
 									</div>
+									<span class="input-group-text" style="min-width:60px;justify-content:center;"><?= htmlspecialchars($cfg['label']) ?></span>
+									<input type="number" name="price[<?= htmlspecialchars($p, ENT_QUOTES) ?>]" class="form-control" step="0.01" min="0" value="<?= htmlspecialchars($price, ENT_QUOTES) ?>">
 								</div>
-							<?php endforeach; ?>
-						</div>
-						<small class="form-text text-muted">勾选并填写价格即启用该周期；价格填 0 表示免费。</small>
+							</div>
+						<?php endforeach; ?>
 					</div>
+					<small class="form-text text-muted">勾选并填写价格即启用该周期；价格填 0 表示免费。</small>
 				</div>
+			</div>
 				<div class="form-row">
 					<div class="form-group col-md-6">
 						<label>排序</label>

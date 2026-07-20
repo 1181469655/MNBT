@@ -269,8 +269,7 @@ chown -R www:www .
 │   │   ├── monitor.php       # 监控任务 CRUD + 通知已读
 │   │   ├── deploy.php        # 一键部署
 │   │   ├── database.php      # 数据库管理
-│   │   ├── other.php         # 其他功能（重置密码/邮箱绑定）
-│   │   └── cdn.php           # CDN 相关
+│   │   └── other.php         # 其他功能（重置密码/邮箱绑定）
 │   ├── ftp.php               # 在线文件管理
 │   ├── mysql.php             # SQL 管理面板
 │   ├── sqlgl.php             # SQL 数据备份

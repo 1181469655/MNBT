@@ -253,7 +253,7 @@ function hosting_plan_save($data)
 	$fields = [
 		'name' => trim((string)($data['name'] ?? '')),
 		'description' => trim((string)($data['description'] ?? '')),
-		'spec_type' => (int)($data['spec_type'] ?? 0) === 1 ? 1 : 0,
+		'spec_type' => 0,
 		'spec_web' => max(0, (int)($data['spec_web'] ?? 0)),
 		'spec_sql' => max(0, (int)($data['spec_sql'] ?? 0)),
 		'spec_flow' => max(0, (int)($data['spec_flow'] ?? 0)),
@@ -562,17 +562,10 @@ function hosting_open_host($order_id)
 	$wjler = substr($rqsj, $hskr, 3);
 	$btserw = 'mnbt.' . $bt_user . $wjler;
 
-	// 产品类型映射
-	$cptype = (int)$plan['spec_type'] === 1 ? '1' : '0';
-	if ($cptype === '1') {
-		$cp_eh_lx = 'CDN';
-		$cp_eh_ftp = 'false';
-		$cp_eh_sql = 'false';
-	} else {
-		$cp_eh_lx = '主机';
-		$cp_eh_ftp = 'true';
-		$cp_eh_sql = 'true';
-	}
+	// 产品类型固定为主机（CDN 产品已下线）
+	$cp_eh_lx = '主机';
+	$cp_eh_ftp = 'true';
+	$cp_eh_sql = 'true';
 	// 确定 PHP 版本：优先使用节点已保存的，否则自动检测最新版本
 	$phpVersion = $node['mrbts_php'] ?? '';
 	if ($phpVersion === '' || $phpVersion === '00') {
@@ -595,7 +588,7 @@ function hosting_open_host($order_id)
 		hosting_order_set_status($order_id, 'failed', '无法获取节点 PHP 版本');
 		return ['ok' => false, 'msg' => '无法获取该节点的 PHP 版本，请先在宝塔面板安装 PHP 或在节点管理中设置默认 PHP 版本'];
 	}
-	$mrwww = $node['btos'] == '1' ? $phpVersion : $phpVersion;
+	$mrwww = $phpVersion;
 	$mrml = ($node['btos'] == '1' ? $conf['hxi'] : $conf['hxo']) . '/' . $btserw;
 
 	// 计算到期时间（支持月/季/半年/年/两年/三年）
@@ -648,7 +641,7 @@ function hosting_open_host($order_id)
 	$webdx = json_encode(['max' => (int)$plan['spec_web'], 'dq' => 0]);
 	$sqldx = json_encode(['max' => (int)$plan['spec_sql'], 'dq' => 0]);
 	$flowratemax = json_encode(['max' => (int)$plan['spec_flow'], 'dq' => 0, 'statistics' => false]);
-	$ymbds = $cptype === '1' ? '1' : (string)(int)$plan['spec_domain'];
+	$ymbds = (string)(int)$plan['spec_domain'];
 	$now = $date ?: date('Y-m-d H:i:s');
 	$kg = 'true';
 
@@ -657,7 +650,7 @@ function hosting_open_host($order_id)
 
 	$ok = $DB->query_prepare(
 		"INSERT INTO `MN_zj` (`id`, `ssbt`, `user`, `pass`, `sqluser`, `sqlpass`, `data`, `datae`, `qk`, `btid`, `sqldz`, `ftpid`, `ymbds`, `hxa`, `hxb`, `hxc`, `hxd`, `llmax`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-		[$new_zj_id, $order['node'], $bt_user, $bt_pass, $bt_user, $bt_pass, $now, $datae, $kg, $zdide, $btserw, $aedfs, $ymbds, $webdx, $sqldx, $cptype, $sqlfs, $flowratemax]
+		[$new_zj_id, $order['node'], $bt_user, $bt_pass, $bt_user, $bt_pass, $now, $datae, $kg, $zdide, $btserw, $aedfs, $ymbds, $webdx, $sqldx, '2', $sqlfs, $flowratemax]
 	);
 	if (!$ok) {
 		// 宝塔站点已开通但本地数据库写入失败，标记 failed 但保留 siteId 信息

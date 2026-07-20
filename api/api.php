@@ -47,17 +47,15 @@ if($gn=='cfif'){
     api_json_exit(200, '连接验证成功！');
 }elseif($gn=='kt'){
     $pass=daddslashes($_POST['password'] ?? '');
-    $cptype=daddslashes($_POST['type'] ?? '2');
     $flowratemax=json_encode(array('max'=>daddslashes($_POST['sizemax'] ?? 0),'dq'=>0,'statistics'=>false));
     $datae=($_POST['dqtime'] ?? '0')=='0' ? '0000-00-00' : daddslashes($_POST['dqtime']);
     $webdx=json_encode(array('max'=>daddslashes($_POST['webdx'] ?? 0),'dq'=>0));
     $sqldx=json_encode(array('max'=>daddslashes($_POST['sqldx'] ?? 0),'dq'=>0));
-    $ymbds=$cptype=='1' ? '1' : daddslashes($_POST['ymbds'] ?? 0);
+    $ymbds=daddslashes($_POST['ymbds'] ?? 0);
     if($et_zj!='' || $et_zj!=false){
         api_lifecycle_log('API开通主机','开通'.$user.'失败：主机已存在','开通失败');
         api_json_exit(100, '错误！该主机已经存在，请重新开通！');
     }
-    if($cptype=='1'){$cplxch='CDN'; $cp_eh_ftp='false'; $cp_eh_sql='false';}else{$cplxch='主机'; $cp_eh_ftp='true'; $cp_eh_sql='true';}
     $api = new bt_api($btipe,$btkeye);
     // 获取节点默认 PHP 版本（优先节点设置，否则自动检测最新版本）
     $phpVersion = $cert['mrbts_php'] ?? '';
@@ -81,15 +79,13 @@ if($gn=='cfif'){
         api_lifecycle_log('API开通主机','开通'.$user.'失败：无法获取节点PHP版本','开通失败');
         api_json_exit(100, '错误！无法获取该节点的 PHP 版本，请先在宝塔面板安装 PHP 或联系管理员设置节点默认 PHP 版本');
     }
-    if($cptype!='1'){
-        if(mb_strlen($user)<6 || mb_strlen($pass)<6){
-            api_lifecycle_log('API开通主机','开通'.$user.'失败：账号或密码过短','开通失败');
-            api_json_exit(100, '错误！账号和密码位数均不能小于6位！');
-        }
-        if($DB->get_row_prepare("SELECT id FROM MN_zj WHERE user=? limit 1", [$user])){
-            api_lifecycle_log('API开通主机','开通'.$user.'失败：账号重复','开通失败');
-            api_json_exit(100, '错误！该账号已存在！请更换账号！');
-        }
+    if(mb_strlen($user)<6 || mb_strlen($pass)<6){
+        api_lifecycle_log('API开通主机','开通'.$user.'失败：账号或密码过短','开通失败');
+        api_json_exit(100, '错误！账号和密码位数均不能小于6位！');
+    }
+    if($DB->get_row_prepare("SELECT id FROM MN_zj WHERE user=? limit 1", [$user])){
+        api_lifecycle_log('API开通主机','开通'.$user.'失败：账号重复','开通失败');
+        api_json_exit(100, '错误！该账号已存在！请更换账号！');
     }
     $rowe=$DB->get_row_prepare("SELECT * FROM MN_zj WHERE 1 order by id desc limit 1");
     $id=$rowe['id']+1;
@@ -98,7 +94,7 @@ if($gn=='cfif'){
     $wjler=substr($rqsj, $hskr , 3);
     $btserw='mnbt.'.$id.mt_rand(1,999).$wjler;
     $mrwww=$cert['btos']=='1' ? $conf['hxi'].'/'.$btserw : $conf['hxo'].'/'.$btserw;
-    $r_data = $api->webkt($user,$pass,$btserw,$cplxch,$cp_eh_ftp,$cp_eh_sql,$phpVersion,$mrwww);
+    $r_data = $api->webkt($user,$pass,$btserw,'主机','true','true',$phpVersion,$mrwww);
     $cjqk=$r_data['siteStatus'] ?? false;
     $zdide=$r_data['siteId'] ?? 0;
     if($cjqk=='1' || $cjqk=='true' || $cjqk===true){
@@ -115,7 +111,7 @@ if($gn=='cfif'){
         $aedfs = '0'; $sqlfs = '0';
         foreach(($r_datn['data'] ?? []) as $val){ if($val['name']===$user){ $aedfs=$val['id']; break; } }
         foreach(($r_datp['data'] ?? []) as $val){ if($val['name']===$user){ $sqlfs=$val['id']; break; } }
-        if($DB->query_prepare("INSERT INTO `MN_zj` (`id`, `ssbt`, `user`, `pass`, `sqluser`, `sqlpass`, `data`, `datae`, `qk`, `btid`, `sqldz`, `ftpid`, `ymbds`, `hxa`, `hxb`, `hxc`, `hxd`, `llmax`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", [$id, $bh, $user, $pass, $user, $pass, $date, $datae, 'true', $zdide, $btserw, $aedfs, $ymbds, $webdx, $sqldx, $cptype, $sqlfs, $flowratemax])){
+        if($DB->query_prepare("INSERT INTO `MN_zj` (`id`, `ssbt`, `user`, `pass`, `sqluser`, `sqlpass`, `data`, `datae`, `qk`, `btid`, `sqldz`, `ftpid`, `ymbds`, `hxa`, `hxb`, `hxc`, `hxd`, `llmax`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", [$id, $bh, $user, $pass, $user, $pass, $date, $datae, 'true', $zdide, $btserw, $aedfs, $ymbds, $webdx, $sqldx, '2', $sqlfs, $flowratemax])){
             api_lifecycle_log('API开通主机','开通'.$user.'成功，站点'.$btserw,'开通成功');
             $host_row = $DB->get_row_prepare("SELECT * FROM MN_zj WHERE id=? limit 1", [$id]);
             if (function_exists('mnbt_do_action')) {
@@ -171,21 +167,7 @@ if($gn=='cfif'){
     }
     else api_json_exit(100, '主机暂停解除成功！但是写入数据库时出现错误！请站长排查！');
 }elseif($gn=='tz'){
-    $l_ler_a=$cert['btos']=='1' ? '/etc/hosts' : 'C:\Windows\System32\drivers\etc\hosts';
     $api = new bt_api($btipe,$btkeye);
-    if($et_zj['hxc']=='1'){
-        $r_datad = $api->get_domain_list($et_zj['btid']);
-        foreach(($r_datad ?? []) as $are){
-            if($are!='' && $are['name']!=$et_zj['sqldz']){
-                $get_host_hq = $api->hqwjnr($l_ler_a);
-                $kh="\n";
-                $arysz=explode($kh,$get_host_hq['data']);
-                foreach($arysz as $val){ if(!strpos($val,' '.$are['name']) && $val!=''){ $ayrt.=$val.$kh; } }
-                $api->setwj(array($ayrt,$l_ler_a));
-                unset($ayrt,$val,$arysz,$get_host_hq);
-            }
-        }
-    }
     $r_data = $api->delsite($et_zj['btid'],$et_zj['sqldz']);
     if($r_data['status']){
         if($DB->query_prepare("DELETE FROM MN_zj WHERE user=? limit 1", [$user])){

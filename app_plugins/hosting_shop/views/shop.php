@@ -18,7 +18,6 @@ ob_start();
       <div class="hs-plan-card">
         <div class="hs-plan-head">
           <h2><?= htmlspecialchars($plan['name']) ?></h2>
-          <span class="hs-plan-tag"><?= (int)$plan['spec_type'] === 1 ? 'CDN' : '虚拟主机' ?></span>
         </div>
         <div class="hs-plan-desc"><?= nl2br(htmlspecialchars($plan['description'])) ?></div>
         <ul class="hs-plan-spec">

@@ -82,7 +82,7 @@ CREATE TABLE `MN_zj` (
   `ymbds` varchar(50) NOT NULL,						-- 域名最大绑定数
   `hxa` varchar(50) NOT NULL,						-- 网页空间(max最大，dq当前)
   `hxb` varchar(50) NOT NULL,						-- 数据库空间(max最大，dq当前)
-  `hxc` varchar(50) NOT NULL,						-- 产品类型（1为CDN2为主机）
+  `hxc` varchar(50) NOT NULL,						-- 产品类型（2为主机，保留字段）
   `hxd` varchar(50) NOT NULL,						-- SQLID
   `llmax` text NOT NULL,						-- 最大流量(max最大，dq当前)
   PRIMARY KEY (`id`)

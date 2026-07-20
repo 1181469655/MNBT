@@ -87,7 +87,6 @@ $ztyh_arr=[];
 foreach ($all_zj as $yhc)
 {
 if(jk_is_expired($yhc, $date)) continue;
-if($yhc['hxc']==1){continue;}
 
 $cert=jk_get_bt_config($yhc['ssbt'], $bt_cache);
 if(!$cert) continue;
@@ -115,7 +114,6 @@ $ztyh_arr=[];
 foreach ($all_zj as $yhc)
 {
 if(jk_is_expired($yhc, $date)) continue;
-if($yhc['hxc']==1){continue;}
 
 $cert=jk_get_bt_config($yhc['ssbt'], $bt_cache);
 if(!$cert) continue;

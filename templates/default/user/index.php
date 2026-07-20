@@ -42,13 +42,6 @@
 <ul class="nav-drawer">
 <li class="nav-item active"> <a href="sy.php" class="multitabs"> <i class="mdi mdi-home"></i> <span>控制面板</span> </a> </li>
 <li class="nav-item"> <a href="site_stats.php" class="multitabs"> <i class="mdi mdi-chart-bar"></i> <span>站点统计</span> </a> </li>
-<?php if($yhc['hxc']=='1'){?>
-<li class="nav-item nav-item-has-subnav"> <a href="javascript:void(0)"> <i class="mdi mdi-console"></i> <span>基本配置</span> </a>
-  <ul class="nav nav-subnav">
-    <li> <a class="multitabs" href="set.php?gn=CDN_url">域名修改</a> </li>
-  </ul>
-</li>
-<?php }else{?>
 <li class="nav-item nav-item-has-subnav"> <a href="javascript:void(0)"> <i class="mdi mdi-console"></i> <span>基本配置</span> </a>
   <ul class="nav nav-subnav">
       <li> <a class="multitabs" href="set.php?gn=php">PHP版本切换</a> </li>

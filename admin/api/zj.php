@@ -15,32 +15,9 @@ if($egn=='zjsc') {
 		$l_ler_a='C:\Windows\System32\drivers\etc\hosts';
 	}
 	include("./class.php");
-	//实例化对象
-	$api = new bt_api($btipe,$btkeye);
-	//获取面板日志
-	if($cres['hxc']=='1') {
-		$r_datad = $api->get_domain_list($ftr);
-		foreach(($r_datad ?? []) as $are) {
-			if($are!='' && $are['name']!=$cres['sqldz']) {
-				$get_host_hq = $api->hqwjnr($l_ler_a);
-				$kh='
-';
-				//换行符
-				$arysz=explode($kh,$get_host_hq['data']);
-				foreach($arysz as $val) {
-					if(!strpos($val,' '.$are['name']) && $val!='') {
-						$ayrt.=$val.$kh;
-					}
-				}
-				$get_host_xg = $api->setwj(array($ayrt,$l_ler_a));
-				unset($ayrt);
-				unset($val);
-				unset($arysz);
-				unset($get_host_hq);
-			}
-		}
-	}
-	$r_data = $api->delsite($ftr,$sza);
+//实例化对象
+$api = new bt_api($btipe,$btkeye);
+$r_data = $api->delsite($ftr,$sza);
 	if($r_data['status']=='1' || $r_data['status']=='true' || $r_data['msg']=='指定站点不存在!') {
 		mnbt_log($user,'删除主机','删除ID'.$id.'宝塔成功','删除成功',$DB);
 		if($DB->query_prepare("DELETE FROM MN_zj WHERE id=? limit 1", [$id])){
@@ -72,15 +49,6 @@ if($egn=='zjscxz') {
 		$btkeye=$cert['btmy'];
 		//实例化对象
 		$api = new bt_api($btipe,$btkeye);
-		//获取面板日志
-		if($cres['hxc']=='1') {
-			$r_datad = $api->get_domain_list($ftr);
-			foreach(($r_datad ?? []) as $are) {
-				if($are!='' && $are['name']!=$sza) {
-					$hst_ary[]=$are['name'];
-				}
-			}
-		}
 		$r_data = $api->delsite($ftr,$sza);
 		if($r_data['status']=='1' || $r_data['status']=='true') {
 			mnbt_log($user,'删除主机','删除ID'.$id.'宝塔成功','删除成功',$DB);
@@ -89,39 +57,9 @@ if($egn=='zjscxz') {
 			$scqkr++;
 		}
 	}
-	if(isset($hst_ary)) {
-		$get_host_hq = $api->hqwjnr('/etc/hosts');
-		$kh='
-';
-		//换行符
-		function in_aray($xcz,$arrayr) {
-			$fh=0;
-			foreach($arrayr as $vav) {
-				if(strpos($xcz,' '.$vav)) {
-					$fh++;
-				}
-			}
-			if($fh>0) {
-				return true;
-			} else {
-				return false;
-			}
-		}
-		$arysz=explode($kh,$get_host_hq['data']);
-		foreach($arysz as $val) {
-			if(!in_aray($val,$hst_ary) && $val!='') {
-				$ayrt.=$val.$kh;
-			}
-		}
-		$get_host_xg = $api->setwj(array($ayrt,'/etc/hosts'));
-		unset($ayrt);
-		unset($val);
-		unset($arysz);
-		unset($get_host_hq);
-	}
 	mnbt_log($user,'删除主机','批量删除成功'.$scqke.'失败'.$scqkr,'删除完成',$DB);
 		json_exit($scqke, ['codr' => $scqkr]);
-	return;
+return;
 }
 if($egn=='zjxgjl') {
 	//修改主机
@@ -211,19 +149,9 @@ if($egn=='addzj') {
 	$webdx=json_encode(array('max'=>daddslashes($_POST['webkj']),'dq'=>0));
 	$sqldx=json_encode(array('max'=>daddslashes($_POST['sqlkj']),'dq'=>0));
 	;
-	$cptype=daddslashes($_POST['cplx']);
 	$flowratemax=json_encode(array('max'=>daddslashes($_POST['ll']),'dq'=>0,'statistics'=>false));
-	$ymbds=$cptype=='1' ? '1' : daddslashes($_POST['ymbds']);
+	$ymbds=daddslashes($_POST['ymbds']);
 	$kg=daddslashes($_POST['kg']);
-	if($cptype=='1') {
-		$cp_eh_lx='CDN';
-		$cp_eh_ftp='false';
-		$cp_eh_sql='false';
-	} else {
-		$cp_eh_lx='主机';
-		$cp_eh_ftp='true';
-		$cp_eh_sql='true';
-	}
 	$cxbt=$DB->get_row_prepare("SELECT * FROM MN_bt WHERE btdh=? limit 1", [$btdh]);
 	$btipe=($cxbt['ptl']=='true'?'https':'http').'://'.$cxbt['btip'].':'.$cxbt['btdk'];
 	$btkeye=$cxbt['btmy'];
@@ -260,13 +188,11 @@ if($egn=='addzj') {
 	}
 	//目录设置
 	$mrwww=$cxbt['btos']=='1' ? $conf['hxi'].'/'.$btserw : $conf['hxo'].'/'.$btserw;
-	if($cptype!='1') {
-		if(mb_strlen($user)<6 || mb_strlen($pass)<6)json_exit('错误！账号和密码位数均不能小于6位！');
-		if($DB->get_row_prepare("SELECT id FROM MN_zj WHERE user=? limit 1", [$user]))json_exit('错误！该账号已存在！请更换账号！');
-		// 本地查重，BT面板的数据库/FTP重复由webkt接口自行处理并返回错误
-	}
+	if(mb_strlen($user)<6 || mb_strlen($pass)<6)json_exit('错误！账号和密码位数均不能小于6位！');
+	if($DB->get_row_prepare("SELECT id FROM MN_zj WHERE user=? limit 1", [$user]))json_exit('错误！该账号已存在！请更换账号！');
+	// 本地查重，BT面板的数据库/FTP重复由webkt接口自行处理并返回错误
 	//开通网站
-	$r_data = $api->webkt($user,$pass,$btserw,$cp_eh_lx,$cp_eh_ftp,$cp_eh_sql,$phpVersion,$mrwww);
+	$r_data = $api->webkt($user,$pass,$btserw,'主机','true','true',$phpVersion,$mrwww);
 	$cjqk=$r_data['siteStatus'];
 	//创建情况
 	$zdide=$r_data['siteId'];
@@ -301,7 +227,7 @@ if($egn=='addzj') {
 			$rowe=$DB->get_row_prepare("SELECT * FROM MN_zj WHERE 1 order by id desc limit 1");
 			$id=$rowe['id']+1;
 			mnbt_log($user,'添加主机','添加ID'.$id.'宝塔成功','添加成功',$DB);
-			if($DB->query_prepare("INSERT INTO `MN_zj` (`id`, `ssbt`, `user`, `pass`, `sqluser`, `sqlpass`, `data`, `datae`, `qk`, `btid`, `sqldz`, `ftpid`, `ymbds`, `hxa`, `hxb`, `hxc`, `hxd`, `llmax`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", [$id, $btdh, $user, $pass, $user, $pass, $date, $datae, $kg, $zdide, $btserw, $aedfs, $ymbds, $webdx, $sqldx, $cptype, $sqlfs, $flowratemax])){
+			if($DB->query_prepare("INSERT INTO `MN_zj` (`id`, `ssbt`, `user`, `pass`, `sqluser`, `sqlpass`, `data`, `datae`, `qk`, `btid`, `sqldz`, `ftpid`, `ymbds`, `hxa`, `hxb`, `hxc`, `hxd`, `llmax`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", [$id, $btdh, $user, $pass, $user, $pass, $date, $datae, $kg, $zdide, $btserw, $aedfs, $ymbds, $webdx, $sqldx, '2', $sqlfs, $flowratemax])){
 				$host_row = $DB->get_row_prepare("SELECT * FROM MN_zj WHERE id=? limit 1", [$id]);
 				if (function_exists('mnbt_do_action')) {
 					mnbt_do_action('host.created', $host_row ?: ['id'=>$id,'user'=>$user,'ssbt'=>$btdh,'btid'=>$zdide,'sqldz'=>$btserw], ['source'=>'admin']);

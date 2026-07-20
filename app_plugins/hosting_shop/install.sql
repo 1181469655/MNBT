@@ -5,7 +5,7 @@ CREATE TABLE `MN_plugin_hosting_plan` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `name` varchar(120) NOT NULL COMMENT '套餐名称',
   `description` text NOT NULL COMMENT '套餐介绍',
-  `spec_type` tinyint(1) NOT NULL DEFAULT '0' COMMENT '产品类型 0=主机 1=CDN',
+  `spec_type` tinyint(1) NOT NULL DEFAULT '0' COMMENT '产品类型 0=主机（保留字段）',
   `spec_web` int(11) NOT NULL DEFAULT '1024' COMMENT '网页空间 MB',
   `spec_sql` int(11) NOT NULL DEFAULT '256' COMMENT '数据库空间 MB',
   `spec_flow` int(11) NOT NULL DEFAULT '0' COMMENT '流量 GB（0=不限）',

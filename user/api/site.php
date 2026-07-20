@@ -167,34 +167,31 @@ if($egn=='sxsyxx') {
 	$r_js_web = $web_kjr;
 	$r_js_sql = $sql_kjr;
 	$api = new bt_api($btipe, $btkeye);
-	$t_id = $yhc['id'] ?? 0;
-	$is_cdn = (string)($yhc['hxc'] ?? '') === '1';
+$t_id = $yhc['id'] ?? 0;
 
-	if (!$is_cdn) {
-		$r_data = $api->webkjjs($os_xt . $yhc['sqldz']) ?: [];
-		$webkj = ($r_data['size'] ?? 0) / (1024 * 1000);
-		$r_js_web = $web_kjr;
-		$r_js_web['dq'] = sprintf('%.2f', $webkj);
-		$r_sy = json_encode($r_js_web, 256);
-		$DB->query_prepare('update `MN_zj` set `hxa` =? where `id`=?', [$r_sy, $t_id]);
+$r_data = $api->webkjjs($os_xt . $yhc['sqldz']) ?: [];
+$webkj = ($r_data['size'] ?? 0) / (1024 * 1000);
+$r_js_web = $web_kjr;
+$r_js_web['dq'] = sprintf('%.2f', $webkj);
+$r_sy = json_encode($r_js_web, 256);
+$DB->query_prepare('update `MN_zj` set `hxa` =? where `id`=?', [$r_sy, $t_id]);
 
-		$r_datb = $api->sqlkjhq($yhc['sqluser'] ?? '') ?: [];
-		$r_datb_data_size = (string)($r_datb['data_size'] ?? '0');
-		if (substr($r_datb_data_size, -2) == 'kb' || substr($r_datb_data_size, -2) == 'KB' || substr($r_datb_data_size, -2) == 'kB' || substr($r_datb_data_size, -2) == 'Kb') {
-			$sqlkj = str_ireplace(substr($r_datb_data_size, -2), '', $r_datb_data_size);
-		} elseif (substr($r_datb_data_size, -2) == 'MB' || substr($r_datb_data_size, -2) == 'mb' || substr($r_datb_data_size, -2) == 'Mb' || substr($r_datb_data_size, -2) == 'mB') {
-			$sqlkj = str_ireplace(substr($r_datb_data_size, -2), '', $r_datb_data_size) * 1000;
-		} elseif (substr($r_datb_data_size, -1) == 'b' || substr($r_datb_data_size, -1) == 'B') {
-			$sqlkj = (float)preg_replace('/[^0-9.]/', '', $r_datb_data_size) / 1000;
-		} else {
-			$sqlkj = '0';
-		}
-		$adft = ((float)$sqlkj) / 1024;
-		$r_js_sql = $sql_kjr;
-		$r_js_sql['dq'] = sprintf('%.2f', $adft);
-		$r_sy = json_encode($r_js_sql, 256);
-		$DB->query_prepare('update `MN_zj` set `hxb` =? where `id`=?', [$r_sy, $t_id]);
-	}
+$r_datb = $api->sqlkjhq($yhc['sqluser'] ?? '') ?: [];
+$r_datb_data_size = (string)($r_datb['data_size'] ?? '0');
+if (substr($r_datb_data_size, -2) == 'kb' || substr($r_datb_data_size, -2) == 'KB' || substr($r_datb_data_size, -2) == 'kB' || substr($r_datb_data_size, -2) == 'Kb') {
+	$sqlkj = str_ireplace(substr($r_datb_data_size, -2), '', $r_datb_data_size);
+} elseif (substr($r_datb_data_size, -2) == 'MB' || substr($r_datb_data_size, -2) == 'mb' || substr($r_datb_data_size, -2) == 'Mb' || substr($r_datb_data_size, -2) == 'mB') {
+	$sqlkj = str_ireplace(substr($r_datb_data_size, -2), '', $r_datb_data_size) * 1000;
+} elseif (substr($r_datb_data_size, -1) == 'b' || substr($r_datb_data_size, -1) == 'B') {
+	$sqlkj = (float)preg_replace('/[^0-9.]/', '', $r_datb_data_size) / 1000;
+} else {
+	$sqlkj = '0';
+}
+$adft = ((float)$sqlkj) / 1024;
+$r_js_sql = $sql_kjr;
+$r_js_sql['dq'] = sprintf('%.2f', $adft);
+$r_sy = json_encode($r_js_sql, 256);
+$DB->query_prepare('update `MN_zj` set `hxb` =? where `id`=?', [$r_sy, $t_id]);
 
 	$s_data = $api->getlog($yhc['sqldz'] ?? '') ?: [];
 	$g_size = 0;
@@ -223,10 +220,10 @@ if($egn=='sxsyxx') {
 	$sql_ok = (float)($r_js_sql['dq'] ?? 0) <= (float)($r_js_sql['max'] ?? 0);
 	if ($ll_ok && $web_ok && $sql_ok) {
 		$api->qdweb($yhc['btid'] ?? '', $yhc['sqldz'] ?? '');
-		if (!$is_cdn) $api->ftpxg($yhc['ftpid'] ?? '', $yhc['user'] ?? '', '1');
+		$api->ftpxg($yhc['ftpid'] ?? '', $yhc['user'] ?? '', '1');
 	} else {
 		$api->ztweb($yhc['btid'] ?? '', $yhc['sqldz'] ?? '');
-		if (!$is_cdn) $api->ftpxg($yhc['ftpid'] ?? '', $yhc['user'] ?? '', '0');
+		$api->ftpxg($yhc['ftpid'] ?? '', $yhc['user'] ?? '', '0');
 	}
 	json_exit('刷新成功！');
 	return;

@@ -61,7 +61,7 @@ if($egn=='indexconf'){
     $arr=[];
     $arr['qk'] = is_array($site_msg) ? ($site_msg['status'] ?? null) : null;
     $arr['gg']=$conf['gg'] ?? '';
-    $arr['type']=$yhc['hxc'] ?? '';
+    $arr['type']='2';
     $arr['web']=$webkj;
     $arr['sql']=$sqlkj;
     $arr['lls']=$llskj;

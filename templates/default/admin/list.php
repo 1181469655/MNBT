@@ -702,38 +702,25 @@ $('#tb_departments').bootstrapTable({
         title: '所属宝塔',
         sortable: true    // 是否排序
     }, {
-        field: 'hxc',
-        title: '产品类型',
-        sortable: true,    // 是否排序
-        formatter:function(value){ 
-        if(value=='1'){
-        var cplx='CDN';
-        }else{
-        var cplx='主机';
-        }
-			return cplx;
-		}
-    }, {
         field: 'sqldz',
         title: '网站名'
     }, {
         field: 'userpass',
         title: '账号/密码',
-        formatter:function(value,row){ 
+        formatter:function(value,row){
 			return row.user+'<br/>'+row.pass;
 		}
     }, {
         field: 'sqluserpass',
         title: 'SQL账号/密码',
-        formatter:function(value,row){ 
+        formatter:function(value,row){
 			return row.sqluser+'<br/>'+row.sqlpass;
 		}
     }, {
         field: 'webkj',
         title: '网页空间',
-        formatter:function(value,row){ 
+        formatter:function(value,row){
         fanhuiqk='';
-        if(row.hxc=='2'){
         var jsoe= JSON.parse(row.hxa);
         var dq=Number(jsoe.dq).toFixed(2);      //当前用量四舍五入保留两位小数
         if(dq>Number(jsoe.max)){
@@ -743,15 +730,11 @@ $('#tb_departments').bootstrapTable({
         var textcolor='text-success';
         }
 			return '<span class="'+textcolor+'">'+dq+'/'+jsoe.max+'MB'+'</span>';
-		}else{
-			return '<span class="text-info">CDN产品</span>';
-		}
 		}
     }, {
         field: 'sqlkj',
         title: '数据库空间',
-        formatter:function(value,row){ 
-        if(row.hxc=='2'){
+        formatter:function(value,row){
         var jsoe= JSON.parse(row.hxb);
         var dq=Number(jsoe.dq).toFixed(2);      //当前用量四舍五入保留两位小数
         if(dq>Number(jsoe.max)){
@@ -761,9 +744,6 @@ $('#tb_departments').bootstrapTable({
         var textcolor='text-success';
         }
 			return '<span class="'+textcolor+'">'+dq+'/'+jsoe.max+'MB'+'</span>';;
-		}else{
-			return '<span class="text-info">CDN产品</span>';
-		}
 		}
     }, {
         field: 'lls',
@@ -898,14 +878,8 @@ document.getElementById("zjkg").checked = "";
 }else{
 document.getElementById("zjkg").checked = "true";
 }
-if(row.hxc=='1'){
-document.getElementById("irth").style.display="none";
-document.getElementById("urlbd").value="1";
-document.getElementById("urlbd").readOnly="true";
-}else{
 document.getElementById("urlbd").readOnly="";
 document.getElementById("irth").style.display="block";
-}
 
 $('#tanchuang').modal();		//弹出弹窗
 }

@@ -51,9 +51,6 @@
             <i class="mdi mdi-console"></i> 基本配置 <i class="mdi mdi-chevron-right arrow"></i>
           </a>
           <ul class="collapse bsui-subnav" id="sub-basic">
-<?php if($yhc['hxc']=='1'){ ?>
-            <li><a class="bsui-subnav-link multitabs" href="set.php?gn=CDN_url">域名修改</a></li>
-<?php }else{ ?>
             <li><a class="bsui-subnav-link multitabs" href="set.php?gn=php">PHP版本切换</a></li>
             <li><a class="bsui-subnav-link multitabs" href="set.php?gn=url">域名修改</a></li>
             <li><a class="bsui-subnav-link multitabs" href="set.php?gn=pass">设置密码访问</a></li>
@@ -65,7 +62,6 @@
             <li><a class="bsui-subnav-link multitabs" href="set.php?gn=gzip">Gzip配置</a></li>
             <li><a class="bsui-subnav-link multitabs" href="set.php?gn=cache">缓存配置</a></li>
             <li><a class="bsui-subnav-link multitabs" href="set.php?gn=xgpass">修改密码</a></li>
-<?php }?>
           </ul>
         </li>
         <li class="bsui-nav-item">

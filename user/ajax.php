@@ -25,10 +25,6 @@ if (($islogins==1 || $egn=='login') && function_exists('mnbt_plugin_dispatch_aja
 	return;
 }
 include("api/login.php");
-if($yhc['hxc']=='1') {
-	include("api/cdn.php");
-	exit('{"code":"CDN产品无法进行此操作"}');
-}
 include("api/domain.php");
 include("api/file.php");
 include("api/cache.php");
