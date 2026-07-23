@@ -352,10 +352,12 @@ def upsert_hourly_stats(site_name, hour_key, pv_inc, bytes_inc, unique_ips):
     conn = _get_stats_conn()
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO site_hourly_stats (site_name, hour, pv, uv, total_bytes) VALUES (?, ?, ?, ?, ?) "
-        "ON CONFLICT(site_name, hour) DO UPDATE SET pv=pv+?, uv=uv+?, total_bytes=total_bytes+?",
-        (site_name, hour_key, pv_inc, len(unique_ips), bytes_inc, pv_inc, len(unique_ips), bytes_inc)
-    )
+        "UPDATE site_hourly_stats SET pv=pv+?, uv=uv+?, total_bytes=total_bytes+? WHERE site_name=? AND hour=?",
+        (pv_inc, len(unique_ips), bytes_inc, site_name, hour_key))
+    if cursor.rowcount == 0:
+        cursor.execute(
+            "INSERT INTO site_hourly_stats (site_name, hour, pv, uv, total_bytes) VALUES (?, ?, ?, ?, ?)",
+            (site_name, hour_key, pv_inc, len(unique_ips), bytes_inc))
     conn.commit()
     conn.close()
 
@@ -364,10 +366,12 @@ def upsert_uri_stats(site_name, date_key, uri, req_inc, bytes_inc):
     conn = _get_stats_conn()
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO site_uri_stats (site_name, date, uri, request_count, total_bytes) VALUES (?, ?, ?, ?, ?) "
-        "ON CONFLICT(site_name, date, uri) DO UPDATE SET request_count=request_count+?, total_bytes=total_bytes+?",
-        (site_name, date_key, uri, req_inc, bytes_inc, req_inc, bytes_inc)
-    )
+        "UPDATE site_uri_stats SET request_count=request_count+?, total_bytes=total_bytes+? WHERE site_name=? AND date=? AND uri=?",
+        (req_inc, bytes_inc, site_name, date_key, uri))
+    if cursor.rowcount == 0:
+        cursor.execute(
+            "INSERT INTO site_uri_stats (site_name, date, uri, request_count, total_bytes) VALUES (?, ?, ?, ?, ?)",
+            (site_name, date_key, uri, req_inc, bytes_inc))
     conn.commit()
     conn.close()
 
@@ -376,10 +380,12 @@ def upsert_ip_stats(site_name, date_key, ip, req_inc, bytes_inc):
     conn = _get_stats_conn()
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO site_ip_stats (site_name, date, ip, request_count, total_bytes) VALUES (?, ?, ?, ?, ?) "
-        "ON CONFLICT(site_name, date, ip) DO UPDATE SET request_count=request_count+?, total_bytes=total_bytes+?",
-        (site_name, date_key, ip, req_inc, bytes_inc, req_inc, bytes_inc)
-    )
+        "UPDATE site_ip_stats SET request_count=request_count+?, total_bytes=total_bytes+? WHERE site_name=? AND date=? AND ip=?",
+        (req_inc, bytes_inc, site_name, date_key, ip))
+    if cursor.rowcount == 0:
+        cursor.execute(
+            "INSERT INTO site_ip_stats (site_name, date, ip, request_count, total_bytes) VALUES (?, ?, ?, ?, ?)",
+            (site_name, date_key, ip, req_inc, bytes_inc))
     conn.commit()
     conn.close()
 
@@ -388,10 +394,12 @@ def upsert_spider_stats(site_name, date_key, spider_name):
     conn = _get_stats_conn()
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO site_spider_stats (site_name, date, spider_name, request_count) VALUES (?, ?, ?, 1) "
-        "ON CONFLICT(site_name, date, spider_name) DO UPDATE SET request_count=request_count+1",
-        (site_name, date_key, spider_name)
-    )
+        "UPDATE site_spider_stats SET request_count=request_count+1 WHERE site_name=? AND date=? AND spider_name=?",
+        (site_name, date_key, spider_name))
+    if cursor.rowcount == 0:
+        cursor.execute(
+            "INSERT INTO site_spider_stats (site_name, date, spider_name, request_count) VALUES (?, ?, ?, 1)",
+            (site_name, date_key, spider_name))
     conn.commit()
     conn.close()
 
@@ -400,10 +408,12 @@ def upsert_client_stats(site_name, date_key, client_type, client_name):
     conn = _get_stats_conn()
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO site_client_stats (site_name, date, client_type, client_name, request_count) VALUES (?, ?, ?, ?, 1) "
-        "ON CONFLICT(site_name, date, client_type, client_name) DO UPDATE SET request_count=request_count+1",
-        (site_name, date_key, client_type, client_name)
-    )
+        "UPDATE site_client_stats SET request_count=request_count+1 WHERE site_name=? AND date=? AND client_type=? AND client_name=?",
+        (site_name, date_key, client_type, client_name))
+    if cursor.rowcount == 0:
+        cursor.execute(
+            "INSERT INTO site_client_stats (site_name, date, client_type, client_name, request_count) VALUES (?, ?, ?, ?, 1)",
+            (site_name, date_key, client_type, client_name))
     conn.commit()
     conn.close()
 
@@ -412,10 +422,12 @@ def upsert_status_stats(site_name, date_key, status_code, bytes_inc):
     conn = _get_stats_conn()
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO site_status_stats (site_name, date, status_code, request_count, total_bytes) VALUES (?, ?, ?, 1, ?) "
-        "ON CONFLICT(site_name, date, status_code) DO UPDATE SET request_count=request_count+1, total_bytes=total_bytes+?",
-        (site_name, date_key, status_code, bytes_inc, bytes_inc)
-    )
+        "UPDATE site_status_stats SET request_count=request_count+1, total_bytes=total_bytes+? WHERE site_name=? AND date=? AND status_code=?",
+        (bytes_inc, site_name, date_key, status_code))
+    if cursor.rowcount == 0:
+        cursor.execute(
+            "INSERT INTO site_status_stats (site_name, date, status_code, request_count, total_bytes) VALUES (?, ?, ?, 1, ?)",
+            (site_name, date_key, status_code, bytes_inc))
     conn.commit()
     conn.close()
 
@@ -424,10 +436,12 @@ def upsert_method_stats(site_name, date_key, method):
     conn = _get_stats_conn()
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO site_method_stats (site_name, date, method, request_count) VALUES (?, ?, ?, 1) "
-        "ON CONFLICT(site_name, date, method) DO UPDATE SET request_count=request_count+1",
-        (site_name, date_key, method)
-    )
+        "UPDATE site_method_stats SET request_count=request_count+1 WHERE site_name=? AND date=? AND method=?",
+        (site_name, date_key, method))
+    if cursor.rowcount == 0:
+        cursor.execute(
+            "INSERT INTO site_method_stats (site_name, date, method, request_count) VALUES (?, ?, ?, 1)",
+            (site_name, date_key, method))
     conn.commit()
     conn.close()
 
@@ -527,52 +541,66 @@ def _process_log_lines(site_name, filename, lines):
     log_info("文件 [%s] 写入 hour stats (%d 条)...", filename, len(hour_batch))
     for (sname, hk), data in hour_batch.items():
         wcur.execute(
-            "INSERT INTO site_hourly_stats (site_name, hour, pv, uv, total_bytes) VALUES (?, ?, ?, ?, ?) "
-            "ON CONFLICT(site_name, hour) DO UPDATE SET pv=pv+?, uv=uv+?, total_bytes=total_bytes+?",
-            (sname, hk, data["pv"], len(data["ips"]), data["bytes"], data["pv"], len(data["ips"]), data["bytes"])
-        )
+            "UPDATE site_hourly_stats SET pv=pv+?, uv=uv+?, total_bytes=total_bytes+? WHERE site_name=? AND hour=?",
+            (data["pv"], len(data["ips"]), data["bytes"], sname, hk))
+        if wcur.rowcount == 0:
+            wcur.execute(
+                "INSERT INTO site_hourly_stats (site_name, hour, pv, uv, total_bytes) VALUES (?, ?, ?, ?, ?)",
+                (sname, hk, data["pv"], len(data["ips"]), data["bytes"]))
     log_info("文件 [%s] 写入 uri stats (%d 条)...", filename, len(uri_batch))
     for (sname, dk, uri), data in uri_batch.items():
         wcur.execute(
-            "INSERT INTO site_uri_stats (site_name, date, uri, request_count, total_bytes) VALUES (?, ?, ?, ?, ?) "
-            "ON CONFLICT(site_name, date, uri) DO UPDATE SET request_count=request_count+?, total_bytes=total_bytes+?",
-            (sname, dk, uri, data["req"], data["bytes"], data["req"], data["bytes"])
-        )
+            "UPDATE site_uri_stats SET request_count=request_count+?, total_bytes=total_bytes+? WHERE site_name=? AND date=? AND uri=?",
+            (data["req"], data["bytes"], sname, dk, uri))
+        if wcur.rowcount == 0:
+            wcur.execute(
+                "INSERT INTO site_uri_stats (site_name, date, uri, request_count, total_bytes) VALUES (?, ?, ?, ?, ?)",
+                (sname, dk, uri, data["req"], data["bytes"]))
     log_info("文件 [%s] 写入 ip stats (%d 条)...", filename, len(ip_batch))
     for (sname, dk, ip), data in ip_batch.items():
         wcur.execute(
-            "INSERT INTO site_ip_stats (site_name, date, ip, request_count, total_bytes) VALUES (?, ?, ?, ?, ?) "
-            "ON CONFLICT(site_name, date, ip) DO UPDATE SET request_count=request_count+?, total_bytes=total_bytes+?",
-            (sname, dk, ip, data["req"], data["bytes"], data["req"], data["bytes"])
-        )
+            "UPDATE site_ip_stats SET request_count=request_count+?, total_bytes=total_bytes+? WHERE site_name=? AND date=? AND ip=?",
+            (data["req"], data["bytes"], sname, dk, ip))
+        if wcur.rowcount == 0:
+            wcur.execute(
+                "INSERT INTO site_ip_stats (site_name, date, ip, request_count, total_bytes) VALUES (?, ?, ?, ?, ?)",
+                (sname, dk, ip, data["req"], data["bytes"]))
     log_info("文件 [%s] 写入 spider stats (%d 种)...", filename, len(spider_batch))
     for (sname, dk, sp), cnt in spider_batch.items():
         wcur.execute(
-            "INSERT INTO site_spider_stats (site_name, date, spider_name, request_count) VALUES (?, ?, ?, ?) "
-            "ON CONFLICT(site_name, date, spider_name) DO UPDATE SET request_count=request_count+?",
-            (sname, dk, sp, cnt, cnt)
-        )
+            "UPDATE site_spider_stats SET request_count=request_count+? WHERE site_name=? AND date=? AND spider_name=?",
+            (cnt, sname, dk, sp))
+        if wcur.rowcount == 0:
+            wcur.execute(
+                "INSERT INTO site_spider_stats (site_name, date, spider_name, request_count) VALUES (?, ?, ?, ?)",
+                (sname, dk, sp, cnt))
     log_info("文件 [%s] 写入 client stats (%d 条)...", filename, len(client_batch))
     for (sname, dk, ct, cn), cnt in client_batch.items():
         wcur.execute(
-            "INSERT INTO site_client_stats (site_name, date, client_type, client_name, request_count) VALUES (?, ?, ?, ?, ?) "
-            "ON CONFLICT(site_name, date, client_type, client_name) DO UPDATE SET request_count=request_count+?",
-            (sname, dk, ct, cn, cnt, cnt)
-        )
+            "UPDATE site_client_stats SET request_count=request_count+? WHERE site_name=? AND date=? AND client_type=? AND client_name=?",
+            (cnt, sname, dk, ct, cn))
+        if wcur.rowcount == 0:
+            wcur.execute(
+                "INSERT INTO site_client_stats (site_name, date, client_type, client_name, request_count) VALUES (?, ?, ?, ?, ?)",
+                (sname, dk, ct, cn, cnt))
     log_info("文件 [%s] 写入 status stats (%d 条)...", filename, len(status_batch))
     for (sname, dk, sc), data in status_batch.items():
         wcur.execute(
-            "INSERT INTO site_status_stats (site_name, date, status_code, request_count, total_bytes) VALUES (?, ?, ?, ?, ?) "
-            "ON CONFLICT(site_name, date, status_code) DO UPDATE SET request_count=request_count+?, total_bytes=total_bytes+?",
-            (sname, dk, sc, data["req"], data["bytes"], data["req"], data["bytes"])
-        )
+            "UPDATE site_status_stats SET request_count=request_count+?, total_bytes=total_bytes+? WHERE site_name=? AND date=? AND status_code=?",
+            (data["req"], data["bytes"], sname, dk, sc))
+        if wcur.rowcount == 0:
+            wcur.execute(
+                "INSERT INTO site_status_stats (site_name, date, status_code, request_count, total_bytes) VALUES (?, ?, ?, ?, ?)",
+                (sname, dk, sc, data["req"], data["bytes"]))
     log_info("文件 [%s] 写入 method stats (%d 条)...", filename, len(method_batch))
     for (sname, dk, md), cnt in method_batch.items():
         wcur.execute(
-            "INSERT INTO site_method_stats (site_name, date, method, request_count) VALUES (?, ?, ?, ?) "
-            "ON CONFLICT(site_name, date, method) DO UPDATE SET request_count=request_count+?",
-            (sname, dk, md, cnt, cnt)
-        )
+            "UPDATE site_method_stats SET request_count=request_count+? WHERE site_name=? AND date=? AND method=?",
+            (cnt, sname, dk, md))
+        if wcur.rowcount == 0:
+            wcur.execute(
+                "INSERT INTO site_method_stats (site_name, date, method, request_count) VALUES (?, ?, ?, ?)",
+                (sname, dk, md, cnt))
     log_info("文件 [%s] 写入 error logs (%d 条)...", filename, len(error_entries))
     for err in error_entries:
         wcur.execute(
