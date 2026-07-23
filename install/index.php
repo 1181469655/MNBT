@@ -594,21 +594,39 @@
                                                 <p class="text-muted-foreground text-xs">选择模式或点击下一步</p>
                                             </div>
                                         </div>
-                                        <div class="tips-er tips-type-blue">
+                                        <div class="tips-er tips-type-blue new-install-tip">
                                             <span>数据库与站点信息已就绪，点击完成开始安装</span>
                                         </div>
-                                        <div class="new-install-select">
+                                        <div class="new-install-select d-none">
                                             <div class="tips-er tips-type-warning">
-                                                <span>检测到您已安装过梦奈宝塔主机系统，请查看以下选项</span>
+                                                <span>检测到您已安装过梦奈宝塔主机系统，请选择操作方式</span>
                                             </div>
                                             <div class="install-type-btn">
-                                                <div class="flex items-start gap-3 p-3 rounded-xl border mb-6 cursor-pointer transition-all duration-200 use-terms mn-new-install" style="border-color: var(--border); background: var(--card); user-select: none;">
+                                                <div class="flex items-start gap-3 p-3 rounded-xl border mb-3 cursor-pointer transition-all duration-200 use-terms mn-upgrade" style="border-color: var(--border); background: var(--card); user-select: none;">
                                                     <div class="w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 transition-all duration-200 border-2" style="background: transparent; border-color: var(--border);">
                                                         <svg style="display: none;" width="11" height="9" viewBox="0 0 11 9" fill="none"><path d="M1 4L4 7L10 1" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
                                                     </div>
                                                     <div>
-                                                        <p class="text-sm font-medium text-foreground">确认进行重装</p>
-                                                        <p class="text-xs text-muted-foreground mt-0.5">勾选则表示您强制进行重装（将会清空所有旧数据）</p>
+                                                        <p class="text-sm font-medium text-foreground">覆盖更新（保留数据升级到 V1.81）<span class="mn-upgrade-detail" style="font-weight:normal;color:var(--muted-foreground)"></span></p>
+                                                        <p class="text-xs text-muted-foreground mt-0.5">添加 V1.81 新增表和字段，自动补全缺失项，保留所有已有数据</p>
+                                                    </div>
+                                                </div>
+                                                <div class="flex items-start gap-3 p-3 rounded-xl border mb-3 cursor-pointer transition-all duration-200 use-terms mn-repair" style="border-color: var(--border); background: var(--card); user-select: none;">
+                                                    <div class="w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 transition-all duration-200 border-2" style="background: transparent; border-color: var(--border);">
+                                                        <svg style="display: none;" width="11" height="9" viewBox="0 0 11 9" fill="none"><path d="M1 4L4 7L10 1" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                                                    </div>
+                                                    <div>
+                                                        <p class="text-sm font-medium text-foreground">修复数据库（补齐缺失的表和字段）</p>
+                                                        <p class="text-xs text-muted-foreground mt-0.5">仅扫描并创建缺失的数据库表和字段，不覆盖已有数据</p>
+                                                    </div>
+                                                </div>
+                                                <div class="flex items-start gap-3 p-3 rounded-xl border mb-3 cursor-pointer transition-all duration-200 use-terms mn-new-install" style="border-color: var(--border); background: var(--card); user-select: none;">
+                                                    <div class="w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 transition-all duration-200 border-2" style="background: transparent; border-color: var(--border);">
+                                                        <svg style="display: none;" width="11" height="9" viewBox="0 0 11 9" fill="none"><path d="M1 4L4 7L10 1" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                                                    </div>
+                                                    <div>
+                                                        <p class="text-sm font-medium text-foreground">强制全新安装</p>
+                                                        <p class="text-xs text-muted-foreground mt-0.5">清空所有旧数据，全新创建数据库表（不可恢复）</p>
                                                     </div>
                                                 </div>
                                             </div>
@@ -821,8 +839,43 @@
                 NEXT_BTN_FUN.removeDisabled();
                 return NEXT_BTN_FUN.TipsShow(result.msg);
             }
-            if(result.data.in_table)$('.new-install-select').removeClass('d-none');
-            else $('.new-install-select').addClass('d-none');
+            if(result.data.in_table){
+                console.log('[安装检测] 发现已有数据表', result.data);
+                $('.new-install-select').removeClass('d-none');
+                $('.new-install-tip').addClass('d-none');
+                NEXT_BTN_FUN.disabled();
+                NEXT_BTN_FUN.TipsShow('正在检测更新项...');
+                let upgradeInfo = await request('check_upgrade');
+                console.log('[升级检测] 结果:', upgradeInfo);
+                if(upgradeInfo.code === 1 && upgradeInfo.data){
+                    if(upgradeInfo.data.need_upgrade){
+                        let detail = [];
+                        if(upgradeInfo.data.missing_tables && upgradeInfo.data.missing_tables.length>0){
+                            detail.push('缺'+upgradeInfo.data.missing_tables.length+'张表');
+                        }
+                        if(upgradeInfo.data.missing_columns && upgradeInfo.data.missing_columns.length>0){
+                            detail.push('缺'+upgradeInfo.data.missing_columns.length+'个字段');
+                        }
+                        $('.mn-upgrade-detail').text(detail.length>0 ? '（'+detail.join('，')+'）' : '');
+                        $('.mn-upgrade').parent().show();
+                        $('.mn-repair').parent().show();
+                    } else {
+                        console.log('[升级检测] 数据完整，无需升级');
+                        $('.mn-upgrade-detail').text('（当前已是 V1.81，无需升级）');
+                        $('.mn-upgrade').parent().show();
+                        $('.mn-repair').parent().show();
+                    }
+                } else {
+                    console.warn('[升级检测] 检测失败，显示全部选项', upgradeInfo);
+                    $('.mn-upgrade').parent().show();
+                    $('.mn-repair').parent().show();
+                }
+                NEXT_BTN_FUN.TipsShow('请在上方选择一个操作方式');
+            } else {
+                console.log('[安装检测] 全新数据库，无旧表');
+                $('.new-install-select').addClass('d-none');
+                $('.new-install-tip').removeClass('d-none');
+            }
         }else if(curr_index===5){
             let siteCheck=validateSiteForm(true);
             if(!siteCheck.ok){
@@ -831,9 +884,38 @@
             }
             siteConfigCache=siteCheck.data;
         }else if(curr_index===6){
-            NEXT_BTN_FUN.loading('安装中....');
+            let install_mode = 'install';
+            let repair_only = false;
+            if(!$('.new-install-select').hasClass('d-none')){
+                if($('.mn-upgrade.use-terms').hasClass('terms-yes')){
+                    install_mode = 'upgrade';
+                } else if($('.mn-repair.use-terms').hasClass('terms-yes')){
+                    install_mode = 'upgrade';
+                    repair_only = true;
+                } else if($('.mn-new-install.use-terms').hasClass('terms-yes')){
+                    install_mode = 'install';
+                } else {
+                    install_mode = 'skip';
+                }
+            }
+            if(repair_only){
+                NEXT_BTN_FUN.loading('修复中...');
+                let result = await request('repair');
+                if(result.code!==1){
+                    NEXT_BTN_FUN.removeDisabled();
+                    return NEXT_BTN_FUN.TipsShow(result.msg);
+                }
+                $('.install-admin-user').text(siteConfigCache.admin_user || '（保持原设置）');
+                $('.install-admin-pwd').text('（保持原设置）');
+                $('.install-site-name').text(siteConfigCache.site_name || '—');
+                next(curr_index++);
+                refresh();
+                if (curr_index===6)NEXT_BTN_FUN.removeDisabled();
+                return;
+            }
+            NEXT_BTN_FUN.loading(install_mode==='upgrade'?'升级中...':'安装中...');
             let payload=Object.assign({
-                is_install:$('.new-install-select').hasClass('d-none') || $('.mn-new-install.use-terms').hasClass('terms-yes')
+                install_mode: install_mode
             }, siteConfigCache);
             let result = await request('install', payload);
             if(result.code!==1){
@@ -847,7 +929,14 @@
         //进入下一页
         next(curr_index++);
         refresh();
-        if (curr_index===6)NEXT_BTN_FUN.removeDisabled();
+        if (curr_index===6){
+            if(!$('.new-install-select').hasClass('d-none') && !$('.mn-upgrade.use-terms').hasClass('terms-yes') && !$('.mn-repair.use-terms').hasClass('terms-yes') && !$('.mn-new-install.use-terms').hasClass('terms-yes')){
+                NEXT_BTN_FUN.disabled();
+                NEXT_BTN_FUN.TipsShow('请在上方选择一个操作方式');
+            } else {
+                NEXT_BTN_FUN.removeDisabled();
+            }
+        }
         else if (curr_index===5){
             NEXT_BTN_FUN.TipsShow('请填写站点信息与管理员账号');
             checkSiteFormValidation();
@@ -897,6 +986,20 @@
     //协议相关监听
     $('.use-terms').on('click', function() {
         let thisClass=$(this);
+        // 安装类型按钮：互斥选择（选升级则取消重装，选重装则取消升级）
+        if(thisClass.hasClass('mn-upgrade') || thisClass.hasClass('mn-repair') || thisClass.hasClass('mn-new-install')){
+            if(thisClass.hasClass('terms-yes')) {
+                thisClass.removeClass('terms-yes');
+                NEXT_BTN_FUN.disabled();
+                NEXT_BTN_FUN.TipsShow('请在上方选择一个操作方式');
+            } else {
+                $('.install-type-btn .use-terms').removeClass('terms-yes');
+                thisClass.addClass('terms-yes');
+                NEXT_BTN_FUN.removeDisabled();
+                NEXT_BTN_FUN.TipsHide();
+            }
+            return;
+        }
         if(thisClass.hasClass('terms-yes')) {
             thisClass.removeClass('terms-yes').next().removeClass('d-none');
             if (thisClass.hasClass('must')) {

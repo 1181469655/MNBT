@@ -13,6 +13,37 @@ function Res(int $code, string $msg = '返回信息', ?array $data = null, ?int 
     return Response::json($code, $msg, $data, $redirect);
 }
 
+function table_exists_case($tableName) {
+    $result = DB::query("SHOW TABLES");
+    if ($result) {
+        while ($row = DB::fetch($result)) {
+            if (strcasecmp(reset($row), $tableName) === 0) return true;
+        }
+    }
+    return false;
+}
+
+// 返回规范表名 → 实际表名的映射（兼容大小写迁移场景）
+function table_case_map($canonical_list) {
+    $map = array();
+    $result = DB::query("SHOW TABLES");
+    if ($result) {
+        $existing = array();
+        while ($row = DB::fetch($result)) {
+            $existing[] = reset($row);
+        }
+        foreach ($canonical_list as $canon) {
+            foreach ($existing as $real) {
+                if (strcasecmp($real, $canon) === 0) {
+                    $map[$canon] = $real;
+                    break;
+                }
+            }
+        }
+    }
+    return $map;
+}
+
 if (file_exists('install.lock')) exit(Res(1, '已安装', ['vs' => $vs,'is_install'=>true], 1));
 
 function send_post()
@@ -103,10 +134,216 @@ switch ($action) {
                 1049=>'连接数据库失败，数据库名不存在！',
             ];
             exit(Res(0,$enumMsg[DB::connect_errno()]??'['.DB::connect_errno().']'.DB::connect_error()));
-        }else if(file_put_contents('../config.php',$config) && file_put_contents('../MPHX/SQ.php',$mnAuthcode))
-            echo Res(1, '数据库信息保存成功',['in_table'=>!!DB::query("select * from MN_config where 1")]);
-        else echo Res(0, '数据库信息保存失败，请检查系统是否有站点目录的读写权限');
+        }else{
+            $cfgw = file_put_contents('../config.php', $config);
+            $sqw = file_put_contents('../MPHX/SQ.php', $mnAuthcode);
+            if ($cfgw !== false && $sqw !== false) {
+                // 用 SHOW TABLES 获取全部表名，PHP 端忽略大小写比较
+                $all_tables_result = DB::query("SHOW TABLES");
+                $found = array();
+                $in_table = false;
+                if ($all_tables_result) {
+                    while ($row = DB::fetch($all_tables_result)) {
+                        $tbl = reset($row);
+                        $found[] = $tbl;
+                        if (strcasecmp($tbl, 'MN_config') === 0) $in_table = true;
+                    }
+                }
+                $diag = array('in_table' => $in_table);
+                if (!$in_table) {
+                    $diag['db_error'] = DB::error() ?: '';
+                    $diag['all_tables'] = $found;
+                }
+                echo Res(1, '数据库信息保存成功', $diag);
+            } else {
+                $err_detail = '';
+                if ($cfgw === false) $err_detail .= 'config.php 写入失败；';
+                if ($sqw === false) $err_detail .= 'MPHX/SQ.php 写入失败；';
+                if (!is_writable('..')) $err_detail .= '上级目录不可写；';
+                if (!is_writable('../MPHX')) $err_detail .= 'MPHX目录不可写；';
+                if (file_exists('../config.php') && !is_writable('../config.php')) $err_detail .= 'config.php存在但不可覆盖；';
+                if (file_exists('../MPHX/SQ.php') && !is_writable('../MPHX/SQ.php')) $err_detail .= 'MPHX/SQ.php存在但不可覆盖；';
+                echo Res(0, '数据库信息保存失败：' . $err_detail);
+            }
+        }
         break;
+    case 'check_upgrade':
+        include_once '../config.php';
+        if (!$dbconfig['user'] || !$dbconfig['pwd'] || !$dbconfig['dbname']) {
+            exit(Res(0, '请先填写并保存数据库配置'));
+        }
+        require_once './db.class.php';
+        $cn = DB::connect($dbconfig['host'], $dbconfig['user'], $dbconfig['pwd'], $dbconfig['dbname'], $dbconfig['port']);
+        if (!$cn) {
+            exit(Res(0, '数据库连接失败：' . DB::connect_error()));
+        }
+        DB::query("set sql_mode = ''");
+        DB::query("set names utf8");
+
+        $has_config = table_exists_case('MN_config');
+        $result = array(
+            'is_v179' => false,
+            'need_upgrade' => false,
+            'missing_tables' => array(),
+            'missing_columns' => array(),
+        );
+
+        if ($has_config) {
+            $result['is_v179'] = true;
+
+            // 获取当前数据库中所有表（忽略大小写）
+            $all_tables_result = DB::query("SHOW TABLES");
+            $existing_tables = array();
+            if ($all_tables_result) {
+                while ($row = DB::fetch($all_tables_result)) {
+                    $existing_tables[] = strtolower(reset($row));
+                }
+            }
+
+            // 检查所有标准表
+            $all_tables = array(
+                'MN_log', 'MN_bt', 'MN_zj', 'MN_bs', 'MN_ym', 'MN_dd',
+                'MN_monitor_task', 'MN_monitor_log', 'MN_notice_log',
+                'MN_node', 'MN_node_task', 'MN_node_nonce',
+                'MN_forbidden_scan', 'MN_forbidden_match',
+                'MN_plugin', 'MN_plugin_option'
+            );
+            foreach ($all_tables as $tbl) {
+                if (!in_array(strtolower($tbl), $existing_tables, true)) {
+                    $result['need_upgrade'] = true;
+                    $result['missing_tables'][] = $tbl;
+                }
+            }
+
+            // 检查 V1.81 新增字段
+            $col_pay = DB::get_row("SHOW COLUMNS FROM `MN_config` LIKE 'pay_methods'");
+            if (!$col_pay) {
+                $result['need_upgrade'] = true;
+                $result['missing_columns'][] = 'MN_config.pay_methods';
+            }
+
+            $col_php = DB::get_row("SHOW COLUMNS FROM `MN_bt` LIKE 'mrbts_php'");
+            if (!$col_php) {
+                $result['need_upgrade'] = true;
+                $result['missing_columns'][] = 'MN_bt.mrbts_php';
+            }
+        }
+
+        echo Res(1, '升级检测完成', $result);
+        break;
+
+    case 'repair':
+        include_once '../config.php';
+        if (!$dbconfig['user'] || !$dbconfig['pwd'] || !$dbconfig['dbname']) {
+            exit(Res(0, '请先填写并保存数据库配置'));
+        }
+        require_once './db.class.php';
+        $cn = DB::connect($dbconfig['host'], $dbconfig['user'], $dbconfig['pwd'], $dbconfig['dbname'], $dbconfig['port']);
+        if (!$cn) {
+            exit(Res(0, '数据库连接失败：' . DB::connect_error()));
+        }
+        DB::query("set sql_mode = ''");
+        DB::query("set names utf8");
+
+        $r_t = 0; $r_e = 0;
+
+        // 获取规范名→实际名映射（兼容跨系统迁移后大小写不一致）
+        $all_tables = array('MN_config','MN_log','MN_bt','MN_zj','MN_bs','MN_ym','MN_dd',
+            'MN_monitor_task','MN_monitor_log','MN_notice_log',
+            'MN_node','MN_node_task','MN_node_nonce',
+            'MN_forbidden_scan','MN_forbidden_match',
+            'MN_plugin','MN_plugin_option');
+        $tbl_map = table_case_map($all_tables);
+
+        // 1. 补齐缺失的表（跳过已存在的，不管大小写）
+        $sql = file_get_contents("repair_tables.sql");
+        $sql = explode(';', $sql);
+        for ($i = 0; $i < count($sql); $i++) {
+            $q = trim($sql[$i]);
+            if ($q === '') continue;
+            // 提取表名，检查是否已存在
+            if (preg_match('/CREATE TABLE.*?`(\w+)`/', $q, $m)) {
+                if (isset($tbl_map[$m[1]])) continue; // 表已存在（任意大小写），跳过
+            }
+            if (DB::query($q)) {
+                ++$r_t;
+            } else {
+                ++$r_e;
+            }
+        }
+
+        // 2. 补齐字段（使用实际表名）
+        $actual_config = isset($tbl_map['MN_config']) ? $tbl_map['MN_config'] : 'MN_config';
+        $actual_zj     = isset($tbl_map['MN_zj']) ? $tbl_map['MN_zj'] : 'MN_zj';
+        $actual_bt     = isset($tbl_map['MN_bt']) ? $tbl_map['MN_bt'] : 'MN_bt';
+
+        $config_cols = array(
+            'mailhost','mailuser','mailpassword','mailport',
+            'ymjkkg','mtyxfskg','ymjktsyz','wjjkkg','mtwjfskg','wjjktsyz',
+            'optionzc','zjyxbd',
+            'wjsckg','wjsccnr','wjsckgqbfx','wjscml','wjstqml','wjstqhz','wjscdzmax','wjscdhmax','wjscqzcs','wjscqzcskg',
+            'pay_methods',
+        );
+
+        // 先获取已有列名
+        $existing_cols = array();
+        $col_result = DB::query("SHOW COLUMNS FROM `{$actual_config}`");
+        if ($col_result) {
+            while ($row = DB::fetch($col_result)) {
+                $existing_cols[] = strtolower($row['Field']);
+            }
+        }
+
+        $alter_sqls = array(
+            'mailhost' => "ALTER TABLE `{$actual_config}` ADD `mailhost` VARCHAR(50) NULL DEFAULT NULL",
+            'mailuser' => "ALTER TABLE `{$actual_config}` ADD `mailuser` VARCHAR(50) NULL DEFAULT NULL",
+            'mailpassword' => "ALTER TABLE `{$actual_config}` ADD `mailpassword` VARCHAR(50) NULL DEFAULT NULL",
+            'mailport' => "ALTER TABLE `{$actual_config}` ADD `mailport` VARCHAR(20) NOT NULL DEFAULT '465'",
+            'ymjkkg' => "ALTER TABLE `{$actual_config}` ADD `ymjkkg` VARCHAR(20) NOT NULL DEFAULT 'false'",
+            'mtyxfskg' => "ALTER TABLE `{$actual_config}` ADD `mtyxfskg` VARCHAR(20) NOT NULL DEFAULT 'false'",
+            'ymjktsyz' => "ALTER TABLE `{$actual_config}` ADD `ymjktsyz` VARCHAR(20) NOT NULL DEFAULT '7'",
+            'wjjkkg' => "ALTER TABLE `{$actual_config}` ADD `wjjkkg` VARCHAR(20) NOT NULL DEFAULT 'false'",
+            'mtwjfskg' => "ALTER TABLE `{$actual_config}` ADD `mtwjfskg` VARCHAR(50) NOT NULL DEFAULT 'false'",
+            'wjjktsyz' => "ALTER TABLE `{$actual_config}` ADD `wjjktsyz` VARCHAR(20) NOT NULL DEFAULT '7'",
+            'optionzc' => "ALTER TABLE `{$actual_config}` ADD `optionzc` VARCHAR(20) NOT NULL DEFAULT 'stop'",
+            'zjyxbd' => "ALTER TABLE `{$actual_config}` ADD `zjyxbd` VARCHAR(20) NOT NULL DEFAULT 'true'",
+            'wjsckg' => "ALTER TABLE `{$actual_config}` ADD `wjsckg` VARCHAR(20) NOT NULL DEFAULT 'false'",
+            'wjsccnr' => "ALTER TABLE `{$actual_config}` ADD `wjsccnr` TEXT NULL DEFAULT NULL",
+            'wjsckgqbfx' => "ALTER TABLE `{$actual_config}` ADD `wjsckgqbfx` VARCHAR(10) NOT NULL DEFAULT 'true'",
+            'wjscml' => "ALTER TABLE `{$actual_config}` ADD `wjscml` VARCHAR(500) NOT NULL DEFAULT '/www/wwwroot'",
+            'wjstqml' => "ALTER TABLE `{$actual_config}` ADD `wjstqml` TEXT NULL DEFAULT NULL",
+            'wjstqhz' => "ALTER TABLE `{$actual_config}` ADD `wjstqhz` TEXT NULL DEFAULT NULL",
+            'wjscdzmax' => "ALTER TABLE `{$actual_config}` ADD `wjscdzmax` INT(11) NOT NULL DEFAULT 5242880",
+            'wjscdhmax' => "ALTER TABLE `{$actual_config}` ADD `wjscdhmax` INT(11) NOT NULL DEFAULT 1000",
+            'wjscqzcs' => "ALTER TABLE `{$actual_config}` ADD `wjscqzcs` VARCHAR(50) NOT NULL DEFAULT '0 3 * * *'",
+            'wjscqzcskg' => "ALTER TABLE `{$actual_config}` ADD `wjscqzcskg` VARCHAR(20) NOT NULL DEFAULT 'true'",
+            'pay_methods' => "ALTER TABLE `{$actual_config}` ADD `pay_methods` TEXT NOT NULL DEFAULT ''",
+            // MN_zj
+            'backup' => "ALTER TABLE `{$actual_zj}` ADD `backup` VARCHAR(50) NOT NULL DEFAULT '{\"max\":\"3\",\"dq\":0}'",
+            'mailuser_zj' => "ALTER TABLE `{$actual_zj}` ADD `mailuser` VARCHAR(50) NULL DEFAULT NULL",
+            // MN_bt
+            'ftpdz' => "ALTER TABLE `{$actual_bt}` ADD `ftpdz` VARCHAR(50) NOT NULL DEFAULT 'false'",
+            'mrbts_php' => "ALTER TABLE `{$actual_bt}` ADD `mrbts_php` VARCHAR(10) NOT NULL DEFAULT ''",
+        );
+
+        foreach ($alter_sqls as $col_name => $alter_sql) {
+            // 修复列名键（去掉 _zj 后缀）
+            $check_name = $col_name;
+            if ($check_name === 'mailuser_zj') $check_name = 'mailuser';
+
+            if (!in_array(strtolower($check_name), $existing_cols, true)) {
+                if (DB::query($alter_sql)) {
+                    ++$r_t;
+                } else {
+                    ++$r_e;
+                }
+            }
+        }
+
+        @file_put_contents("install.lock", '安装锁');
+        echo Res(1, "修复完成！成功{$r_t}项，失败{$r_e}项", array('tbl_map' => $tbl_map));
+        break;
+
     case 'install':
         $site_name = isset($_POST['site_name']) ? trim((string)$_POST['site_name']) : '';
         $site_qq = isset($_POST['site_qq']) ? trim((string)$_POST['site_qq']) : '';
@@ -148,12 +385,90 @@ switch ($action) {
         DB::query("set sql_mode = ''");
         DB::query("set names utf8");
 
-        $skip_sql = isset($_POST['is_install']) && (string)$_POST['is_install'] === 'false';
+        $install_mode = isset($_POST['install_mode']) ? (string)$_POST['install_mode'] : 'install';
         $t = 0;
         $e = 0;
         $error = '';
+        $skip_sql = ($install_mode === 'skip');
 
-        if (!$skip_sql) {
+        if ($install_mode === 'upgrade') {
+            // 获取规范名→实际名映射
+            $all_tables = array('MN_config','MN_log','MN_bt','MN_zj','MN_bs','MN_ym','MN_dd',
+                'MN_monitor_task','MN_monitor_log','MN_notice_log',
+                'MN_node','MN_node_task','MN_node_nonce',
+                'MN_forbidden_scan','MN_forbidden_match',
+                'MN_plugin','MN_plugin_option');
+            $tbl_map = table_case_map($all_tables);
+            $actual_config = isset($tbl_map['MN_config']) ? $tbl_map['MN_config'] : 'MN_config';
+            $actual_zj     = isset($tbl_map['MN_zj']) ? $tbl_map['MN_zj'] : 'MN_zj';
+            $actual_bt     = isset($tbl_map['MN_bt']) ? $tbl_map['MN_bt'] : 'MN_bt';
+
+            // 1. 运行 V1.79→V1.81 升级脚本
+            $sql = file_get_contents("upgrade_179to181.sql");
+            $sql = explode(';', $sql);
+            for ($i = 0; $i < count($sql); $i++) {
+                $q = trim($sql[$i]);
+                if ($q === '') continue;
+                if (DB::query($q)) {
+                    ++$t;
+                } else {
+                    ++$e;
+                    $error .= DB::error() . '<br/>';
+                }
+            }
+            // 2. 补齐缺失的表（跳过已存在的）
+            $sql = file_get_contents("repair_tables.sql");
+            $sql = explode(';', $sql);
+            for ($i = 0; $i < count($sql); $i++) {
+                $q = trim($sql[$i]);
+                if ($q === '') continue;
+                if (preg_match('/CREATE TABLE.*?`(\w+)`/', $q, $m)) {
+                    if (isset($tbl_map[$m[1]])) continue;
+                }
+                if (DB::query($q)) {
+                    ++$t;
+                } else {
+                    ++$e;
+                    $error .= DB::error() . '<br/>';
+                }
+            }
+            // 3. 补齐缺失字段（使用实际表名）
+            $repair_cols = array(
+                "ALTER TABLE `{$actual_config}` ADD `mailhost` VARCHAR(50) NULL DEFAULT NULL",
+                "ALTER TABLE `{$actual_config}` ADD `mailuser` VARCHAR(50) NULL DEFAULT NULL",
+                "ALTER TABLE `{$actual_config}` ADD `mailpassword` VARCHAR(50) NULL DEFAULT NULL",
+                "ALTER TABLE `{$actual_config}` ADD `mailport` VARCHAR(20) NOT NULL DEFAULT '465'",
+                "ALTER TABLE `{$actual_config}` ADD `ymjkkg` VARCHAR(20) NOT NULL DEFAULT 'false'",
+                "ALTER TABLE `{$actual_config}` ADD `mtyxfskg` VARCHAR(20) NOT NULL DEFAULT 'false'",
+                "ALTER TABLE `{$actual_config}` ADD `ymjktsyz` VARCHAR(20) NOT NULL DEFAULT '7'",
+                "ALTER TABLE `{$actual_config}` ADD `wjjkkg` VARCHAR(20) NOT NULL DEFAULT 'false'",
+                "ALTER TABLE `{$actual_config}` ADD `mtwjfskg` VARCHAR(50) NOT NULL DEFAULT 'false'",
+                "ALTER TABLE `{$actual_config}` ADD `wjjktsyz` VARCHAR(20) NOT NULL DEFAULT '7'",
+                "ALTER TABLE `{$actual_config}` ADD `optionzc` VARCHAR(20) NOT NULL DEFAULT 'stop'",
+                "ALTER TABLE `{$actual_config}` ADD `zjyxbd` VARCHAR(20) NOT NULL DEFAULT 'true'",
+                "ALTER TABLE `{$actual_config}` ADD `wjsckg` VARCHAR(20) NOT NULL DEFAULT 'false'",
+                "ALTER TABLE `{$actual_config}` ADD `wjsccnr` TEXT NULL DEFAULT NULL",
+                "ALTER TABLE `{$actual_config}` ADD `wjsckgqbfx` VARCHAR(10) NOT NULL DEFAULT 'true'",
+                "ALTER TABLE `{$actual_config}` ADD `wjscml` VARCHAR(500) NOT NULL DEFAULT '/www/wwwroot'",
+                "ALTER TABLE `{$actual_config}` ADD `wjstqml` TEXT NULL DEFAULT NULL",
+                "ALTER TABLE `{$actual_config}` ADD `wjstqhz` TEXT NULL DEFAULT NULL",
+                "ALTER TABLE `{$actual_config}` ADD `wjscdzmax` INT(11) NOT NULL DEFAULT 5242880",
+                "ALTER TABLE `{$actual_config}` ADD `wjscdhmax` INT(11) NOT NULL DEFAULT 1000",
+                "ALTER TABLE `{$actual_config}` ADD `wjscqzcs` VARCHAR(50) NOT NULL DEFAULT '0 3 * * *'",
+                "ALTER TABLE `{$actual_config}` ADD `wjscqzcskg` VARCHAR(20) NOT NULL DEFAULT 'true'",
+                "ALTER TABLE `{$actual_config}` ADD `pay_methods` TEXT NOT NULL DEFAULT ''",
+                "ALTER TABLE `{$actual_zj}` ADD `backup` VARCHAR(50) NOT NULL DEFAULT '{\"max\":\"3\",\"dq\":0}'",
+                "ALTER TABLE `{$actual_zj}` ADD `mailuser` VARCHAR(50) NULL DEFAULT NULL",
+                "ALTER TABLE `{$actual_bt}` ADD `mrbts_php` VARCHAR(10) NOT NULL DEFAULT ''",
+            );
+            foreach ($repair_cols as $col_sql) {
+                if (DB::query($col_sql)) {
+                    ++$t;
+                } else {
+                    ++$e;
+                }
+            }
+        } elseif (!$skip_sql) {
             $sql = file_get_contents("install.sql");
             $sql = explode(';', $sql);
             for ($i = 0; $i < count($sql); $i++) {
@@ -170,7 +485,7 @@ switch ($action) {
                 exit(Res(0, "安装失败！SQL成功{$t}句，失败{$e}句，请确保您的数据库版本在Mysql5.6(含)~5.7(含)之间，错误信息：" . $error));
             }
         } else {
-            $exists = DB::query("select * from MN_config where 1");
+            $exists = table_exists_case('MN_config');
             if (!$exists) {
                 exit(Res(0, '未检测到已有数据表，无法跳过导入，请勾选强制重装或检查数据库'));
             }
@@ -190,6 +505,9 @@ switch ($action) {
         }
 
         @file_put_contents("install.lock", '安装锁');
+        if ($install_mode === 'upgrade') {
+            exit(Res(1, '升级完成！已保留原有数据，成功更新至 V1.81'));
+        }
         if ($skip_sql) {
             exit(Res(1, '安装完成（保留原表并更新站点/管理员配置）'));
         }
