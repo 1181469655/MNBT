@@ -81,6 +81,7 @@ def init_stats_db():
     conn = sqlite3.connect(STATS_DB_PATH)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA synchronous=NORMAL")
+    conn.execute("PRAGMA busy_timeout=5000")
     cursor = conn.cursor()
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS log_position (
@@ -301,6 +302,7 @@ def _get_stats_conn():
     conn = sqlite3.connect(STATS_DB_PATH)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA synchronous=NORMAL")
+    conn.execute("PRAGMA busy_timeout=5000")
     return conn
 
 def get_log_positions():
@@ -534,10 +536,9 @@ def _process_log_lines(site_name, filename, lines):
                 parsed["bytes"], parsed["referer"], parsed["ua"]
             ))
     log_info("文件 [%s] 行处理完成，共解析 %d 行，begin write...", filename, total_lines)
-    wconn = sqlite3.connect(STATS_DB_PATH)
-    wconn.execute("PRAGMA journal_mode=WAL")
-    wconn.execute("PRAGMA synchronous=NORMAL")
+    wconn = _get_stats_conn()
     wcur = wconn.cursor()
+    wcur.execute("BEGIN IMMEDIATE")
     log_info("文件 [%s] 写入 hour stats (%d 条)...", filename, len(hour_batch))
     for (sname, hk), data in hour_batch.items():
         wcur.execute(
