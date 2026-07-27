@@ -5,7 +5,7 @@
 ALTER TABLE `MN_bt` ADD COLUMN `mrbts_php` varchar(10) NOT NULL DEFAULT '' COMMENT '节点默认 PHP 版本';
 
 -- V1.81 P3: MN_config 新增 pay_methods 字段（已启用的付款方式配置 JSON）
-ALTER TABLE `MN_config` ADD COLUMN `pay_methods` text NOT NULL DEFAULT '' COMMENT '已启用的付款方式配置（JSON）';
+ALTER TABLE `MN_config` ADD COLUMN `pay_methods` text NOT NULL COMMENT '已启用的付款方式配置（JSON）';
 
 
 DROP TABLE IF EXISTS `MN_monitor_task`;       -- 用户端URL监控任务
