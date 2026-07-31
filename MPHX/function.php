@@ -75,8 +75,14 @@ function mnbt_csrf_request_token()
 function mnbt_csrf_verify($token = null)
 {
 	$expected = isset($_SESSION['mnbt_csrf_token']) && is_string($_SESSION['mnbt_csrf_token']) ? $_SESSION['mnbt_csrf_token'] : '';
+	if ($expected === '') return false;
 	$actual = $token === null ? mnbt_csrf_request_token() : (string)$token;
-	return $expected !== '' && $actual !== '' && hash_equals($expected, $actual);
+	if ($actual !== '' && hash_equals($expected, $actual)) return true;
+	// header/post 携带旧 token 不匹配时，回退校验双提交 cookie，覆盖旧页面/轮换后的场景
+	if (isset($_COOKIE['MNBT_CSRF_TOKEN']) && is_string($_COOKIE['MNBT_CSRF_TOKEN']) && $_COOKIE['MNBT_CSRF_TOKEN'] !== '') {
+		return hash_equals($expected, $_COOKIE['MNBT_CSRF_TOKEN']);
+	}
+	return false;
 }
 function mnbt_csrf_is_safe_method($method = null)
 {
@@ -94,9 +100,13 @@ function mnbt_csrf_fail()
 {
 	$expected = isset($_SESSION['mnbt_csrf_token']) && is_string($_SESSION['mnbt_csrf_token']) ? $_SESSION['mnbt_csrf_token'] : '';
 	$provided = mnbt_csrf_request_token();
-	error_log(sprintf('[MNBT CSRF] fail path=%s method=%s has_session_token=%d provided_len=%d has_cookie=%d ip=%s',
+	$source = '';
+	foreach (['HTTP_X_CSRF_TOKEN', 'HTTP_X_XSRF_TOKEN'] as $h) if (!empty($_SERVER[$h])) { $source = 'header'; break; }
+	if ($source === '') foreach (['_csrf', 'csrf_token', '_token'] as $k) if (isset($_POST[$k]) && is_string($_POST[$k])) { $source = 'post'; break; }
+	if ($source === '' && isset($_COOKIE['MNBT_CSRF_TOKEN']) && $_COOKIE['MNBT_CSRF_TOKEN'] !== '') $source = 'cookie';
+	error_log(sprintf('[MNBT CSRF] fail path=%s method=%s has_session_token=%d provided_len=%d source=%s has_cookie=%d ip=%s',
 		$_SERVER['REQUEST_URI'] ?? '', $_SERVER['REQUEST_METHOD'] ?? '', $expected !== '' ? 1 : 0,
-		strlen($provided), isset($_COOKIE['MNBT_CSRF_TOKEN']) ? 1 : 0, $_SERVER['REMOTE_ADDR'] ?? ''));
+		strlen($provided), $source, isset($_COOKIE['MNBT_CSRF_TOKEN']) ? 1 : 0, $_SERVER['REMOTE_ADDR'] ?? ''));
 	http_response_code(419);
 	@header('Content-Type: application/json; charset=UTF-8');
 	if (function_exists('json_exit_error')) json_exit_error('CSRF 验证失败，请刷新页面后重试');
