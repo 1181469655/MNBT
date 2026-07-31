@@ -265,6 +265,20 @@ class bt_api
         return json_decode($this->HttpPostCookie($url, $p_data), true);
     }
 
+    /**
+     * 一键部署专用：设置站点 PHP 版本
+     * @param array $dat [站点名, PHP版本号]
+     */
+    public function setphp($dat)
+    {
+        $siteName = (string)($dat[0] ?? '');
+        $version = (string)($dat[1] ?? '');
+        if ($siteName === '' || $version === '') {
+            return ['status' => false, 'msg' => '站点名或PHP版本号不能为空'];
+        }
+        return $this->btapi_setphp($siteName, $version);
+    }
+
     // ========================================================================
     //  FTP管理
     // ========================================================================
