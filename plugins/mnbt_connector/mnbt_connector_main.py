@@ -459,24 +459,6 @@ class mnbt_connector_main(StatsAPIMixin):
                 "data": None,
             }
 
-    def get_scan_results(self, args):
-        config = self._read_config()
-        if not config.get("mnbt_url"):
-            return {"status": True, "data": []}
-
-        try:
-            return {
-                "status": True,
-                "msg": "扫描结果需要从 MNBT 后台查看",
-                "data": [],
-            }
-        except Exception as exc:
-            return {
-                "status": False,
-                "msg": str(exc),
-                "data": [],
-            }
-
     def trigger_full_scan(self, args):
         config = self._read_config()
         if not config.get("mnbt_url"):
@@ -492,21 +474,6 @@ class mnbt_connector_main(StatsAPIMixin):
         return {
             "status": result.returncode == 0,
             "msg": "全量扫描已触发" if result.returncode == 0 else result.stderr,
-        }
-
-    def get_task_matches(self, args):
-        task_id = args.get("task_id", "")
-        if not task_id:
-            return {"status": False, "msg": "缺少任务ID", "data": []}
-
-        config = self._read_config()
-        if not config.get("mnbt_url"):
-            return {"status": True, "data": []}
-
-        return {
-            "status": True,
-            "msg": "命中记录需要从 MNBT 后台查看",
-            "data": [],
         }
 
 

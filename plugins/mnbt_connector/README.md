@@ -24,7 +24,7 @@ MNBT 私有节点宝塔面板插件。支持文件扫描、站点访问统计等
 │                                                                     │
 │  mnbt_connector_main.py (BT 面板插件 API 入口)                       │
 │    ├─ get_status / start / stop / run_once                           │
-│    ├─ get_scan_results / get_task_matches / trigger_full_scan        │
+│    ├─ trigger_full_scan                                               │
 │    └─ get_site_list / get_site_detail / get_site_trend / ...         │
 │         ↑                                                           │
 │  maxiaole.db (SQLite)  ←── 查询数据                                  │
@@ -82,8 +82,6 @@ MNBT PHP → bt_api.php → BT 面板鉴权 → 插件 API → 查询 SQLite →
 | `start` | - | 启动工作进程 |
 | `stop` | - | 停止工作进程 |
 | `run_once` | - | 执行一次工作周期 |
-| `get_scan_results` | - | 违禁词扫描记录 |
-| `get_task_matches` | task_id | 指定扫描任务的命中详情 |
 | `trigger_full_scan` | - | 触发全量扫描 |
 | **站点统计** | | |
 | `get_site_list` | - | 所有站点 + 今日 PV/UV/流量 |
