@@ -14,7 +14,8 @@ if($egn=='login') {
 			unset($_SESSION['authcode']);
 			$session=md5($user.$pass.$password_hash);
 			$token=authcode("{$user}\t{$session}", 'ENCODE', SYS_KEY);
-			setcookie("user_token", $token, time() + 604800);
+			mnbt_rotate_login_session();
+			mnbt_set_auth_cookie("user_token", $token, time() + 604800);
 			@header('Content-Type: text/html; charset=UTF-8');
 			json_exit('登陆成功');
 		} else {
@@ -22,7 +23,7 @@ if($egn=='login') {
 			exit('{"code":"用户不存在或密码错误！"}');
 		}
 	} elseif(isset($_POST['logout'])) {
-		setcookie("user_token", "", time() - 604800);
+		mnbt_set_auth_cookie("user_token", "", time() - 604800);
 		@header('Content-Type: text/html; charset=UTF-8');
 		exit('{"code":"您已成功注销本次登陆！"}');
 	}

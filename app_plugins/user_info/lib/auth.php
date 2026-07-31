@@ -51,7 +51,8 @@ function user_info_auth_login($user_id, $password_hash)
 {
 	$session_hash = md5($user_id . $password_hash . SYS_KEY);
 	$token = authcode($user_id . "\t" . $session_hash, 'ENCODE', SYS_KEY);
-	setcookie('account_token', $token, time() + 604800, '/'); // 7 天
+	mnbt_rotate_login_session();
+	mnbt_set_auth_cookie('account_token', $token, time() + 604800);
 }
 
 /**
@@ -59,7 +60,7 @@ function user_info_auth_login($user_id, $password_hash)
  */
 function user_info_auth_logout()
 {
-	setcookie('account_token', '', time() - 604800, '/');
+	mnbt_set_auth_cookie('account_token', '', time() - 604800);
 }
 
 /**

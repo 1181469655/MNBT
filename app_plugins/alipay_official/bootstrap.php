@@ -197,7 +197,7 @@ HTML;
 // ============================================================
 //  回调路由：/pay/alipay_official/notify（异步通知）
 // ============================================================
-mnbt_register_route('*', '/pay/alipay_official/notify', function ($params, $ctx) {
+mnbt_register_route('POST', '/pay/alipay_official/notify', function ($params, $ctx) {
 	@header('Content-Type: text/plain; charset=UTF-8');
 	$svc = alipay_official_get_service();
 	if (!$svc) {
@@ -228,12 +228,12 @@ mnbt_register_route('*', '/pay/alipay_official/notify', function ($params, $ctx)
 	} else {
 		echo 'fail';
 	}
-});
+}, 10, null, true);
 
 // ============================================================
 //  回调路由：/pay/alipay_official/return（同步返回）
 // ============================================================
-mnbt_register_route('*', '/pay/alipay_official/return', function ($params, $ctx) {
+mnbt_register_route('GET', '/pay/alipay_official/return', function ($params, $ctx) {
 	$base = isset($ctx['base']) ? $ctx['base'] : '';
 	// 同步返回仅作展示，订单最终状态以异步通知为准
 	@header('Location: ' . $base . '/user');

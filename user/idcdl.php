@@ -1,6 +1,6 @@
 <?php
-setcookie("user_token", "", time() - 604800);		//先注销一次上次的登陆	
 include("../MPHX/common.php");
+mnbt_set_auth_cookie("user_token", "", time() - 604800);
 @header('Content-Type: text/html; charset=UTF-8');
 $egn=$_REQUEST['gn'];
 if($conf['yzme']=='true')exit("<script language='javascript'>alert('后台已经开启控制面板验证码登陆无法进行一键登录！');window.location.href='./login.php';</script>");
@@ -16,7 +16,8 @@ if(isset($_REQUEST['username']) && isset($_REQUEST['password'])){
 		unset($_SESSION['authcode']);
 		$session=md5($user.$pass.$password_hash);
 		$token=authcode("{$user}\t{$session}", 'ENCODE', SYS_KEY);
-		setcookie("user_token", $token, time() + 604800);
+		mnbt_rotate_login_session();
+		mnbt_set_auth_cookie("user_token", $token, time() + 604800);
 		@header('Content-Type: text/html; charset=UTF-8');
         header("Location:index.php");
 }else{

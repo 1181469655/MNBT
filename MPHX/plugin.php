@@ -722,6 +722,7 @@ function mnbt_plugin_dispatch_ajax($side, $egn)
 	if (!mnbt_plugin_auth_check($item['auth'] ?? null)) {
 		mnbt_plugin_auth_fail($item['auth'] ?? null);
 	}
+	mnbt_csrf_validate_request();
 	$prev = $GLOBALS['mnbt_plugin_current'];
 	$GLOBALS['mnbt_plugin_current'] = $item['plugin'];
 	try {
@@ -1040,6 +1041,7 @@ function mnbt_plugin_find_page($side, $plugin, $page)
 
 function mnbt_plugin_render_page($side, $plugin, $page)
 {
+	mnbt_csrf_validate_request();
 	$side = $side === 'admin' ? 'admin' : 'user';
 	$info = mnbt_plugin_find_page($side, $plugin, $page);
 	if (!$info) {
@@ -1062,8 +1064,14 @@ function mnbt_plugin_render_page($side, $plugin, $page)
 	$GLOBALS['mnbt_plugin_current'] = $plugin;
 	extract($GLOBALS, EXTR_SKIP);
 	$title = $info['title'] ?: ($plugin . ' / ' . $page);
-	include $realFile;
-	$GLOBALS['mnbt_plugin_current'] = $prev;
+	$bufferLevel = ob_get_level();
+	ob_start('mnbt_csrf_inject_html');
+	try {
+		include $realFile;
+	} finally {
+		while (ob_get_level() > $bufferLevel) ob_end_flush();
+		$GLOBALS['mnbt_plugin_current'] = $prev;
+	}
 	return true;
 }
 
@@ -1259,7 +1267,7 @@ function mnbt_plugin_dispatch_home()
  * @param string|callable|null $auth  鉴权要求：null/'none'=无验证, 'admin'=管理员, 'user'=用户, 回调函数=自定义验证
  * @return bool
  */
-function mnbt_register_route($method, $path, $callback, $priority = 10, $auth = null)
+function mnbt_register_route($method, $path, $callback, $priority = 10, $auth = null, $csrfExempt = false)
 {
 	if (!is_callable($callback)) {
 		return false;
@@ -1290,6 +1298,7 @@ function mnbt_register_route($method, $path, $callback, $priority = 10, $auth = 
 		'cb' => $callback,
 		'plugin' => $GLOBALS['mnbt_plugin_current'],
 		'auth' => $auth,
+		'csrf_exempt' => (bool)$csrfExempt,
 	];
 	return true;
 }
@@ -1324,6 +1333,7 @@ function mnbt_plugin_dispatch_route()
 			if (!mnbt_plugin_auth_check($item['auth'] ?? null)) {
 				mnbt_plugin_auth_fail($item['auth'] ?? null);
 			}
+			mnbt_csrf_validate_request($item['csrf_exempt'] ?? false);
 			$prev = $GLOBALS['mnbt_plugin_current'];
 			$GLOBALS['mnbt_plugin_current'] = $item['plugin'];
 			$ctx = [
@@ -1333,9 +1343,17 @@ function mnbt_plugin_dispatch_route()
 				'plugin' => $item['plugin'],
 				'route' => $item['path'],
 			];
+			$bufferLevel = ob_get_level();
+			ob_start('mnbt_csrf_inject_html');
 			try {
 				$result = call_user_func($item['cb'], $params, $ctx);
+				if (is_string($result) && $result !== '') {
+					if (!headers_sent()) header('Content-Type: text/html; charset=UTF-8');
+					echo $result;
+				}
+				while (ob_get_level() > $bufferLevel) ob_end_flush();
 			} catch (Throwable $e) {
+				while (ob_get_level() > $bufferLevel) ob_end_clean();
 				error_log('[MNBT plugin] route ' . $item['method'] . ' ' . $item['path'] . ' @' . ($item['plugin'] ?? '?') . ': ' . $e->getMessage());
 				$GLOBALS['mnbt_plugin_current'] = $prev;
 				continue;
@@ -1343,10 +1361,6 @@ function mnbt_plugin_dispatch_route()
 			$GLOBALS['mnbt_plugin_current'] = $prev;
 			if ($result === false) {
 				continue;
-			}
-			if (is_string($result) && $result !== '' && !headers_sent()) {
-				header('Content-Type: text/html; charset=UTF-8');
-				echo $result;
 			}
 			exit;
 		}
