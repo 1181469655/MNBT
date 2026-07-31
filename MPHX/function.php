@@ -68,6 +68,8 @@ function mnbt_csrf_request_token()
 {
 	foreach (['HTTP_X_CSRF_TOKEN', 'HTTP_X_XSRF_TOKEN'] as $header) if (!empty($_SERVER[$header])) return (string)$_SERVER[$header];
 	foreach (['_csrf', 'csrf_token', '_token'] as $key) if (isset($_POST[$key]) && is_string($_POST[$key])) return $_POST[$key];
+	// 双提交 Cookie 兜底：页面未注入 meta 时前端可从 MNBT_CSRF_TOKEN 读取并回传
+	if (isset($_COOKIE['MNBT_CSRF_TOKEN']) && is_string($_COOKIE['MNBT_CSRF_TOKEN']) && $_COOKIE['MNBT_CSRF_TOKEN'] !== '') return $_COOKIE['MNBT_CSRF_TOKEN'];
 	return '';
 }
 function mnbt_csrf_verify($token = null)
@@ -81,16 +83,29 @@ function mnbt_csrf_is_safe_method($method = null)
 	$method = strtoupper($method === null ? ($_SERVER['REQUEST_METHOD'] ?? 'GET') : (string)$method);
 	return in_array($method, ['GET', 'HEAD', 'OPTIONS'], true);
 }
+function mnbt_csrf_enabled()
+{
+	if (defined('MNBT_CSRF_ENABLED')) return (bool)MNBT_CSRF_ENABLED;
+	$env = getenv('MNBT_CSRF_ENABLED');
+	if ($env !== false && trim($env) !== '') return !in_array(strtolower(trim($env)), ['0', 'false', 'off', 'no'], true);
+	return true;
+}
 function mnbt_csrf_fail()
 {
+	$expected = isset($_SESSION['mnbt_csrf_token']) && is_string($_SESSION['mnbt_csrf_token']) ? $_SESSION['mnbt_csrf_token'] : '';
+	$provided = mnbt_csrf_request_token();
+	error_log(sprintf('[MNBT CSRF] fail path=%s method=%s has_session_token=%d provided_len=%d has_cookie=%d ip=%s',
+		$_SERVER['REQUEST_URI'] ?? '', $_SERVER['REQUEST_METHOD'] ?? '', $expected !== '' ? 1 : 0,
+		strlen($provided), isset($_COOKIE['MNBT_CSRF_TOKEN']) ? 1 : 0, $_SERVER['REMOTE_ADDR'] ?? ''));
 	http_response_code(419);
 	@header('Content-Type: application/json; charset=UTF-8');
+	if (function_exists('json_exit_error')) json_exit_error('CSRF 验证失败，请刷新页面后重试');
 	if (function_exists('json_exit')) json_exit('CSRF 验证失败，请刷新页面后重试');
-	exit('{"code":"CSRF 验证失败，请刷新页面后重试"}');
+	exit('{"success":false,"code":"CSRF 验证失败，请刷新页面后重试","msg":"CSRF 验证失败，请刷新页面后重试","redirect":null}');
 }
 function mnbt_csrf_validate_request($exempt = false)
 {
-	if ($exempt || mnbt_csrf_is_safe_method()) return true;
+	if ($exempt || !mnbt_csrf_enabled() || mnbt_csrf_is_safe_method()) return true;
 	if (!mnbt_csrf_verify()) mnbt_csrf_fail();
 	return true;
 }
@@ -101,7 +116,7 @@ function mnbt_csrf_field()
 function mnbt_csrf_head()
 {
 	$token = htmlspecialchars(mnbt_csrf_token(), ENT_QUOTES, 'UTF-8');
-	return '<meta name="csrf-token" content="' . $token . '"><script>(function(){var m=document.querySelector(\'meta[name="csrf-token"]\');if(!m)return;var t=m.content,s=function(u){try{return new URL(u,location.href).origin===location.origin}catch(e){return false}},v=function(x){return !/^(GET|HEAD|OPTIONS)$/i.test(x||"GET")};document.addEventListener("submit",function(e){var f=e.target;if(f&&v(f.method)&&s(f.action||location.href)&&!f.querySelector(\'input[name="_csrf"]\')){var i=document.createElement("input");i.type="hidden";i.name="_csrf";i.value=t;f.appendChild(i)}},true);var o=XMLHttpRequest.prototype.open,a=XMLHttpRequest.prototype.send;XMLHttpRequest.prototype.open=function(method,url){this.__mnbtCsrf=v(method)&&s(url);return o.apply(this,arguments)};XMLHttpRequest.prototype.send=function(){if(this.__mnbtCsrf)this.setRequestHeader("X-CSRF-Token",t);return a.apply(this,arguments)};if(window.fetch){var f=window.fetch;window.fetch=function(input,init){init=init||{};var u=typeof input==="string"?input:input.url,method=init.method||(typeof input!=="string"&&input.method)||"GET";if(v(method)&&s(u)){init.headers=new Headers(init.headers||(typeof input!=="string"?input.headers:void 0));init.headers.set("X-CSRF-Token",t)}return f.call(this,input,init)}}if(window.jQuery)jQuery.ajaxPrefilter(function(options,original,xhr){if(v(options.type)&&s(options.url))xhr.setRequestHeader("X-CSRF-Token",t)})})();</script>';
+	return '<meta name="csrf-token" content="' . $token . '"><script>(function(){var m=document.querySelector(\'meta[name="csrf-token"]\'),t=m&&m.content?m.content:(function(){try{var c=document.cookie.split(\'; \'),i;for(i=0;i<c.length;i++){var q=c[i].indexOf(\'=\');if(q>-1&&c[i].slice(0,q)===\'MNBT_CSRF_TOKEN\')return decodeURIComponent(c[i].slice(q+1))}}catch(e){}return \'\'})();if(!t)return;var s=function(u){try{return new URL(u,location.href).origin===location.origin}catch(e){return false}},v=function(x){return !/^(GET|HEAD|OPTIONS)$/i.test(x||"GET")};document.addEventListener("submit",function(e){var f=e.target;if(f&&v(f.method)&&s(f.action||location.href)&&!f.querySelector(\'input[name="_csrf"]\')){var i=document.createElement("input");i.type="hidden";i.name="_csrf";i.value=t;f.appendChild(i)}},true);var o=XMLHttpRequest.prototype.open,a=XMLHttpRequest.prototype.send;XMLHttpRequest.prototype.open=function(method,url){this.__mnbtCsrf=v(method)&&s(url);return o.apply(this,arguments)};XMLHttpRequest.prototype.send=function(){if(this.__mnbtCsrf)this.setRequestHeader("X-CSRF-Token",t);return a.apply(this,arguments)};if(window.fetch){var f=window.fetch;window.fetch=function(input,init){init=init||{};var u=typeof input==="string"?input:input.url,method=init.method||(typeof input!=="string"&&input.method)||"GET";if(v(method)&&s(u)){init.headers=new Headers(init.headers||(typeof input!=="string"?input.headers:void 0));init.headers.set("X-CSRF-Token",t)}return f.call(this,input,init)}}if(window.jQuery)jQuery.ajaxPrefilter(function(options,original,xhr){if(v(options.type)&&s(options.url))xhr.setRequestHeader("X-CSRF-Token",t)})})();</script>';
 }
 function mnbt_csrf_inject_html($html)
 {

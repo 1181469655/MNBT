@@ -33,6 +33,8 @@ if (PHP_VERSION_ID >= 70300) {
 	session_set_cookie_params(0, '/; samesite=Lax', '', $sessionSecure, true);
 }
 session_start();
+// 提前初始化 CSRF token 并下发双提交 Cookie，确保即使页面未注入 meta 也能通过 cookie 兜底校验
+mnbt_csrf_token();
 $scriptpath=str_replace('\\','/',$_SERVER['SCRIPT_NAME']);
 $sitepath = substr($scriptpath, 0, strrpos($scriptpath, '/'));
 $siteurl = ($_SERVER['SERVER_PORT'] == '443' ? 'https://' : 'http://').$_SERVER['HTTP_HOST'].$sitepath.'/';
