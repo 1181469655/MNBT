@@ -45,3 +45,5 @@ admin/_debug_*.php
 # 文档备份
 admin/mnbt/*.docx
 admin/mnbt/*.zip
+/templates/qingliangyun
+/templates/tdesign
