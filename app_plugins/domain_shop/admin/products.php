@@ -82,9 +82,9 @@ foreach ($providers as $p) $providerMap[(int)$p['id']] = $p;
             </p>
           </div>
           <div id="toolbar" class="toolbar-btn-action">
-            <button id="btn_add" type="button" class="btn btn-primary m-r-5 js-create-tab" data-title="添加域名商品" data-url="plugin.php?p=domain_shop&page=product_add">
+            <a id="btn_add" class="btn btn-primary m-r-5" href="plugin.php?p=domain_shop&page=product_add">
               <span class="mdi mdi-plus"></span>新增域名
-            </button>
+            </a>
             <button id="btn_delete" type="button" class="btn btn-danger" onclick="xzdelbt()">
               <span class="mdi mdi-window-close"></span>删除选中
             </button>
