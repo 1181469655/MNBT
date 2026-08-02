@@ -298,3 +298,17 @@ if (mnbt_plugin_enabled('hosting_shop')) {
 		shop_frontend_render('shop_orders', ['page_title' => '我的订单', 'active' => 'orders', 'orders' => $orders]);
 	}, $sf_priority);
 }
+
+/* ============================================================
+ *  4) 支付同步返回接管
+ *     epay / alipay_official 的同步返回默认跳 $base.'/user'（核心登录），
+ *     用户走 user_info 账户体系时会被踢到核心「主机登录页」；
+ *     且若返回路径无任何路由匹配，index.php 也会兜底跳到 /user。
+ *     这里用低优先级通用路由接管所有 /pay/{plugin}/return，
+ *     支付后回到统一前端（按订单类型跳订单列表或余额页）。
+ *     订单最终状态仍由异步通知 /pay/{slug}/notify 决定。
+ * ============================================================ */
+mnbt_register_route('GET', '/pay/{plugin}/return', function ($params, $ctx) {
+	@header('Location: ' . shop_frontend_pay_return_url());
+	exit;
+}, $sf_priority);

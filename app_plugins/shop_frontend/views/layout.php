@@ -28,14 +28,6 @@ $content = $content ?? '';
 </head>
 <body class="sf-body">
 
-<?php include __DIR__ . '/partials/navbar.php'; ?>
-
-<main class="sf-container sf-main"><?= $content ?></main>
-
-<footer class="sf-footer">
-  <div class="sf-container"><?= htmlspecialchars($brand_footer ?: ($brand . ' · 用户中心')) ?></div>
-</footer>
-
 <script>
 (function () {
   window.sfMsg = function (id, text, type) {
@@ -65,6 +57,14 @@ $content = $content ?? '';
   };
 })();
 </script>
+
+<?php include __DIR__ . '/partials/navbar.php'; ?>
+
+<main class="sf-container sf-main"><?= $content ?></main>
+
+<footer class="sf-footer">
+  <div class="sf-container"><?= htmlspecialchars($brand_footer ?: ($brand . ' · 用户中心')) ?></div>
+</footer>
 
 </body>
 </html>

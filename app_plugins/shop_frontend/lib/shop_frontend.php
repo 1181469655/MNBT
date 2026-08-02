@@ -39,7 +39,11 @@ function shop_frontend_get_current_user(): ?array {
 
 function shop_frontend_get_plans(): array {
     global $DB;
-    $rows = $DB->get_all_prepare("SELECT * FROM MN_plugin_hosting_plan WHERE status='active' ORDER BY sort ASC, id ASC") ?: [];
+    // hosting_shop 未启用或表不存在时不报错，直接返回空
+    if (!function_exists('mnbt_plugin_enabled') || !mnbt_plugin_enabled('hosting_shop')) {
+        return [];
+    }
+    $rows = @$DB->get_all_prepare("SELECT * FROM MN_plugin_hosting_plan WHERE status='active' ORDER BY sort ASC, id ASC") ?: [];
     return $rows;
 }
 
@@ -106,6 +110,27 @@ function shop_frontend_brand(): array {
  */
 function shop_frontend_favicon(): string {
     return shop_frontend_cached_icon_url(shop_frontend_option('site_favicon', ''), 'favicon');
+}
+
+/**
+ * 支付同步返回后应跳转的统一前端地址。
+ * 根据订单业务类型（MN_dd.lx）决定目的地：充值→余额页，主机→订单列表，默认订单列表。
+ */
+function shop_frontend_pay_return_url(): string {
+    global $DB;
+    $no = isset($_GET['out_trade_no']) ? trim((string)$_GET['out_trade_no']) : '';
+    if ($no !== '' && isset($DB)) {
+        $row = @$DB->get_row_prepare("SELECT lx FROM MN_dd WHERE ddh=? LIMIT 1", [$no]);
+        if (is_array($row)) {
+            if (($row['lx'] ?? '') === 'recharge') {
+                return shop_frontend_url('balance');
+            }
+            if (($row['lx'] ?? '') === 'hosting') {
+                return shop_frontend_url('shop/orders');
+            }
+        }
+    }
+    return shop_frontend_url('shop/orders');
 }
 
 /**
