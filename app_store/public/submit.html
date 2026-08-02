@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>提交资源 - MNBT Store</title>
+<link rel="stylesheet" href="/lib/layui/css/layui.css">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div id="header-top" class="header"></div>
+
+<div class="submit-wrapper">
+  <div class="detail-card">
+    <h2 style="margin-bottom:20px;">提交插件 / 主题</h2>
+    <form class="layui-form" id="submit-form" lay-filter="submit">
+      <div class="layui-form-item">
+        <label class="layui-form-label">类型</label>
+        <div class="layui-input-block">
+          <input type="radio" name="type" value="plugin" title="插件" checked>
+          <input type="radio" name="type" value="theme" title="主题">
+        </div>
+      </div>
+      <div class="layui-form-item">
+        <label class="layui-form-label"><span style="color:red">*</span> ZIP包</label>
+        <div class="layui-input-block">
+          <input type="file" id="zip-file-input" accept=".zip" style="display:none;">
+          <button type="button" class="layui-btn" id="upload-zip-btn"><i class="layui-icon layui-icon-upload"></i> 选择文件</button>
+          <span id="zip-name" style="margin-left:10px;color:#999;">未选择文件</span>
+          <div class="layui-form-mid layui-word-aux">仅支持 .zip 格式，最大50MB。zip 内需有且仅有一个文件夹作根目录，目录名将作为标识（slug）</div>
+        </div>
+      </div>
+      <div class="layui-form-item">
+        <label class="layui-form-label"><span style="color:red">*</span> 标识</label>
+        <div class="layui-input-block">
+          <input type="text" name="slug" lay-verify="required" placeholder="唯一标识（字母数字下划线横线，最长63字符，需与zip根目录名一致）" class="layui-input">
+        </div>
+      </div>
+      <div class="layui-form-item">
+        <label class="layui-form-label"><span style="color:red">*</span> 名称</label>
+        <div class="layui-input-block">
+          <input type="text" name="name" lay-verify="required" placeholder="显示名称" class="layui-input">
+        </div>
+      </div>
+      <div class="layui-form-item">
+        <label class="layui-form-label"><span style="color:red">*</span> 版本</label>
+        <div class="layui-input-block">
+          <input type="text" name="version" lay-verify="required" placeholder="如 1.0.0" class="layui-input" style="width:200px;">
+        </div>
+      </div>
+      <div class="layui-form-item">
+        <label class="layui-form-label">要求版本</label>
+        <div class="layui-input-block">
+          <input type="text" name="requires_mnbt" placeholder="要求最低 MNBT 版本，如 1.81" class="layui-input" style="width:200px;">
+        </div>
+      </div>
+      <div class="layui-form-item">
+        <label class="layui-form-label"><span style="color:red">*</span> 简介</label>
+        <div class="layui-input-block">
+          <textarea id="description" name="description" class="layui-textarea" style="min-height:200px;" placeholder="支持HTML格式：&lt;b&gt;加粗&lt;/b&gt;, &lt;img src='...'&gt;, &lt;h3&gt;标题&lt;/h3&gt;, &lt;pre&gt;&lt;code&gt;代码&lt;/code&gt;&lt;/pre&gt;等"></textarea>
+        </div>
+      </div>
+      <div class="layui-form-item">
+        <label class="layui-form-label">价格</label>
+        <div class="layui-input-block">
+          <input type="number" name="price" value="0" min="0" step="0.01" placeholder="0 表示免费" class="layui-input" style="width:200px;">
+        </div>
+      </div>
+      <div class="layui-form-item">
+        <label class="layui-form-label">分类</label>
+        <div class="layui-input-block">
+          <select name="category" lay-verify="">
+            <option value="">请选择分类</option>
+            <option value="支付">支付</option>
+            <option value="通知">通知</option>
+            <option value="管理">管理</option>
+            <option value="界面">界面</option>
+            <option value="安全">安全</option>
+            <option value="SEO">SEO</option>
+            <option value="备份">备份</option>
+            <option value="监控">监控</option>
+            <option value="其他">其他</option>
+          </select>
+        </div>
+      </div>
+      <div class="layui-form-item">
+        <label class="layui-form-label">项目主页</label>
+        <div class="layui-input-block">
+          <input type="text" name="homepage" placeholder="https://..." class="layui-input">
+        </div>
+      </div>
+      <div class="layui-form-item">
+        <label class="layui-form-label">主图</label>
+        <div class="layui-input-block">
+          <input type="file" id="img-file-input" accept="image/jpeg,image/png,image/gif,image/webp" style="display:none;">
+          <button type="button" class="layui-btn layui-btn-primary" id="upload-img-btn"><i class="layui-icon layui-icon-picture"></i> 上传图片</button>
+          <input type="hidden" name="main_image" id="main-image-input">
+          <div id="main-image-preview" style="margin-top:10px;"></div>
+        </div>
+      </div>
+      <div class="layui-form-item">
+        <div class="layui-input-block">
+          <button type="button" lay-submit lay-filter="submit" class="layui-btn">提交审核</button>
+          <a href="/" class="layui-btn layui-btn-primary">取消</a>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="/lib/layui/layui.js"></script>
+<script src="/js/app.js"></script>
+<script>
+layui.use(['form'], function () {
+  var form = layui.form;
+  var zipFile = null;
+  var zipInput = document.getElementById('zip-file-input');
+  var imgInput = document.getElementById('img-file-input');
+
+  document.addEventListener('auth-ready', function () {
+    if (!M.currentUser) {
+      layer.msg('请先登录', function () { location.href = '/login.html'; });
+    }
+  });
+
+  // Zip button -> trigger hidden file input
+  document.getElementById('upload-zip-btn').addEventListener('click', function () {
+    zipInput.click();
+  });
+
+  zipInput.addEventListener('change', function () {
+    if (this.files.length > 0) {
+      var f = this.files[0];
+      if (!f.name.toLowerCase().endsWith('.zip')) {
+        layer.msg('仅支持 zip 格式');
+        this.value = '';
+        return;
+      }
+      if (f.size > 50 * 1024 * 1024) {
+        layer.msg('文件不能超过 50MB');
+        this.value = '';
+        return;
+      }
+      zipFile = f;
+      document.getElementById('zip-name').textContent = f.name + ' (' + M.formatSize(f.size) + ')';
+    }
+  });
+
+  // Image button -> trigger hidden file input
+  document.getElementById('upload-img-btn').addEventListener('click', function () {
+    imgInput.click();
+  });
+
+  imgInput.addEventListener('change', function () {
+    if (this.files.length > 0) {
+      var f = this.files[0];
+      var allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+      if (allowed.indexOf(f.type) === -1) {
+        layer.msg('仅支持 jpg/png/gif/webp 格式');
+        this.value = '';
+        return;
+      }
+      if (f.size > 5 * 1024 * 1024) {
+        layer.msg('图片不能超过 5MB');
+        this.value = '';
+        return;
+      }
+      // Upload image immediately
+      var fd = new FormData();
+      fd.append('image', f);
+      var loadIdx = layer.load(1);
+      M.upload('/api/upload/image', fd).then(function (res) {
+        layer.close(loadIdx);
+        if (res.code === 0) {
+          document.getElementById('main-image-input').value = res.data.url;
+          document.getElementById('main-image-preview').innerHTML = '<img src="' + res.data.url + '" style="max-width:200px;max-height:150px;border-radius:4px;">';
+          layer.msg('图片上传成功');
+        } else {
+          layer.msg(res.msg || '上传失败');
+        }
+      });
+    }
+  });
+
+  // Form submit
+  form.on('submit(submit)', function (data) {
+    if (!zipFile) {
+      layer.msg('请选择 zip 文件');
+      return false;
+    }
+
+    var desc = document.getElementById('description').value;
+    if (!desc.trim()) {
+      layer.msg('请填写简介');
+      return false;
+    }
+
+    var formData = new FormData();
+    formData.append('type', data.field.type);
+    formData.append('slug', data.field.slug);
+    formData.append('name', data.field.name);
+    formData.append('version', data.field.version);
+    formData.append('zipfile', zipFile);
+    formData.append('description', desc);
+    formData.append('price', data.field.price || '0');
+    formData.append('category', data.field.category || '');
+    formData.append('homepage', data.field.homepage || '');
+    formData.append('main_image', data.field.main_image || '');
+    formData.append('requires_mnbt', data.field.requires_mnbt || '');
+
+    var loadIdx = layer.load(1);
+    M.upload('/api/developer/items', formData).then(function (res) {
+      layer.close(loadIdx);
+      if (res.code === 0) {
+        layer.msg('提交成功，等待管理员审核', function () {
+          location.href = '/developer.html';
+        });
+      } else {
+        layer.msg(res.msg || '提交失败');
+      }
+    });
+
+    return false;
+  });
+});
+</script>
+</body>
+</html>

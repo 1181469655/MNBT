@@ -146,4 +146,12 @@ function setwjt($val,$yhc,$os_xt,$userbd){               //设置伪静态
     $sc=array($nr,'/www/server/panel/vhost/rewrite/'.$yhc['sqldz'].'.conf');
     return($sc);
 }
+
+function setphp($val,$yhc,$os_xt,$userbd){               //设置PHP版本
+    $php=tihs($val['php'],$userbd,$yhc);
+    $php=preg_replace('/[^0-9]/','',$php);
+    if($php==='')return array('','');
+    $sc=array($yhc['sqldz'],$php);
+    return($sc);
+}
 ?>

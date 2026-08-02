@@ -5,7 +5,7 @@ bl_arr=[]       //存放变量的数组
 function add_cz(czlx){      //添加操作
      msloading('添加中，请稍后...');  // 加载圈显示
      // 安全：白名单验证 czlx 字段，只允许预定义的操作类型
-     var allowedCzlx = ['xjwj','xjwjj','delwj','delwjj','setwj','drsql','gettj','setyxml','setwjt'];
+     var allowedCzlx = ['xjwj','xjwjj','delwj','delwjj','setwj','drsql','gettj','setyxml','setwjt','setphp'];
      if (allowedCzlx.indexOf(czlx) === -1) {
          console.error('非法的操作类型:', czlx);
          msloadingde();
@@ -141,6 +141,15 @@ function gl_setwjt(){
      var clname1='czf['+czdhx+'][cz]';    //cz是操作类型的意思
      var clname2='czf['+czdhx+'][nr]';    //nr是内容
      var retus='<input type="text" style="visibility:hidden" name="'+clname1+'" value="'+lx+'"/><textarea type="text" name="'+clname2+'" class="form-control" placeholder="伪静态内容" rows="15"></textarea>';
+     return [czmc,retus];
+}
+
+function gl_setphp(){
+     var lx='setphp';                 //操作类型：设置PHP版本
+     var czmc='设置PHP版本';            //这步操作的名称（用于显示）
+     var clname1='czf['+czdhx+'][cz]';    //cz是操作类型的意思
+     var clname2='czf['+czdhx+'][php]';    //php是PHP版本号
+     var retus='<input type="text" style="visibility:hidden" name="'+clname1+'" value="'+lx+'"/><input type="text" name="'+clname2+'" class="form-control" placeholder="PHP版本号，如：74/80/81/82（支持 [sf_变量名] 引用用户表单）" required/>';
      return [czmc,retus];
 }
 

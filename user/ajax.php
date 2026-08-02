@@ -5,6 +5,7 @@
 */
 include("../MPHX/common.php");
 @header('Content-Type: text/html; charset=UTF-8');
+mnbt_csrf_validate_request();
 $egn=$_POST['gn'] ?? '';
 if($islogins==1 || $egn=='login') {
 } else exit('{"code":"请登陆"}');

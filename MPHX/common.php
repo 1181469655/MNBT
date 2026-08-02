@@ -22,7 +22,19 @@ define('SYS_KEY', 'MNBT');
 define('CC_Defender', 1); //防CC攻击开关(1为session模式)
 date_default_timezone_set("PRC");
 $date = date("Y-m-d H:i:s");
+include_once(SYSTEM_ROOT."function.php");
+$sessionSecure = mnbt_request_is_secure();
+@ini_set('session.use_strict_mode', '1');
+@ini_set('session.cookie_httponly', '1');
+@ini_set('session.cookie_samesite', 'Lax');
+if (PHP_VERSION_ID >= 70300) {
+	session_set_cookie_params(['lifetime' => 0, 'path' => '/', 'secure' => $sessionSecure, 'httponly' => true, 'samesite' => 'Lax']);
+} else {
+	session_set_cookie_params(0, '/; samesite=Lax', '', $sessionSecure, true);
+}
 session_start();
+// 提前初始化 CSRF token 并下发双提交 Cookie，确保即使页面未注入 meta 也能通过 cookie 兜底校验
+mnbt_csrf_token();
 $scriptpath=str_replace('\\','/',$_SERVER['SCRIPT_NAME']);
 $sitepath = substr($scriptpath, 0, strrpos($scriptpath, '/'));
 $siteurl = ($_SERVER['SERVER_PORT'] == '443' ? 'https://' : 'http://').$_SERVER['HTTP_HOST'].$sitepath.'/';

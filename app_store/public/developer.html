@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>开发者中心 - MNBT Store</title>
+<link rel="stylesheet" href="/lib/layui/css/layui.css">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div id="header-top" class="header"></div>
+
+<div class="main-container">
+  <div style="margin-bottom:15px;">
+    <a href="/submit.html" class="layui-btn"><i class="layui-icon layui-icon-add-1"></i> 提交新资源</a>
+    <select id="type-filter" lay-ignore style="margin-left:10px;">
+      <option value="">全部类型</option>
+      <option value="plugin">插件</option>
+      <option value="theme">主题</option>
+    </select>
+  </div>
+
+  <table class="layui-hide" id="items-table" lay-filter="items"></table>
+</div>
+
+<script type="text/html" id="statusTpl">{{- M.statusBadge(d.status) }}</script>
+<script type="text/html" id="actionTpl">
+  <a href="/detail.html?id={{= d.id }}" class="layui-btn layui-btn-xs">查看</a>
+  <button class="layui-btn layui-btn-xs layui-btn-normal edit-btn" data-id="{{= d.id }}">修改</button>
+  <button class="layui-btn layui-btn-xs layui-btn-warm newver-btn" data-id="{{= d.id }}">新版本</button>
+</script>
+
+<!-- Edit dialog template (hidden) -->
+<div id="edit-dialog" style="display:none;">
+  <div style="padding:20px;">
+    <form class="layui-form" lay-filter="edit-form">
+      <input type="hidden" name="edit_id">
+      <div class="layui-form-item">
+        <label class="layui-form-label">价格</label>
+        <div class="layui-input-block"><input type="number" name="edit_price" value="0" step="0.01" class="layui-input"></div>
+      </div>
+      <div class="layui-form-item">
+        <label class="layui-form-label">简介</label>
+        <div class="layui-input-block"><textarea name="edit_description" class="layui-textarea" style="min-height:150px;"></textarea></div>
+      </div>
+      <div class="layui-form-item">
+        <label class="layui-form-label">分类</label>
+        <div class="layui-input-block">
+          <select name="edit_category">
+            <option value="">请选择</option>
+            <option value="支付">支付</option><option value="通知">通知</option><option value="管理">管理</option>
+            <option value="界面">界面</option><option value="安全">安全</option><option value="SEO">SEO</option>
+            <option value="备份">备份</option><option value="监控">监控</option><option value="其他">其他</option>
+          </select>
+        </div>
+      </div>
+      <div class="layui-form-item">
+        <label class="layui-form-label">项目主页</label>
+        <div class="layui-input-block"><input type="text" name="edit_homepage" class="layui-input"></div>
+      </div>
+      <div class="layui-form-item">
+        <label class="layui-form-label">主图</label>
+        <div class="layui-input-block">
+          <input type="file" class="edit-img-input" accept="image/jpeg,image/png,image/gif,image/webp" style="display:none;">
+          <button type="button" class="layui-btn layui-btn-primary layui-btn-sm edit-upload-img-btn">上传</button>
+          <input type="hidden" name="edit_main_image">
+          <div class="edit-image-preview" style="margin-top:5px;"></div>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- New version dialog template (hidden) -->
+<div id="newver-dialog" style="display:none;">
+  <div style="padding:20px;">
+    <form class="layui-form" lay-filter="newver-form">
+      <input type="hidden" name="newver_id">
+      <div class="layui-form-item">
+        <label class="layui-form-label"><span style="color:red">*</span> 版本号</label>
+        <div class="layui-input-block"><input type="text" name="newver_version" lay-verify="required" class="layui-input"></div>
+      </div>
+      <div class="layui-form-item">
+        <label class="layui-form-label"><span style="color:red">*</span> ZIP包</label>
+        <div class="layui-input-block">
+          <input type="file" class="ver-zip-input" accept=".zip" style="display:none;">
+          <button type="button" class="layui-btn upload-ver-btn">选择文件</button>
+          <span class="ver-zip-name" style="margin-left:10px;color:#999;">未选择</span>
+        </div>
+      </div>
+      <div class="layui-form-item">
+        <label class="layui-form-label">更新日志</label>
+        <div class="layui-input-block"><textarea name="newver_changelog" class="layui-textarea"></textarea></div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="/lib/layui/layui.js"></script>
+<script src="/js/app.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+<script>
+layui.use(['table', 'form', 'layer'], function () {
+  var table = layui.table;
+  var form = layui.form;
+  var layer = layui.layer;
+  var editItemId = null;
+  var verZipFile = null;
+
+  document.addEventListener('auth-ready', function () {
+    if (!M.currentUser) {
+      layer.msg('请先登录', function () { location.href = '/login.html'; });
+      return;
+    }
+  });
+
+  var tbl = table.render({
+    elem: '#items-table',
+    url: '/api/developer/items',
+    page: true,
+    limit: 20,
+    cols: [[
+      { field: 'name', title: '名称', width: 150 },
+      { field: 'type', title: '类型', width: 70 },
+      { field: 'version', title: '版本', width: 80 },
+      { field: 'price', title: '价格', width: 80, templet: function(d){ return d.price === 0 ? '免费' : '¥' + d.price.toFixed(2); } },
+      { field: 'downloads', title: '下载', width: 70 },
+      { field: 'status', title: '状态', width: 90, templet: '#statusTpl' },
+      { field: 'review_msg', title: '审核备注', width: 150 },
+      { title: '操作', width: 200, templet: '#actionTpl' }
+    ]],
+    parseData: function (res) {
+      return { code: res.code, count: res.data.total, data: res.data.items };
+    }
+  });
+
+  document.getElementById('type-filter').addEventListener('change', function () {
+    tbl.reload({ where: { type: this.value } });
+  });
+
+  // ======= Edit dialog =======
+  $(document).on('click', '.edit-btn', function () {
+    var id = $(this).data('id');
+    editItemId = id;
+    M.get('/api/developer/items/' + id).then(function (res) {
+      if (res.code === 0) {
+        var item = res.data;
+        var editHtml = $('#edit-dialog').html();
+        var $editLayer = null;
+
+        layer.open({
+          type: 1,
+          title: '修改信息 - ' + item.name,
+          area: ['600px', '550px'],
+          content: editHtml,
+          btn: ['保存', '取消'],
+          success: function (layero) {
+            $editLayer = $(layero);
+            $editLayer.find('[name="edit_id"]').val(item.id);
+            $editLayer.find('[name="edit_price"]').val(item.price);
+            $editLayer.find('[name="edit_description"]').val(item.description);
+            $editLayer.find('[name="edit_category"]').val(item.category);
+            $editLayer.find('[name="edit_homepage"]').val(item.homepage);
+            $editLayer.find('[name="edit_main_image"]').val(item.main_image);
+            if (item.main_image) {
+              $editLayer.find('.edit-image-preview').html('<img src="' + item.main_image + '" style="max-width:150px;border-radius:4px;">');
+            }
+            form.render(null, 'edit-form');
+
+            $editLayer.find('.edit-upload-img-btn').on('click', function () {
+              $editLayer.find('.edit-img-input').click();
+            });
+            $editLayer.find('.edit-img-input').on('change', function () {
+              var f = this.files[0];
+              if (!f) return;
+              if (f.size > 5 * 1024 * 1024) { layer.msg('图片不能超过 5MB'); return; }
+              var fd = new FormData();
+              fd.append('image', f);
+              var loadIdx = layer.load(1);
+              M.upload('/api/upload/image', fd).then(function (r) {
+                layer.close(loadIdx);
+                if (r.code === 0) {
+                  $editLayer.find('[name="edit_main_image"]').val(r.data.url);
+                  $editLayer.find('.edit-image-preview').html('<img src="' + r.data.url + '" style="max-width:150px;border-radius:4px;">');
+                  layer.msg('上传成功');
+                } else {
+                  layer.msg(r.msg || '上传失败');
+                }
+              });
+            });
+          },
+          yes: function (idx) {
+            M.put('/api/developer/items/' + editItemId, {
+              price: parseFloat($editLayer.find('[name="edit_price"]').val()) || 0,
+              description: $editLayer.find('[name="edit_description"]').val(),
+              category: $editLayer.find('[name="edit_category"]').val(),
+              homepage: $editLayer.find('[name="edit_homepage"]').val(),
+              main_image: $editLayer.find('[name="edit_main_image"]').val()
+            }).then(function (r) {
+              if (r.code === 0) {
+                layer.msg(r.msg, function () { tbl.reload(); });
+              } else {
+                layer.msg(r.msg);
+              }
+            });
+            layer.close(idx);
+          }
+        });
+      }
+    });
+  });
+
+  // ======= New version dialog =======
+  $(document).on('click', '.newver-btn', function () {
+    var id = $(this).data('id');
+    verZipFile = null;
+    var newverHtml = $('#newver-dialog').html();
+    var $verLayer = null;
+
+    layer.open({
+      type: 1,
+      title: '上传新版本',
+      area: ['500px', '400px'],
+      content: newverHtml,
+      btn: ['上传', '取消'],
+      success: function (layero) {
+        $verLayer = $(layero);
+        $verLayer.find('[name="newver_id"]').val(id);
+        form.render(null, 'newver-form');
+
+        $verLayer.find('.upload-ver-btn').on('click', function () {
+          $verLayer.find('.ver-zip-input').click();
+        });
+        $verLayer.find('.ver-zip-input').on('change', function () {
+          if (this.files.length > 0) {
+            var f = this.files[0];
+            if (!f.name.toLowerCase().endsWith('.zip')) { layer.msg('仅支持 zip 格式'); this.value = ''; return; }
+            if (f.size > 50 * 1024 * 1024) { layer.msg('文件不能超过 50MB'); this.value = ''; return; }
+            verZipFile = f;
+            $verLayer.find('.ver-zip-name').text(f.name + ' (' + M.formatSize(f.size) + ')');
+          }
+        });
+      },
+      yes: function (idx) {
+        if (!verZipFile) { layer.msg('请选择 zip 文件'); return; }
+        var version = $verLayer.find('[name="newver_version"]').val();
+        var changelog = $verLayer.find('[name="newver_changelog"]').val();
+        if (!version) { layer.msg('请填写版本号'); return; }
+
+        var fd = new FormData();
+        fd.append('zipfile', verZipFile);
+        fd.append('version', version);
+        fd.append('changelog', changelog || '');
+
+        var loadIdx = layer.load(1);
+        M.upload('/api/developer/items/' + id + '/versions', fd).then(function (r) {
+          layer.close(loadIdx);
+          if (r.code === 0) {
+            layer.msg(r.msg, function () { tbl.reload(); });
+          } else {
+            layer.msg(r.msg);
+          }
+        });
+        layer.close(idx);
+      }
+    });
+  });
+});
+</script>
+</body>
+</html>

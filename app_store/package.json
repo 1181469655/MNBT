@@ -1,0 +1,38 @@
+{
+  "name": "mnbt_store",
+  "version": "1.0.0",
+  "description": "MNBT Plugin & Theme Store",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node20 --outfile=dist/index.js && if not exist fonts mkdir fonts && copy node_modules\\sql.js\\dist\\sql-wasm.wasm dist\\ && copy node_modules\\svg-captcha\\fonts\\Comismsh.ttf fonts\\",
+    "start": "node dist/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "adm-zip": "^0.6.0",
+    "bcryptjs": "^3.0.3",
+    "express": "^4.22.2",
+    "express-session": "^1.19.0",
+    "multer": "^2.2.0",
+    "sanitize-html": "^2.17.6",
+    "sql.js": "^1.14.1",
+    "svg-captcha": "^1.4.0",
+    "uuid": "^14.0.1"
+  },
+  "devDependencies": {
+    "@types/adm-zip": "^0.5.8",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/express": "^4.17.25",
+    "@types/express-session": "^1.19.0",
+    "@types/multer": "^2.2.0",
+    "@types/node": "^26.1.1",
+    "@types/sanitize-html": "^2.16.1",
+    "@types/sql.js": "^1.4.11",
+    "@types/uuid": "^10.0.0",
+    "tsx": "^4.23.1",
+    "typescript": "^7.0.2"
+  }
+}

@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>管理后台 - MNBT Store</title>
+<link rel="stylesheet" href="/lib/layui/css/layui.css">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div id="header-top" class="header"></div>
+
+<div class="main-container">
+  <div class="admin-stats" id="admin-stats"></div>
+
+  <div class="layui-tab" lay-filter="admin-tab">
+    <ul class="layui-tab-title">
+      <li class="layui-this">审核队列</li>
+      <li>全部资源</li>
+      <li>修改审核</li>
+      <li>用户管理</li>
+    </ul>
+    <div class="layui-tab-content" style="padding:0;">
+      <div class="layui-tab-item layui-show">
+        <table class="layui-hide" id="pending-table" lay-filter="pending"></table>
+      </div>
+      <div class="layui-tab-item">
+        <div style="margin-bottom:10px;padding:10px;">
+          <select id="all-type-filter" lay-ignore><option value="">全部</option><option value="plugin">插件</option><option value="theme">主题</option></select>
+          <select id="all-status-filter" lay-ignore style="margin-left:6px;">
+            <option value="">全部状态</option><option value="pending">待审核</option><option value="approved">已通过</option><option value="rejected">已驳回</option><option value="suspended">已下架</option>
+          </select>
+          <input type="text" id="all-keyword" placeholder="搜索..." class="layui-input" style="display:inline-block;width:180px;margin-left:6px;">
+        </div>
+        <table class="layui-hide" id="all-table" lay-filter="all"></table>
+      </div>
+      <div class="layui-tab-item">
+        <table class="layui-hide" id="edits-table" lay-filter="edits"></table>
+      </div>
+      <div class="layui-tab-item">
+        <table class="layui-hide" id="users-table" lay-filter="users"></table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="text/html" id="statusTpl">{{- M.statusBadge(d.status) }}</script>
+<script type="text/html" id="pendingActions">
+  <button class="layui-btn layui-btn-xs layui-btn-normal approve-btn" data-id="{{= d.id }}">通过</button>
+  <button class="layui-btn layui-btn-xs layui-btn-danger reject-btn" data-id="{{= d.id }}">驳回</button>
+</script>
+<script type="text/html" id="allActions">
+  {{# if (d.status === 'pending') { }}
+  <button class="layui-btn layui-btn-xs layui-btn-normal approve-btn" data-id="{{= d.id }}">通过</button>
+  <button class="layui-btn layui-btn-xs layui-btn-danger reject-btn" data-id="{{= d.id }}">驳回</button>
+  {{# } }}
+  {{# if (d.status === 'approved') { }}
+  <button class="layui-btn layui-btn-xs layui-btn-warm suspend-btn" data-id="{{= d.id }}">下架</button>
+  {{# } }}
+  {{# if (d.status === 'suspended') { }}
+  <button class="layui-btn layui-btn-xs layui-btn-normal approve-btn" data-id="{{= d.id }}">恢复</button>
+  {{# } }}
+  <button class="layui-btn layui-btn-xs layui-btn-danger del-btn" data-id="{{= d.id }}">删除</button>
+</script>
+<script type="text/html" id="editActions">
+  <button class="layui-btn layui-btn-xs layui-btn-normal approve-edit-btn" data-id="{{= d.id }}">通过</button>
+  <button class="layui-btn layui-btn-xs layui-btn-danger reject-edit-btn" data-id="{{= d.id }}">驳回</button>
+</script>
+<script type="text/html" id="userActions">
+  {{# if (d.status === 'active') { }}
+  <button class="layui-btn layui-btn-xs layui-btn-danger ban-btn" data-id="{{= d.id }}">封禁</button>
+  {{# } else { }}
+  <button class="layui-btn layui-btn-xs layui-btn-normal unban-btn" data-id="{{= d.id }}">解封</button>
+  {{# } }}
+</script>
+
+<script src="/lib/layui/layui.js"></script>
+<script src="/js/app.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+<script>
+layui.use(['table', 'element'], function () {
+  var table = layui.table;
+  var element = layui.element;
+
+  document.addEventListener('auth-ready', function () {
+    if (!M.currentUser || M.currentUser.role !== 'admin') {
+      layer.msg('需要管理员权限', function () { location.href = '/'; });
+      return;
+    }
+  });
+
+  // Stats
+  function loadStats() {
+    M.get('/api/admin/stats').then(function (res) {
+      if (res.code === 0) {
+        var s = res.data;
+        document.getElementById('admin-stats').innerHTML =
+          '<div class="admin-stat-card"><div class="stat-num">' + s.plugins + '</div><div class="stat-label">插件</div></div>' +
+          '<div class="admin-stat-card"><div class="stat-num">' + s.themes + '</div><div class="stat-label">主题</div></div>' +
+          '<div class="admin-stat-card"><div class="stat-num" style="color:#ff5722;">' + s.pending + '</div><div class="stat-label">待审核</div></div>' +
+          '<div class="admin-stat-card"><div class="stat-num">' + s.users + '</div><div class="stat-label">用户</div></div>' +
+          '<div class="admin-stat-card"><div class="stat-num">' + s.downloads + '</div><div class="stat-label">总下载</div></div>' +
+          '<div class="admin-stat-card"><div class="stat-num" style="color:#ff5722;">' + (s.pendingEdits || 0) + '</div><div class="stat-label">修改待审</div></div>';
+      }
+    });
+  }
+  loadStats();
+
+  // Pending table
+  var pendingTbl = table.render({
+    elem: '#pending-table',
+    url: '/api/admin/items?status=pending',
+    page: true,
+    limit: 20,
+    cols: [[
+      { field: 'name', title: '名称', width: 150 },
+      { field: 'type', title: '类型', width: 70 },
+      { field: 'slug', title: '标识', width: 120 },
+      { field: 'version', title: '版本', width: 80 },
+      { field: 'author_name', title: '作者', width: 100 },
+      { field: 'price', title: '价格', width: 80, templet: function(d){ return d.price===0?'免费':'¥'+d.price.toFixed(2); } },
+      { field: 'created_at', title: '提交时间', width: 160 },
+      { title: '操作', width: 140, templet: '#pendingActions' }
+    ]],
+    parseData: function (res) {
+      return { code: res.code, count: res.data.total, data: res.data.items };
+    }
+  });
+
+  // All table
+  var allTbl = table.render({
+    elem: '#all-table',
+    url: '/api/admin/items',
+    page: true,
+    limit: 20,
+    cols: [[
+      { field: 'name', title: '名称', width: 150 },
+      { field: 'type', title: '类型', width: 70 },
+      { field: 'status', title: '状态', width: 90, templet: '#statusTpl' },
+      { field: 'author_name', title: '作者', width: 100 },
+      { field: 'downloads', title: '下载', width: 70 },
+      { field: 'review_msg', title: '备注', width: 150 },
+      { title: '操作', width: 220, templet: '#allActions' }
+    ]],
+    parseData: function (res) {
+      return { code: res.code, count: res.data.total, data: res.data.items };
+    }
+  });
+
+  // Edits table
+  var editsTbl = table.render({
+    elem: '#edits-table',
+    url: '/api/admin/edit-requests?status=pending',
+    page: true,
+    limit: 20,
+    cols: [[
+      { field: 'item_name', title: '资源名', width: 150 },
+      { field: 'type', title: '类型', width: 70 },
+      { field: 'field', title: '字段', width: 100 },
+      { field: 'old_value', title: '旧值', width: 200 },
+      { field: 'new_value', title: '新值', width: 200 },
+      { field: 'created_at', title: '时间', width: 160 },
+      { title: '操作', width: 140, templet: '#editActions' }
+    ]],
+    parseData: function (res) {
+      return { code: res.code, count: res.data.length, data: res.data };
+    }
+  });
+
+  // Users table
+  var usersTbl = table.render({
+    elem: '#users-table',
+    url: '/api/admin/users',
+    page: true,
+    limit: 20,
+    cols: [[
+      { field: 'username', title: '用户名', width: 120 },
+      { field: 'email', title: '邮箱', width: 180 },
+      { field: 'role', title: '角色', width: 80 },
+      { field: 'status', title: '状态', width: 80 },
+      { field: 'created_at', title: '注册时间', width: 160 },
+      { title: '操作', width: 100, templet: '#userActions' }
+    ]],
+    parseData: function (res) {
+      return { code: res.code, count: res.data.total, data: res.data.users };
+    }
+  });
+
+  // Filters
+  $('#all-type-filter').change(function(){ allTbl.reload({where:{type:$(this).val()}}); });
+  $('#all-status-filter').change(function(){ allTbl.reload({where:{status:$(this).val()}}); });
+  var kt;
+  $('#all-keyword').on('input', function(){ clearTimeout(kt); kt=setTimeout(function(){allTbl.reload({where:{keyword:$('#all-keyword').val()}});},400); });
+
+  // Actions
+  $(document).on('click', '.approve-btn', function(){
+    var id = $(this).data('id');
+    M.put('/api/admin/items/' + id + '/approve', {msg:''}).then(function(r){
+      layer.msg(r.msg); pendingTbl.reload(); allTbl.reload(); loadStats();
+    });
+  });
+
+  $(document).on('click', '.reject-btn', function(){
+    var id = $(this).data('id');
+    layer.prompt({title:'驳回原因'}, function(val, idx){
+      M.put('/api/admin/items/' + id + '/reject', {msg:val}).then(function(r){
+        layer.msg(r.msg); layer.close(idx); pendingTbl.reload(); allTbl.reload(); loadStats();
+      });
+    });
+  });
+
+  $(document).on('click', '.suspend-btn', function(){
+    var id = $(this).data('id');
+    layer.confirm('确认下架？', function(idx){
+      M.put('/api/admin/items/' + id + '/suspend', {msg:'管理员下架'}).then(function(r){
+        layer.msg(r.msg); layer.close(idx); allTbl.reload();
+      });
+    });
+  });
+
+  $(document).on('click', '.del-btn', function(){
+    var id = $(this).data('id');
+    layer.confirm('确认删除？此操作不可恢复！', function(idx){
+      M.del('/api/admin/items/' + id).then(function(r){
+        layer.msg(r.msg); layer.close(idx); allTbl.reload(); loadStats();
+      });
+    });
+  });
+
+  $(document).on('click', '.approve-edit-btn', function(){
+    var id = $(this).data('id');
+    M.put('/api/admin/edit-requests/' + id + '/approve').then(function(r){
+      layer.msg(r.msg); editsTbl.reload(); loadStats();
+    });
+  });
+
+  $(document).on('click', '.reject-edit-btn', function(){
+    var id = $(this).data('id');
+    M.put('/api/admin/edit-requests/' + id + '/reject').then(function(r){
+      layer.msg(r.msg); editsTbl.reload(); loadStats();
+    });
+  });
+
+  $(document).on('click', '.ban-btn', function(){
+    var id = $(this).data('id');
+    M.put('/api/admin/users/' + id, {status:'banned'}).then(function(r){
+      layer.msg(r.msg); usersTbl.reload();
+    });
+  });
+
+  $(document).on('click', '.unban-btn', function(){
+    var id = $(this).data('id');
+    M.put('/api/admin/users/' + id, {status:'active'}).then(function(r){
+      layer.msg(r.msg); usersTbl.reload();
+    });
+  });
+
+  // Tab switch refresh
+  element.on('tab(admin-tab)', function () {
+    loadStats();
+  });
+});
+</script>
+</body>
+</html>

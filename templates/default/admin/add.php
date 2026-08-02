@@ -427,6 +427,7 @@ msloadingde();
                   <li><a class="dropdown-item" href="#!" onclick="add_cz('gettj')">GET提交</a></li>
                   <li><a class="dropdown-item" href="#!" onclick="add_cz('setyxml')">设置运行目录</a></li>
                   <li><a class="dropdown-item" href="#!" onclick="add_cz('setwjt')">配置伪静态</a></li>
+                  <li><a class="dropdown-item" href="#!" onclick="add_cz('setphp')">设置PHP版本</a></li>
                 </ul>
                 
               </div>
@@ -464,6 +465,7 @@ msloadingde();
 <b>导入数据库文件：</b>将指定目录下的指定文件（该文件必须为数据库文件）导入进数据库（此操作完成后并不会删除该数据库文件）<br/>
 <b>修改文件内容：</b>修改指定目录下的一个指定文件的内容<br/>
 <b>GET提交：</b>也就是访问url；目前只支持访问http不支持https！比如我要访问http://baidu.com/?a=1&b=2&c=[cn_user]那么要访问的域名那一栏则填写 baidu.com 提交的内容的那一栏填写a=1&b=2&c=[cn_user]<br/>
+<b>设置PHP版本：</b>将站点的PHP版本切换为指定版本（如74/80/81/82，宝塔需已安装该版本；支持 [sf_变量名] 引用用户表单中的版本选择）<br/>
 
 
 部署完成后的弹窗提示、修改文件内容、GET提交的数据均可用以下代替法：<br/><span color="#000"><b> 

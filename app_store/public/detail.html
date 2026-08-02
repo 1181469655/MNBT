@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>详情 - MNBT Store</title>
+<link rel="stylesheet" href="/lib/layui/css/layui.css">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div id="header-top" class="header"></div>
+
+<div class="detail-wrapper" id="detail-content"></div>
+
+<script src="/lib/layui/layui.js"></script>
+<script src="/js/app.js"></script>
+<script>
+layui.use(function () {
+  var urlParams = new URLSearchParams(location.search);
+  var itemId = urlParams.get('id');
+
+  if (!itemId) {
+    document.getElementById('detail-content').innerHTML = '<div style="text-align:center;padding:60px;">参数错误</div>';
+    return;
+  }
+
+  M.get('/api/items/' + itemId).then(function (res) {
+    if (res.code !== 0 || !res.data) {
+      document.getElementById('detail-content').innerHTML = '<div style="text-align:center;padding:60px;">资源不存在</div>';
+      return;
+    }
+    renderDetail(res.data);
+    loadVersions();
+  });
+
+  function renderDetail(item) {
+    var imgHtml = '<div style="width:300px;height:200px;background:#f0f0f0;display:flex;align-items:center;justify-content:center;font-size:64px;color:#bbb;border-radius:8px;">&#128196;</div>';
+    if (item.main_image) {
+      imgHtml = '<img src="' + item.main_image + '" style="width:300px;height:200px;object-fit:cover;border-radius:8px;" alt="' + item.name + '" onerror="this.style.display=\'none\'">';
+    }
+
+    var typeText = item.type === 'plugin' ? '插件' : '主题';
+    var priceHtml = item.price === 0
+      ? '<span style="font-size:28px;color:#5FB878;font-weight:bold;">免费</span>'
+      : '<span style="font-size:28px;color:#ff5722;font-weight:bold;">&yen;' + parseFloat(item.price).toFixed(2) + '</span>';
+
+    var tags = [];
+    try { tags = JSON.parse(item.tags || '[]'); } catch(e) {}
+    var tagsHtml = tags.length > 0 ? tags.map(function(t) { return '<span class="layui-badge layui-bg-cyan">' + t + '</span>'; }).join(' ') : '';
+
+    var html =
+      '<div class="detail-card">' +
+      '<div class="detail-header">' +
+      '<div class="detail-img-wrapper">' + imgHtml + '</div>' +
+      '<div class="detail-info">' +
+      '<h2 class="detail-name">' + item.name + '</h2>' +
+      '<div class="detail-version">' + typeText + ' | v' + item.version + '</div>' +
+      '<div class="detail-meta"><strong>作者：</strong>' + item.author_name + '</div>' +
+      '<div class="detail-meta"><strong>文件大小：</strong>' + M.formatSize(item.zip_size) + '</div>' +
+      '<div class="detail-meta"><strong>下载量：</strong>' + item.downloads + ' 次</div>' +
+      '<div class="detail-meta"><strong>分类：</strong>' + (item.category || '未分类') + '</div>' +
+      '<div class="detail-meta"><strong>标签：</strong>' + (tagsHtml || '无') + '</div>' +
+      (item.requires_mnbt ? '<div class="detail-meta"><strong>要求：</strong>MNBT ' + item.requires_mnbt + '</div>' : '') +
+      '<div style="margin-top:20px">' + priceHtml + '</div>' +
+      '<div style="margin-top:20px">' +
+      '<a href="/api/items/' + item.id + '/download" class="layui-btn layui-btn-lg layui-btn-normal"><i class="layui-icon layui-icon-download-circle"></i> 下载</a>' +
+      '</div>' +
+      '</div>' +
+      '</div>' +
+      '<div class="detail-body">' +
+      '<fieldset class="layui-elem-field"><legend>简介</legend>' +
+      '<div class="desc-content">' + (item.description || '暂无简介') + '</div>' +
+      '</fieldset>' +
+      '</div>' +
+      (item.homepage ? '<div style="margin-top:15px"><a href="' + item.homepage + '" target="_blank" class="layui-btn layui-btn-primary layui-btn-sm">项目主页</a></div>' : '') +
+      '<div style="margin-top:30px" id="versions-section">' +
+      '<fieldset class="layui-elem-field"><legend>版本历史</legend>' +
+      '<div id="version-list" style="padding:10px;color:#999;">加载中...</div>' +
+      '</fieldset>' +
+      '</div>' +
+      '</div>';
+
+    document.getElementById('detail-content').innerHTML = html;
+    document.title = item.name + ' - MNBT Store';
+  }
+
+  function loadVersions() {
+    M.get('/api/items/' + itemId + '/versions').then(function (res) {
+      if (res.code === 0 && res.data.length > 0) {
+        var html = '<table class="layui-table"><thead><tr><th>版本</th><th>大小</th><th>时间</th></tr></thead><tbody>';
+        res.data.forEach(function (v) {
+          html += '<tr><td>' + v.version + '</td><td>' + M.formatSize(v.zip_size) + '</td><td>' + v.created_at + '</td></tr>';
+        });
+        html += '</tbody></table>';
+        document.getElementById('version-list').innerHTML = html;
+      } else {
+        document.getElementById('version-list').innerHTML = '暂无版本记录';
+      }
+    });
+  }
+});
+</script>
+</body>
+</html>

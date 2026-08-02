@@ -337,6 +337,38 @@ chown -R www:www .
 
 ---
 
+## API 文档
+
+完整接口文档见 **[API.md](API.md)**，覆盖前端所需的全部接口与模块对接接口。
+
+### 文档结构
+
+| 章节 | 内容 |
+|------|------|
+| [1. 通用约定](API.md#1-通用约定) | 请求/响应格式、错误码、Cookie Token / 双重密钥 / 节点鉴权机制 |
+| [2. 后台管理接口](API.md#2-后台管理接口adminajaxphp) | `admin/ajax.php` 全部 `gn`（bt / zj / cx / dd / gg / log / node / setting / repair / plugin） |
+| [3. 用户控制面板接口](API.md#3-用户控制面板接口userajaxphp) | `user/ajax.php` 全部 `gn`（login / site / file / domain / ssl / database / cache / deploy / monitor / site_stats / panel） |
+| [4. 外部对接 API](API.md#4-外部对接-api) | 主机生命周期 API（`api/api.php`）、MNBT 节点 API（`api/node.php`） |
+| [5. 插件对接 API](API.md#5-插件对接-api) | 插件 AJAX 规则、注册函数、钩子一览、支付插件 API、自动鉴权 |
+| [6. 核心工具函数](API.md#6-核心工具函数) | `json_exit` / `logjl` / `send_post` / `authcode` 等 |
+| [7. 数据库表速查](API.md#7-数据库表速查) | 全部 18 张表说明 |
+
+### 接口快速参考
+
+| 入口 | 鉴权 | 用途 |
+|------|------|------|
+| `POST /admin/ajax.php` | `admin_token` Cookie | 后台管理全部操作 |
+| `POST /user/ajax.php` | `user_token` Cookie | 用户控制面板全部操作 |
+| `POST /api/api.php?gn=xxx` | `mn_key` + `mn_keye` 双重密钥 | 外部系统对接主机生命周期（开通/暂停/删除/续费/重置密码/改配额） |
+| `POST /api/node.php?act=xxx` | `node_id` + `node_secret` | MNBT 节点心跳/任务拉取/结果上报/配置获取 |
+| `POST /admin/ajax.php?gn=p_xxx` | 框架自动鉴权（`admin`/`user`/回调） | 插件 AJAX（`p_` 前缀） |
+| `GET /admin/plugin.php?p={slug}&page={xxx}` | 管理员登录 | 插件后台页面 |
+| `GET /user/plugin.php?p={slug}&page={xxx}` | 用户登录 | 插件用户端页面 |
+
+> 外部 API 接口摘要详见下方 [外部 API 接口](#外部-api-接口)，完整字段与示例见 [API.md](API.md)。
+
+---
+
 ## 数据库
 
 ### 核心表结构（共 13 张表）

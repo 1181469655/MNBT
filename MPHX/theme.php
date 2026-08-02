@@ -259,7 +259,7 @@ function mnbt_theme_include($view, array $vars = [], $scope = 'user')
 
 	// 模式 1：完全接管
 	if (is_string($override)) {
-		echo $override;
+		echo mnbt_csrf_inject_html($override);
 		return true;
 	}
 
@@ -291,7 +291,13 @@ function mnbt_theme_include($view, array $vars = [], $scope = 'user')
 	if ($vars) {
 		extract($vars, EXTR_OVERWRITE);
 	}
-	include $path;
+	$bufferLevel = ob_get_level();
+	ob_start('mnbt_csrf_inject_html');
+	try {
+		include $path;
+	} finally {
+		while (ob_get_level() > $bufferLevel) ob_end_flush();
+	}
 
 	// 模式 2：包裹模式 - 输出 after
 	if ($after !== '') {
@@ -327,7 +333,7 @@ function mnbt_render($view, array $vars = [], $exit = true, $scope = 'user')
 
 	// 模式 1：完全接管
 	if (is_string($override)) {
-		echo $override;
+		echo mnbt_csrf_inject_html($override);
 		if ($exit) {
 			exit;
 		}
@@ -362,7 +368,13 @@ function mnbt_render($view, array $vars = [], $exit = true, $scope = 'user')
 	if ($vars) {
 		extract($vars, EXTR_OVERWRITE);
 	}
-	include $path;
+	$bufferLevel = ob_get_level();
+	ob_start('mnbt_csrf_inject_html');
+	try {
+		include $path;
+	} finally {
+		while (ob_get_level() > $bufferLevel) ob_end_flush();
+	}
 
 	// 模式 2：after
 	if ($after !== '') {

@@ -103,16 +103,16 @@ def log_debug(msg, *args):
     get_logger().debug(msg, *args)
 
 
-def log_info(msg, *args):
-    get_logger().info(msg, *args)
+def log_info(msg, *args, **kwargs):
+    get_logger().info(msg, *args, **kwargs)
 
 
-def log_warn(msg, *args):
-    get_logger().warning(msg, *args)
+def log_warn(msg, *args, **kwargs):
+    get_logger().warning(msg, *args, **kwargs)
 
 
-def log_error(msg, *args):
-    get_logger().error(msg, *args)
+def log_error(msg, *args, **kwargs):
+    get_logger().error(msg, *args, **kwargs)
 
 
 def setup_worker_log():

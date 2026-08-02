@@ -108,14 +108,14 @@ mnbt_register_payment('epay', [
 // ============================================================
 //  注册回调路由：/pay/epay/notify（异步通知）
 // ============================================================
-mnbt_register_route('*', '/pay/epay/notify', function ($params, $ctx) {
+mnbt_register_route('POST', '/pay/epay/notify', function ($params, $ctx) {
 	@header('Content-Type: text/plain; charset=UTF-8');
 	if (!epay_is_configured()) {
 		echo 'fail';
 		return;
 	}
 	$c = epay_get_config();
-	$data = $_SERVER['REQUEST_METHOD'] === 'POST' ? $_POST : $_GET;
+	$data = $_POST;
 	if (empty($data) || empty($data['sign'])) {
 		mnbt_pay_log('易支付异步通知无数据或缺少 sign', '回调异常', $data['out_trade_no'] ?? '');
 		echo 'fail';
@@ -140,12 +140,12 @@ mnbt_register_route('*', '/pay/epay/notify', function ($params, $ctx) {
 	} else {
 		echo 'fail';
 	}
-});
+}, 10, null, true);
 
 // ============================================================
 //  注册回调路由：/pay/epay/return（同步返回）
 // ============================================================
-mnbt_register_route('*', '/pay/epay/return', function ($params, $ctx) {
+mnbt_register_route('GET', '/pay/epay/return', function ($params, $ctx) {
 	if (!epay_is_configured()) {
 		@header('Location: ./');
 		return;
