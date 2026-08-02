@@ -1,0 +1,16 @@
+# 依赖
+node_modules/
+
+# 构建产物
+dist/
+
+# 运行时数据
+data/
+uploads/
+
+# 环境配置
+.env
+*.local.js
+
+# 日志
+*.log
