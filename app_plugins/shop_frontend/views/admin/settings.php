@@ -11,6 +11,9 @@ $primary = preg_match('/^#[0-9a-fA-F]{6}$/', (string)$values['site_primary']) ? 
 $accent  = preg_match('/^#[0-9a-fA-F]{6}$/', (string)$values['site_accent'])  ? strtolower($values['site_accent'])  : '#ff5722';
 ?>
 <div class="container-fluid" style="padding:20px;">
+  <div style="margin-bottom:16px;border-radius:10px;overflow:hidden;border:1px solid #e6e8f0;line-height:0;">
+    <img src="<?= shop_frontend_asset_url('ad3.webp') ?>" alt="广告" style="display:block;width:100%;height:auto;">
+  </div>
 <div class="card">
   <div class="card-header bg-info"><h4>售卖前端设置</h4></div>
   <div class="card-body">

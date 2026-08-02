@@ -3,6 +3,6 @@
   "name": "售卖前端",
   "version": "1.3.0",
   "description": "统一商店前端：接管首页落地页，并统一 user_info / balance / hosting_shop 的用户端页面样式",
-  "author": "MNBT",
+  "author": "YANG",
   "type": ["business"]
 }
