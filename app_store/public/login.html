@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>登录 - MNBT Store</title>
+<link rel="stylesheet" href="/lib/layui/css/layui.css">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div id="header-top" class="header"></div>
+
+<div class="auth-wrapper">
+  <div class="auth-card">
+    <h2>登录</h2>
+    <form class="layui-form" id="login-form">
+      <div class="layui-form-item">
+        <input type="text" name="username" lay-verify="required" placeholder="用户名" class="layui-input">
+      </div>
+      <div class="layui-form-item">
+        <input type="password" name="password" lay-verify="required" placeholder="密码" class="layui-input">
+      </div>
+      <div class="layui-form-item">
+        <div class="layui-input-inline" style="width:140px;">
+          <input type="text" name="captcha" lay-verify="required" placeholder="验证码" class="layui-input">
+        </div>
+        <div class="layui-input-inline" style="width:120px;">
+          <img src="/api/auth/captcha" id="captcha-img" alt="验证码" style="height:38px;cursor:pointer;border-radius:4px;" title="点击刷新">
+        </div>
+      </div>
+      <div class="layui-form-item">
+        <button type="button" lay-submit lay-filter="login" class="layui-btn layui-btn-fluid">登录</button>
+      </div>
+      <div style="text-align:center">
+        <a href="/register.html">还没有账号？立即注册</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="/lib/layui/layui.js"></script>
+<script src="/js/app.js"></script>
+<script>
+layui.use('form', function () {
+  var form = layui.form;
+
+  var captchaImg = document.getElementById('captcha-img');
+  captchaImg.addEventListener('click', function () {
+    this.src = '/api/auth/captcha?t=' + Date.now();
+  });
+
+  form.on('submit(login)', function (data) {
+    M.post('/api/auth/login', data.field).then(function (res) {
+      if (res.code === 0) {
+        layer.msg('登录成功', function () {
+          location.href = '/';
+        });
+      } else {
+        layer.msg(res.msg || '登录失败');
+        captchaImg.src = '/api/auth/captcha?t=' + Date.now();
+      }
+    });
+    return false;
+  });
+});
+</script>
+</body>
+</html>

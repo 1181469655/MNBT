@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>首页 - MNBT Store</title>
+<link rel="stylesheet" href="/lib/layui/css/layui.css">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div id="header-top" class="header"></div>
+
+<div class="main-container">
+  <div class="filter-bar">
+    <div class="layui-btn-group" id="type-filter">
+      <button type="button" class="layui-btn layui-btn-sm" data-type="">全部</button>
+      <button type="button" class="layui-btn layui-btn-primary layui-btn-sm" data-type="plugin">插件</button>
+      <button type="button" class="layui-btn layui-btn-primary layui-btn-sm" data-type="theme">主题</button>
+    </div>
+    <select id="sort-select" lay-ignore style="margin-left:10px;">
+      <option value="newest">最新</option>
+      <option value="downloads">最多下载</option>
+      <option value="price">价格排序</option>
+    </select>
+    <span style="color:#999;font-size:13px;margin-left:10px;" id="total-info"></span>
+  </div>
+
+  <div class="card-grid" id="card-list"></div>
+  <div class="pagination-wrapper" id="pagination"></div>
+</div>
+
+<script src="/lib/layui/layui.js"></script>
+<script src="/js/app.js"></script>
+<script>
+layui.use(['laypage', 'util'], function () {
+  var laypage = layui.laypage;
+  var currentType = '';
+  var currentSort = 'newest';
+  var currentKeyword = '';
+  var currentPage = 1;
+  var totalCount = 0;
+
+  function loadItems(page) {
+    currentPage = page || 1;
+    var params = 'page=' + currentPage + '&page_size=12&sort=' + currentSort;
+    if (currentType) params += '&type=' + currentType;
+    if (currentKeyword) params += '&keyword=' + encodeURIComponent(currentKeyword);
+
+    M.get('/api/items?' + params).then(function (res) {
+      if (res.code === 0) {
+        totalCount = res.data.total;
+        document.getElementById('total-info').textContent = '共 ' + totalCount + ' 个资源';
+        renderCards(res.data.items);
+        renderPagination();
+      }
+    });
+  }
+
+  function renderCards(items) {
+    var html = '';
+    if (items.length === 0) {
+      html = '<div style="grid-column:1/-1;text-align:center;padding:60px;color:#999;">暂无内容</div>';
+    }
+    items.forEach(function (item) {
+      var imgHtml = '<div class="card-img">&#128196;</div>';
+      if (item.main_image) {
+        imgHtml = '<img class="card-img" src="' + item.main_image + '" alt="' + item.name + '" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';">' +
+          '<div class="card-img" style="display:none">&#128196;</div>';
+      }
+      var descText = M.stripHtml(item.description).substring(0, 60);
+      html += '<div class="card-item" onclick="location.href=\'/detail.html?id=' + item.id + '\'">' +
+        imgHtml +
+        '<div class="card-body">' +
+        '<div class="card-title">' + item.name + '</div>' +
+        '<div class="card-desc">' + (descText || '暂无简介') + '</div>' +
+        '<div class="card-meta">' +
+        '<span>' + item.author_name + '</span>' +
+        '<span>' + item.type + ' | v' + item.version + '</span>' +
+        '</div>' +
+        '<div class="card-meta" style="margin-top:5px">' +
+        M.formatPrice(item.price) +
+        '<span>' + item.downloads + ' 次下载</span>' +
+        '</div>' +
+        '</div></div>';
+    });
+    document.getElementById('card-list').innerHTML = html;
+  }
+
+  function renderPagination() {
+    if (totalCount <= 12) {
+      document.getElementById('pagination').innerHTML = '';
+      return;
+    }
+    laypage.render({
+      elem: 'pagination',
+      count: totalCount,
+      limit: 12,
+      curr: currentPage,
+      layout: ['prev', 'page', 'next'],
+      jump: function (obj, first) {
+        if (!first) {
+          loadItems(obj.curr);
+          window.scrollTo(0, 0);
+        }
+      }
+    });
+  }
+
+  // Type filter
+  document.getElementById('type-filter').addEventListener('click', function (e) {
+    if (e.target.tagName === 'BUTTON') {
+      var btns = this.querySelectorAll('button');
+      btns.forEach(function (b) { b.className = 'layui-btn layui-btn-primary layui-btn-sm'; });
+      e.target.className = 'layui-btn layui-btn-sm';
+      currentType = e.target.dataset.type;
+      currentPage = 1;
+      loadItems(1);
+    }
+  });
+
+  // Sort
+  document.getElementById('sort-select').addEventListener('change', function () {
+    currentSort = this.value;
+    currentPage = 1;
+    loadItems(1);
+  });
+
+  // Search
+  document.addEventListener('store-search', function (e) {
+    currentKeyword = e.detail;
+    currentPage = 1;
+    loadItems(1);
+  });
+
+  // Initial load
+  loadItems(1);
+});
+</script>
+</body>
+</html>
