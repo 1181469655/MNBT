@@ -971,7 +971,7 @@ function mnbt_http_request($method, $url, $body = null, $opts = [])
 	curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
 	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, !empty($opts['insecure']) ? false : true);
 	curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, !empty($opts['insecure']) ? 0 : 2);
-	curl_setopt($ch, CURLOPT_USERAGENT, $opts['user_agent'] ?? 'MNBT-Plugin/1.81');
+	curl_setopt($ch, CURLOPT_USERAGENT, $opts['user_agent'] ?? 'MNBT-Plugin/1.82');
 	if ($method === 'POST') {
 		curl_setopt($ch, CURLOPT_POST, true);
 		if ($body !== null) {

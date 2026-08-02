@@ -235,7 +235,7 @@
                         </div>
                         <div>
                             <p class="text-primary-foreground font-bold text-base leading-none">MNBT</p>
-                            <p class="text-xs leading-none mt-1" style="color: rgba(255, 255, 255, 0.5);">V<span class="mn-vs">1.81</span> 安装向导</p>
+                            <p class="text-xs leading-none mt-1" style="color: rgba(255, 255, 255, 0.5);">V<span class="mn-vs">1.82</span> 安装向导</p>
                         </div>
                     </div>
                     <div class="hidden md:block">
@@ -373,7 +373,7 @@
                                         </div>
                                         <div>
                                             <h2 class="text-2xl font-bold text-foreground leading-tight">欢迎使用 梦奈宝塔主机系统</h2>
-                                            <p class="text-muted-foreground text-sm mt-0.5">版本 V<span class="mn-vs">1.79</span> &middot; 约需 2 分钟</p>
+                                            <p class="text-muted-foreground text-sm mt-0.5">版本 V<span class="mn-vs">1.82</span> &middot; 约需 2 分钟</p>
                                         </div>
                                     </div>
                                     <p class="text-foreground text-sm leading-relaxed mb-6">
@@ -607,8 +607,8 @@
                                                         <svg style="display: none;" width="11" height="9" viewBox="0 0 11 9" fill="none"><path d="M1 4L4 7L10 1" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
                                                     </div>
                                                     <div>
-                                                        <p class="text-sm font-medium text-foreground">覆盖更新（保留数据升级到 V1.81）<span class="mn-upgrade-detail" style="font-weight:normal;color:var(--muted-foreground)"></span></p>
-                                                        <p class="text-xs text-muted-foreground mt-0.5">添加 V1.81 新增表和字段，自动补全缺失项，保留所有已有数据</p>
+                                                        <p class="text-sm font-medium text-foreground">覆盖更新（保留数据升级到 V1.82）<span class="mn-upgrade-detail" style="font-weight:normal;color:var(--muted-foreground)"></span></p>
+                                                        <p class="text-xs text-muted-foreground mt-0.5">添加 V1.82 新增表和字段，自动补全缺失项，保留所有已有数据</p>
                                                     </div>
                                                 </div>
                                                 <div class="flex items-start gap-3 p-3 rounded-xl border mb-3 cursor-pointer transition-all duration-200 use-terms mn-repair" style="border-color: var(--border); background: var(--card); user-select: none;">
@@ -861,7 +861,7 @@
                         $('.mn-repair').parent().show();
                     } else {
                         console.log('[升级检测] 数据完整，无需升级');
-                        $('.mn-upgrade-detail').text('（当前已是 V1.81，无需升级）');
+                        $('.mn-upgrade-detail').text('（当前已是 V1.82，无需升级）');
                         $('.mn-upgrade').parent().show();
                         $('.mn-repair').parent().show();
                     }

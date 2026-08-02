@@ -506,7 +506,7 @@ switch ($action) {
 
         @file_put_contents("install.lock", '安装锁');
         if ($install_mode === 'upgrade') {
-            exit(Res(1, '升级完成！已保留原有数据，成功更新至 V1.81'));
+            exit(Res(1, '升级完成！已保留原有数据，成功更新至 V1.82'));
         }
         if ($skip_sql) {
             exit(Res(1, '安装完成（保留原表并更新站点/管理员配置）'));
