@@ -1,5 +1,15 @@
 <template>
   <div class="td-page td-dashboard">
+    <!-- 顶部横幅广告位 -->
+    <div v-if="bannerVisible" class="ad-banner">
+      <a href="https://www.qimingidc.cn/" target="_blank" rel="noopener" class="ad-link">
+        <img :src="adImg" alt="广告" class="ad-img" />
+      </a>
+      <button class="ad-close" title="关闭广告" @click="closeBanner">
+        <i class="mdi mdi-close"></i>
+      </button>
+    </div>
+
     <!-- 欢迎区 -->
     <section class="hero">
       <div class="hero-left">
@@ -179,10 +189,23 @@
 import { computed, onMounted, onBeforeUnmount, ref, nextTick } from 'vue'
 import { checkUpdate, systemInfo } from '@/admin/api/dashboard'
 import echarts from '@/shared/utils/echarts'
+import adImg from '@/shared/assets/ad3.webp'
 
 const boot = window.__TD_BOOT__ || {}
 const adminUser = boot.adminUser || 'admin'
 const siteName = boot.siteName || 'MNBT'
+
+// 顶部横幅广告（关闭状态记入 localStorage，下次进入不再显示）
+const bannerVisible = ref(true)
+function closeBanner() {
+  bannerVisible.value = false
+  try {
+    localStorage.setItem('td_admin_ad_closed', '1')
+  } catch { /* ignore */ }
+}
+try {
+  if (localStorage.getItem('td_admin_ad_closed') === '1') bannerVisible.value = false
+} catch { /* ignore */ }
 
 // 系统信息:优先从 boot.sy 读取(如果由 sy.php 控制器加载),否则通过 AJAX 获取
 const bootSy = boot.sy || {}
@@ -463,6 +486,44 @@ onBeforeUnmount(() => {
 <style scoped>
 .td-dashboard {
   padding: 20px;
+}
+
+/* ============== 顶部横幅广告 ============== */
+.ad-banner {
+  position: relative;
+  border-radius: var(--td-radius-xl);
+  overflow: hidden;
+  margin-bottom: 18px;
+  border: 1px solid var(--td-border);
+  box-shadow: var(--td-shadow-sm);
+  animation: td-fade-in var(--td-dur-lg) var(--td-ease-out);
+}
+.ad-link {
+  display: block;
+}
+.ad-img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.ad-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.35);
+  color: #fff;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  font-size: 15px;
+  transition: background 0.2s;
+}
+.ad-close:hover {
+  background: rgba(0, 0, 0, 0.55);
 }
 
 /* ============== 欢迎区 ============== */
