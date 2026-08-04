@@ -847,7 +847,34 @@ backup/
 
 ## 更新日志
 
-### V1.82（当前）
+### V1.83（当前）
+
+**Docker 容器托管**
+
+- 独立于主机业务的 Docker 容器托管模块，单容器模型（每用户最多创建一个容器）
+- 独立认证：`docker/` 控制台使用独立 `docker_token` cookie，与 `admin_token`/`user_token` 隔离
+- 独立表：`MN_docker_node`（节点）、`MN_docker_user`（用户）、`MN_docker_plan`（套餐）、`MN_docker_order`（订单）
+- 宝塔 Docker API 封装：`MPHX/bt_docker.php`，支持容器列表/创建/启停/删除、镜像/应用商店/已安装应用、Compose 模板/数据卷等全部接口
+- 用户端：`docker/` 控制台（我的容器、应用商店、镜像管理、数据卷、Compose 模板），支持容器创建进度追踪、端口映射可视化、应用参数中文说明
+- 管理端：Docker 节点管理、套餐管理、用户管理、订单管理、到期软删流程（`active` → `expired` → `pruned` → 物理删除）
+- 外部 API：`api/docker.php`（`mn_key` 鉴权），供第三方对接容器开通/续费/删除
+- 升级 SQL：`update/update_v183_docker.sql`
+- 文档：`docs/Docker_API.md`（内部 API 对接文档）
+
+**前端设计升级**
+
+- Docker 控制台整体改为浅色简约圆角设计，白色侧边栏 + 浅灰背景
+- 新增 `docker.svg` 横向 logo，登录页与侧边栏统一使用
+- 主题色从 `#3a7bd5` 升级为 `#2563eb`，圆角从 10px 提升到 14px
+- 顶部栏毛玻璃效果（`backdrop-filter: blur`），输入框/按钮 focus 光晕
+- 应用商店搜索框胶囊形圆角，卡片 hover 柔和投影
+
+**模板开发文档更新**
+
+- `templates/THEME_DEV.md` 新增 Docker 视图清单与主题开发说明
+- 新增 `docker` scope 视图支持（`templates/{theme}/docker/`），缺页回退 `default`
+
+### V1.81
 
 **PHP 业务插件系统（P0 + P1）**
 

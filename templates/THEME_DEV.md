@@ -136,7 +136,44 @@ templates/my_theme/user/login.php
 | `tutorial.php` | 教程与监控说明 | 可选 |
 | `update.php` | 系统更新 | 可选 |
 
-### 3.3 不走主题的路径（一般不要动）
+### 3.3 Docker 控制台 `templates/{theme}/docker/` <small>（V1.83 新增）</small>
+
+Docker 控制台是独立于用户端/管理端的第三套视图体系，有独立的认证机制（`docker_token` cookie）。
+
+| 视图文件 | 说明 | 建议 |
+|----------|------|------|
+| `head.php` | 公共引导文件（主题配置、节点信息、用户信息、导航菜单） | 改整体风格必改 |
+| `foot.php` | 公共尾部（Toast/Modal 容器、HTML 文档闭合） | 改整体风格必改 |
+| `login.php` | Docker 登录页 | 强烈建议覆盖 |
+| `console.php` | 我的容器（单容器详情页） | 建议 |
+| `appstore.php` | 应用商店（宝塔应用市场） | 建议 |
+| `image.php` | 镜像管理 | 可选 |
+| `volume.php` | 数据卷管理 | 可选 |
+| `compose.php` | Compose 模板 | 可选 |
+
+**静态资源**：`templates/{theme}/docker/assets/`（CSS、JS、图片、SVG），使用 `mnbt_theme_asset('docker.css', 'docker')` 引用。
+
+**Docker 视图依赖的公共 JS 函数**（在 `head.php` 中加载）：
+
+| 函数 | 用途 |
+|------|------|
+| `dkAjax(gn, data, opts)` | Docker AJAX 请求（自动附带 CSRF token） |
+| `dkToast(msg, type)` | 消息提示 |
+| `dkModal(title, body, foot)` | 模态框 |
+| `dockerLogout()` | 退出登录 |
+| `dkCloseModal()` | 关闭模态框 |
+
+**Docker 控制器路径**：
+
+| 控制器 | 路径 |
+|--------|------|
+| 页面入口 | `docker/console.php`、`docker/appstore.php` 等 |
+| AJAX 后端 | `docker/ajax.php` |
+| CSS 样式 | `templates/default/docker/assets/docker.css` |
+
+**主题 scope 注册**：`docker` scope 在 `MPHX/theme.php` 中注册，与 `user`/`admin` 独立。`theme.json` 可声明 `"scope": ["user", "admin", "docker"]`。
+
+### 3.4 不走主题的路径（一般不要动）
 
 | 路径 | 原因 |
 |------|------|
@@ -624,6 +661,8 @@ my_theme.zip
 | `templates/default/**/assets/` | 默认主题私有资源（`mnbt_theme_asset`） |
 | `templates/default/**` | 官方默认视图 |
 | `templates/layui/**` | Layui 混合栈示例主题 |
+| `templates/default/docker/` | Docker 控制台默认视图（V1.83+） |
+| `docker/` | Docker 控制台控制器（V1.83+） |
 
 ---
 
@@ -634,5 +673,6 @@ my_theme.zip
 - 若官方修改某页 DOM 结构，依赖旧 DOM 的自定义主题可能需跟进调整
 - 资源 API：`mnbt_theme_url` 会对主题私有文件做 default 回退；`mnbt_asset_url` 始终指向 `imsetes/`
 - `layui` 主题自 v1.81 起提供，作为混合栈示例
+- `docker` scope 自 v1.83 起支持，提供独立的 Docker 控制台视图体系
 
 如有疑问，可在项目 Issue 中反馈并附上主题目录结构与报错截图。
