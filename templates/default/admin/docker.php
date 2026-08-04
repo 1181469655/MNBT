@@ -84,18 +84,24 @@ function dkLoadNodeSel(){
 	});
 }
 function dkNodeEdit(id){
+	var row = null;
+	if (id) {
+		var rows = $('#dkNodeTable').bootstrapTable('getData') || [];
+		for (var i = 0; i < rows.length; i++) { if (rows[i].id == id) { row = rows[i]; break; } }
+	}
+	function v(f){ return row ? String(row[f] == null ? '' : row[f]).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : ''; }
 	$.confirm({
 		title: id?'编辑节点':'添加节点', columnClass:'m', content:
 		'<form class="form-horizontal">'+
 			'<input type="hidden" id="dk_nid" value="'+id+'">'+
-			'<div class="form-group"><label>节点名称 *</label><input class="form-control" id="dk_name" placeholder="如：北京节点A"></div>'+
-			'<div class="form-group"><label>宝塔面板地址 *</label><input class="form-control" id="dk_btip" placeholder="IP 或域名"></div>'+
-			'<div class="form-group"><label>端口</label><input class="form-control" id="dk_btdk" value="8888"></div>'+
-			'<div class="form-group"><label>HTTPS</label><select class="form-control" id="dk_ptl"><option value="false">否</option><option value="true">是</option></select></div>'+
-			'<div class="form-group"><label>宝塔接口密钥 *</label><textarea class="form-control" id="dk_btmy" rows="2" placeholder="宝塔面板 API 密钥"></textarea></div>'+
-			'<div class="form-group"><label>调用密钥（外部API鉴权）</label><input class="form-control" id="dk_ktmy" placeholder="留空则不校验调用密钥"></div>'+
-			'<div class="form-group"><label>二级验证密钥</label><input class="form-control" id="dk_qmk" placeholder="与调用密钥组合 md5 校验"></div>'+
-			'<div class="form-group"><label>启用</label><select class="form-control" id="dk_qk"><option value="true">启用</option><option value="false">禁用</option></select></div>'+
+			'<div class="form-group"><label>节点名称 *</label><input class="form-control" id="dk_name" value="'+v('name')+'" placeholder="如：北京节点A"></div>'+
+			'<div class="form-group"><label>宝塔面板地址 *</label><input class="form-control" id="dk_btip" value="'+v('btip')+'" placeholder="IP 或域名"></div>'+
+			'<div class="form-group"><label>端口</label><input class="form-control" id="dk_btdk" value="'+(row?v('btdk'):'8888')+'"></div>'+
+			'<div class="form-group"><label>HTTPS</label><select class="form-control" id="dk_ptl"><option value="false"'+(row&&row.ptl==='false'?' selected':'')+'>否</option><option value="true"'+(row&&row.ptl==='true'?' selected':'')+'>是</option></select></div>'+
+			'<div class="form-group"><label>宝塔接口密钥 *</label><textarea class="form-control" id="dk_btmy" rows="2" placeholder="宝塔面板 API 密钥">'+v('btmy')+'</textarea></div>'+
+			'<div class="form-group"><label>调用密钥（外部API鉴权）</label><input class="form-control" id="dk_ktmy" value="'+v('ktmy')+'" placeholder="留空则不校验调用密钥"></div>'+
+			'<div class="form-group"><label>二级验证密钥</label><input class="form-control" id="dk_qmk" value="'+v('qmk')+'" placeholder="与调用密钥组合 md5 校验"></div>'+
+			'<div class="form-group"><label>启用</label><select class="form-control" id="dk_qk"><option value="true"'+(row&&row.qk==='true'?' selected':'')+'>启用</option><option value="false"'+(row&&row.qk==='false'?' selected':'')+'>禁用</option></select></div>'+
 		'</form>',
 		buttons:{ ok:{text:'保存',btnClass:'btn-primary',action:function(){
 			var d={gn:id?'docker_node_edit':'docker_node_add', id:id, name:$('#dk_name').val(), btip:$('#dk_btip').val(), btdk:$('#dk_btdk').val(), ptl:$('#dk_ptl').val(), btmy:$('#dk_btmy').val(), ktmy:$('#dk_ktmy').val(), qmk:$('#dk_qmk').val(), qk:$('#dk_qk').val()};

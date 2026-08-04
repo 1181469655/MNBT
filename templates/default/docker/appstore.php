@@ -12,7 +12,7 @@ include __DIR__ . '/head.php';
 <div class="dk-card">
 	<div class="dk-card-head">
 		<h3>应用商店</h3>
-		<input class="dk-input" id="dkAppSearch" placeholder="搜索应用名称…" style="width:240px;padding:7px 12px">
+		<input class="dk-input" id="dkAppSearch" placeholder="搜索应用名称…" style="width:260px;padding:8px 14px">
 	</div>
 	<div class="dk-card-body">
 		<div class="dk-spinner-overlay" id="dkAppLoading"><span class="dk-spin"></span> 正在加载应用列表…</div>
@@ -81,9 +81,32 @@ include __DIR__ . '/head.php';
 		dkOpenInstallModal(app);
 	};
 
+	function dkRandomStr(len){
+		var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+		var s = '';
+		for (var i=0; i<(len||12); i++) s += chars.charAt(Math.floor(Math.random()*chars.length));
+		return s;
+	}
+	function dkRandomUser(len){
+		var chars = 'abcdefghijkmnpqrstuvwxyz23456789';
+		var s = '';
+		for (var i=0; i<(len||10); i++) s += chars.charAt(Math.floor(Math.random()*chars.length));
+		return s;
+	}
+	function dkRandomPort(){
+		return Math.floor(Math.random() * 50000) + 10000;
+	}
 	function fieldInput(key, def, desc, type){
 		var t = type || 'string';
-		var label = esc(key) + (desc ? ' <span class="dk-muted">('+ esc(desc) +')</span>' : '');
+		// 标签：优先用 desc（宝塔 field.name 会作为 desc 传入），其次用 key 去下划线
+		var label = desc ? esc(desc) : esc(key).replace(/_/g, ' ');
+		var isPwdField = (t === 'password' || t === 'secret' || /password|secret|passwd|pwd/i.test(key));
+		var isUserField = (/user|username|admin/i.test(key) && !/host|ip|email|domain/i.test(key));
+		var isPortField = (t === 'port' || /port/i.test(key));
+		if (def === 'random') def = dkRandomStr(12);
+		else if (isPwdField && (def === '' || def == null)) def = dkRandomStr(12);
+		else if (isUserField && (def === '' || def == null)) def = dkRandomUser(10);
+		else if (isPortField && (def === '' || def == null || def === '0')) def = dkRandomPort();
 		if (t === 'checkbox') {
 			var checked = def === true || def === 'true' || def === '1' ? 'checked' : '';
 			return '<div class="dk-field dk-field-full"><label>'+ label +'</label><label><input type="checkbox" name="'+ esc(key) +'" value="1" '+ checked +'> 启用</label></div>';
@@ -91,25 +114,47 @@ include __DIR__ . '/head.php';
 		if (t === 'textarea') {
 			return '<div class="dk-field dk-field-full"><label>'+ label +'</label><textarea class="dk-input" name="'+ esc(key) +'" rows="2">'+ esc(def || '') +'</textarea></div>';
 		}
-		var inputType = (t === 'port' || t === 'number') ? 'number' : 'text';
+		var inputType = (t === 'port' || t === 'number') ? 'number' : (isPwdField ? 'password' : 'text');
 		return '<div class="dk-field"><label>'+ label +'</label><input class="dk-input" type="'+ inputType +'" name="'+ esc(key) +'" value="'+ esc(def || '') +'"></div>';
 	}
 
 	function dkOpenInstallModal(app){
 		var versions = app.appversion || [];
+		// 构建版本下拉选项（version 字段专用）
 		var verOpts = '';
 		versions.forEach(function(v){
 			var sub = (v.s_version || []);
 			if (sub && sub.length) {
-				sub.forEach(function(sv){ verOpts += '<option value="'+ esc(v.m_version) +'|'+ esc(sv) +'">'+ esc(app.apptitle||app.appname) +' '+ esc(v.m_version) +'.'+ esc(sv) +'</option>'; });
+				sub.forEach(function(sv){ verOpts += '<option value="'+ esc(v.m_version) +'|'+ esc(sv) +'">'+ esc(v.m_version) +'.'+ esc(sv) +'</option>'; });
 			} else {
-				verOpts += '<option value="'+ esc(v.m_version) +'|0">'+ esc(app.apptitle||app.appname) +' '+ esc(v.m_version) +'</option>';
+				// 无子版本时 s_version 留空：宝塔后端会用 m_version 作为镜像 tag
+				// 之前 fallback 成 '0' 会导致 frps 这类应用拼出 latest.0 无效 tag
+				verOpts += '<option value="'+ esc(v.m_version) +'|">'+ esc(v.m_version) +'</option>';
 			}
 		});
+		// version 字段渲染为下拉框，而非普通输入
+		function versionFieldHtml(){
+			return '<div class="dk-field"><label>版本选择</label><select class="dk-select" name="dk_version">'+ verOpts +'</select></div>';
+		}
+
+		// 字段标签：优先用 field.name（中文），其次用 desc，最后用 key 去掉下划线
+		function fieldLabel(key, name, desc){
+			if (name) return esc(name);
+			if (desc) return esc(desc);
+			return esc(key).replace(/_/g, ' ');
+		}
 
 		var envHtml = '';
-		(app.env || []).forEach(function(e){ envHtml += fieldInput(e.key, e.default || '', e.desc, e.type); });
-		(app.field || []).forEach(function(f){ envHtml += fieldInput(f.attr, f.default || '', f.name, f.type); });
+		// 系统字段 + 宝塔内部管理字段（用户无需填写）
+		var seenKeys = {'cpus':1, 'memory_limit':1, 'allow_access':1, 'dk_version':1, 'version':1, 'app_path':1, 'host_ip':1};
+		(app.env || []).forEach(function(e){
+			var k = e.key; if (!k || seenKeys[k]) return; seenKeys[k] = 1;
+			envHtml += fieldInput(k, e.default || '', e.desc, e.type);
+		});
+		(app.field || []).forEach(function(f){
+			var k = f.attr; if (!k || seenKeys[k]) return; seenKeys[k] = 1;
+			envHtml += fieldInput(k, f.default || '', f.name, f.type);
+		});
 
 		var depHtml = '';
 		if (app.depend && app.depend.length) {
@@ -121,11 +166,12 @@ include __DIR__ . '/head.php';
 			'<div><h4>'+ esc(app.apptitle||app.appname) +'</h4><div class="dk-app-type">'+ esc(app.desc||'') +'</div></div></div>' +
 			depHtml +
 			'<form id="dkInstallForm">' +
-				'<div class="dk-field"><label>版本</label><select class="dk-select" name="dk_version">'+ verOpts +'</select></div>' +
+				// version 下拉（替换原来的空白输入框）
+				versionFieldHtml() +
 				'<div class="dk-form-grid">' +
-					'<div class="dk-field"><label>CPU 核数（上限 '+ CPU_MAX +'）</label><input class="dk-input" type="number" step="0.1" min="0.1" max="'+ CPU_MAX +'" name="cpus" value="'+ Math.min(1, CPU_MAX) +'"></div>' +
-					'<div class="dk-field"><label>内存 MB（上限 '+ MEM_MAX +'）</label><input class="dk-input" type="number" step="32" min="32" max="'+ MEM_MAX +'" name="memory_limit" value="'+ Math.min(512, MEM_MAX) +'"></div>' +
-					'<div class="dk-field dk-field-full"><label>允许外网访问</label><label><input type="checkbox" name="allow_access" value="1" checked> 允许</label></div>' +
+					'<div class="dk-field"><label>CPU 核数（0=不限制，上限 '+ CPU_MAX +'，整数）</label><input class="dk-input" type="number" step="1" min="0" max="'+ CPU_MAX +'" name="cpus" value="0"></div>' +
+					'<div class="dk-field"><label>内存 MB（0=不限制，上限 '+ MEM_MAX +'）</label><input class="dk-input" type="number" step="32" min="0" max="'+ MEM_MAX +'" name="memory_limit" value="0"></div>' +
+					'<div class="dk-field dk-field-full"><label>允许外网访问</label><label><input type="checkbox" name="allow_access" value="1" checked> 允许（通过主机IP+端口访问，设了域名可不勾）</label></div>' +
 					envHtml +
 				'</div>' +
 			'</form>';
@@ -141,9 +187,12 @@ include __DIR__ . '/head.php';
 		var fd = new FormData($('#dkInstallForm')[0]);
 		fd.append('app_name', app.appname);
 		fd.append('m_version', ver[0] || '');
-		fd.append('s_version', ver[1] || '0');
-		// 强制配额上限
-		if (parseFloat(fd.get('cpus')) > CPU_MAX) fd.set('cpus', String(CPU_MAX));
+		// s_version 留空（无子版本的应用）：宝塔后端会只用 m_version 作为镜像 tag
+		fd.append('s_version', ver[1] || '');
+		// 强制配额上限 + cpus 取整（宝塔后端用 int() 转换）
+		var cpus = parseInt(parseFloat(fd.get('cpus')) || 0, 10);
+		if (cpus > CPU_MAX) cpus = Math.floor(CPU_MAX);
+		fd.set('cpus', String(cpus));
 		if (parseFloat(fd.get('memory_limit')) > MEM_MAX) fd.set('memory_limit', String(MEM_MAX));
 		btn.prop('disabled', true).html('<span class="dk-spin"></span> 提交中…');
 		dkAjax('app_create', fd, {timeout:120000}).then(function(r){

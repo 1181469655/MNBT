@@ -136,6 +136,7 @@ if($egn == 'settheme')
 {
 	$usertheme = mnbt_theme_sanitize($_POST['usertheme'] ?? '');
 	$admintheme = mnbt_theme_sanitize($_POST['admintheme'] ?? '');
+	$dockertheme = mnbt_theme_sanitize($_POST['dockertheme'] ?? '');
 	if ($usertheme === '' || $admintheme === '') {
 		json_exit('请选择用户端和管理端主题');
 	}
@@ -147,7 +148,13 @@ if($egn == 'settheme')
 	if (!$okAdmin) {
 		json_exit($msgAdmin);
 	}
-	logjl($user, '主题设置', '用户端=' . $usertheme . ' 管理端=' . $admintheme, '修改成功', $DB);
+	if ($dockertheme !== '') {
+		list($okDocker, $msgDocker) = mnbt_theme_set_active('docker', $dockertheme);
+		if (!$okDocker) {
+			json_exit($msgDocker);
+		}
+	}
+	logjl($user, '主题设置', '用户端=' . $usertheme . ' 管理端=' . $admintheme . ' Docker端=' . ($dockertheme ?: '默认'), '修改成功', $DB);
 	json_exit('修改成功');
 	return;
 }

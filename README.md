@@ -1,11 +1,11 @@
-# 梦奈宝塔主机系统 (MNBT) V1.82
+# 梦奈宝塔主机系统 (MNBT) V1.83
 
 基于宝塔面板 API 的虚拟主机分销管理系统，支持多节点宝塔面板统一管理、用户自主开通主机、一键部署网站程序、在线文件管理、Gzip/缓存配置、URL/资源监控告警、违禁词扫描、**可切换前端主题**、**PHP 业务插件**等功能。
 
 ![PHP](https://img.shields.io/badge/PHP-7.4%20~%208.4-777BB4?logo=php&logoColor=white)
 ![MySQL](https://img.shields.io/badge/MySQL-5.6%2B-4479A1?logo=mysql&logoColor=white)
 ![License](https://img.shields.io/badge/license-Commercial-blue)
-![Version](https://img.shields.io/badge/version-1.82-green)
+![Version](https://img.shields.io/badge/version-1.83-green)
 
 ---
 

@@ -16,8 +16,7 @@
 <div class="dk-login-wrap">
 	<div class="dk-login-card">
 		<div class="dk-brand">
-			<div class="dk-brand-logo">D</div>
-			<h1>Docker 控制台</h1>
+			<img src="<?= mnbt_theme_asset('assets/docker.svg', 'docker') ?>" alt="Docker 控制台" class="dk-login-logo">
 			<p class="dk-sub">登录以管理您的容器服务</p>
 		</div>
 		<form id="dkLoginForm" autocomplete="off">

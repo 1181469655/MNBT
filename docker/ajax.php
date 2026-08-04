@@ -55,27 +55,44 @@ if (!$bt) {
 }
 
 // —— 我的容器（单容器隔离）——
+// 宝塔 get_list 的 ports 字段恒为空数组，端口/IP/参数信息实际来自 get_installed_apps
 if ($gn === 'my_container') {
-	$res = $bt->container_list();
-	$container = docker_find_my_container($me, $res);
+	$res = $bt->installed_apps();
+	$container = docker_find_my_installed_app($me, $res);
 	// 同步容器状态
 	if ($container) {
-		$status = strtolower($container['status'] ?? ($container['State'] ?? ''));
+		$status = strtolower((string)($container['status'] ?? ''));
 		$mapped = 'running';
 		if (strpos($status, 'exit') !== false || strpos($status, 'stop') !== false) $mapped = 'stopped';
 		elseif (strpos($status, 'creat') !== false) $mapped = 'creating';
 		elseif (strpos($status, 'run') !== false) $mapped = 'running';
-		$cid = (string)($container['id'] ?? ($container['Id'] ?? ''));
+		$cid = (string)($container['container_id'] ?? '');
 		$cid = substr($cid, 0, 64);
 		if ($me['container_id'] !== $cid || $me['container_status'] !== $mapped) {
 			$DB->query_prepare("UPDATE MN_docker_user SET container_id=?, container_status=? WHERE id=?", [$cid, $mapped, $me['id']]);
+			// 同步到 $me，确保返回给前端的是最新状态（否则前端会一直看到 creating）
+			$me['container_id'] = $cid;
+			$me['container_status'] = $mapped;
 		}
 	} else if ($me['container_status'] === 'running' || $me['container_status'] === 'stopped') {
-		// 容器列表中找不到，可能已被删除
+		// 应用列表中找不到，可能已被删除
 		$DB->query_prepare("UPDATE MN_docker_user SET container_id=NULL, container_status='none', service_name=NULL WHERE id=?", [$me['id']]);
+		$me['container_id'] = null;
+		$me['container_status'] = 'none';
+		$me['service_name'] = null;
 		$container = null;
 	}
-	docker_json(200, 'ok', ['container' => $container, 'me' => array_merge($me, ['password_hash' => null])]);
+	// 优先用 server_ip（节点外网 IP），否则回退到 host_ip
+	$containerIp = $container['server_ip'] ?? ($container['host_ip'] ?? '');
+	docker_json(200, 'ok', [
+		'container' => $container,
+		'me'        => array_merge($me, ['password_hash' => null]),
+		// 节点 IP 优先取容器返回的 server_ip（最准确），否则回退到 MN_docker_node.btip
+		'node'      => [
+			'btip' => $containerIp ?: ($nodeInfo['btip'] ?? ''),
+			'ptl'  => $nodeInfo['ptl'] ?? 'false',
+		],
+	]);
 }
 
 // —— 容器启停重启（仅操作自己的容器）——
@@ -93,12 +110,6 @@ if (in_array($gn, ['container_start', 'container_stop', 'container_restart'], tr
 	$map = ['container_start' => 'container_start', 'container_stop' => 'container_stop', 'container_restart' => 'container_restart'];
 	$r = $bt->{$map[$gn]}($cid, $cname);
 	docker_json(($r['status'] ?? $r['code'] ?? false) ? 200 : 100, $r['msg'] ?? ($r['message'] ?? '操作完成'), ['raw' => $r]);
-}
-
-// —— 安装进度日志轮询（get_cmd_log）——
-if ($gn === 'install_log') {
-	$r = $bt->container_cmd_log();
-	docker_json(200, 'ok', ['log' => $r]);
 }
 
 // —— 镜像列表 ——
@@ -158,19 +169,22 @@ if ($gn === 'app_create') {
 	$app_name = daddslashes($_POST['app_name'] ?? '');
 	$m_version = daddslashes($_POST['m_version'] ?? '');
 	$s_version = daddslashes($_POST['s_version'] ?? '');
-	if ($app_name === '' || $m_version === '' || $s_version === '') {
+	// s_version 允许为空：部分应用（如 frps）只有 m_version=latest 无子版本
+	// 宝塔后端会用 m_version 作为镜像 tag；若强制 s_version='0' 会拼出 latest.0 无效 tag
+	if ($app_name === '' || $m_version === '') {
 		docker_json(100, '应用参数不完整');
 	}
 	// 配额校验
 	$plan = docker_user_plan($me);
 	$cpu_max = $plan ? (float)$plan['cpu_max'] : 1;
 	$mem_max = $plan ? (float)$plan['mem_max'] : 512;
-	$cpus = (float)($_POST['cpus'] ?? 1);
-	$memory_limit = (float)($_POST['memory_limit'] ?? 512);
-	if ($cpus < 0.1) $cpus = 0.1;
-	if ($memory_limit < 32) $memory_limit = 32;
-	if ($cpus > $cpu_max) $cpus = $cpu_max;
-	if ($memory_limit > $mem_max) $memory_limit = $mem_max;
+	$cpus = (int)($_POST['cpus'] ?? 0);
+	$memory_limit = (int)($_POST['memory_limit'] ?? 0);
+	// 0 = 不限制；宝塔后端用 int() 转换，必须整数
+	if ($cpus < 0) $cpus = 0;
+	if ($memory_limit < 0) $memory_limit = 0;
+	if ($cpus > $cpu_max) $cpus = (int)floor($cpu_max);
+	if ($memory_limit > $mem_max) $memory_limit = (int)floor($mem_max);
 
 	// 组装 service_name（唯一，前缀 mnbt_ + 用户名净化）
 	$cleanUser = preg_replace('/[^a-z0-9]/', '', strtolower($me['username']));

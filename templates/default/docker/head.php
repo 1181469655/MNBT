@@ -73,7 +73,7 @@ $(document).on('click', '.dk-modal-mask', function(e){ if (e.target === this) dk
 <div class="dk-app">
 	<aside class="dk-sidebar">
 		<div class="dk-sidebar-brand">
-			<span class="dk-logo-sm">D</span> Docker 控制台
+			<img src="<?= mnbt_theme_asset('assets/docker.svg', 'docker') ?>" alt="Docker 控制台" class="dk-logo">
 		</div>
 		<nav class="dk-nav">
 			<div class="dk-nav-section">容器服务</div>

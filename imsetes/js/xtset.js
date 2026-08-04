@@ -298,6 +298,7 @@ function jkscsz()
 function settheme() {
     var ut = document.getElementById('usertheme');
     var at = document.getElementById('admintheme');
+    var dt = document.getElementById('dockertheme');
     if (!ut || !at) {
         msalert(4, '主题选择控件未找到', 2000);
         return;
@@ -311,6 +312,7 @@ function settheme() {
     data['gn'] = 'settheme';
     data['usertheme'] = ut.value;
     data['admintheme'] = at.value;
+    if (dt && dt.value) data['dockertheme'] = dt.value;
     $.post('./ajax.php', data, function (date) {
         var jsoe = JSON.parse(date);
         var qk = jsoe.code;

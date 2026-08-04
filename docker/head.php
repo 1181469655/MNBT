@@ -63,20 +63,65 @@ function docker_find_my_container($dockerUser, $containers)
 	if (!is_array($containers)) {
 		return null;
 	}
-	// 容器列表可能是 ['data'=>[...]] 或直接数组
-	$list = $containers['data'] ?? $containers;
+	// 宝塔 get_list 返回 {container_list: [...], online_cpus, mem_total, gpu}
+	// 兼容 data / 直接数组 两种历史结构
+	$list = $containers['container_list'] ?? $containers['data'] ?? $containers;
 	if (!is_array($list)) {
 		return null;
 	}
+	$sn = (string)($dockerUser['service_name'] ?? '');
+	$cid_stored = (string)($dockerUser['container_id'] ?? '');
 	foreach ($list as $c) {
-		$name = $c['name'] ?? ($c['Names'][0] ?? '');
-		$name = ltrim((string)$name, '/');
-		// 按 service_name 或 container_id 匹配
-		if (!empty($dockerUser['service_name']) && $name === $dockerUser['service_name']) {
+		$name = ltrim((string)($c['name'] ?? ($c['Names'][0] ?? '')), '/');
+		// 宝塔字段为 container_id，兼容 id/Id
+		$cid = (string)($c['container_id'] ?? $c['id'] ?? $c['Id'] ?? '');
+		// 1) service_name 精确匹配
+		if ($sn !== '' && $name === $sn) {
 			return $c;
 		}
-		if (!empty($dockerUser['container_id']) && ((string)($c['id'] ?? '') === (string)$dockerUser['container_id'] || (string)($c['Id'] ?? '') === (string)$dockerUser['container_id'])) {
+		// 2) container_id 精确匹配
+		if ($cid_stored !== '' && $cid !== '' && $cid === $cid_stored) {
 			return $c;
+		}
+		// 3) compose 命名匹配：<service_name>-<app>-N 或 <service_name>_<app>_N
+		//    宝塔 create_app 创建的容器 name 形如 mnbt_xxx-frps-1
+		if ($sn !== '' && $name !== '' && strpos($name, $sn) === 0) {
+			$next = strlen($name) > strlen($sn) ? $name[strlen($sn)] : '';
+			if ($next === '' || $next === '-' || $next === '_') {
+				return $c;
+			}
+		}
+	}
+	return null;
+}
+
+/**
+ * 在已安装应用列表中找到属于自己的那一个应用（按 service_name 匹配）
+ * 宝塔 get_installed_apps 返回的应用信息比 get_list 更丰富（含端口/IP/参数）
+ * @param array $dockerUser
+ * @param array $apps bt_docker::installed_apps() 返回的应用数组
+ * @return array|null
+ */
+function docker_find_my_installed_app($dockerUser, $apps)
+{
+	if (!is_array($apps)) {
+		return null;
+	}
+	$list = $apps['data'] ?? $apps;
+	if (!is_array($list)) {
+		return null;
+	}
+	$sn = (string)($dockerUser['service_name'] ?? '');
+	$cid_stored = (string)($dockerUser['container_id'] ?? '');
+	foreach ($list as $a) {
+		// 1) service_name 精确匹配（宝塔 get_installed_apps[].service_name = create_app 时传入的值）
+		if ($sn !== '' && (string)($a['service_name'] ?? '') === $sn) {
+			return $a;
+		}
+		// 2) container_id 精确匹配
+		$cid = (string)($a['container_id'] ?? '');
+		if ($cid_stored !== '' && $cid !== '' && $cid === $cid_stored) {
+			return $a;
 		}
 	}
 	return null;

@@ -230,6 +230,16 @@ class bt_docker
         return $this->HttpPost('get_dependence_apps', ['app_name' => $app]);
     }
 
+    /**
+     * 已安装应用列表（含容器详情、端口、应用参数）
+     * 返回 data 数组，每项含 service_name/appname/apptitle/status/port[]/host_ip/server_ip/container_id/appinfo[] 等
+     * 宝塔 get_list 的 ports 字段为空数组，端口信息实际来自此接口
+     */
+    public function installed_apps()
+    {
+        return $this->HttpPost('get_installed_apps');
+    }
+
     /** 应用商店配置 */
     public function apphub_config()
     {
@@ -284,7 +294,12 @@ class bt_docker
     {
         $url = $this->BT_PANEL . '/mod/docker/com/' . $method . '/stype';
         $data = array_merge($this->GetKeyData(), $params);
-        return $this->request($url, $data, $timeout);
+        $r = $this->request($url, $data, $timeout);
+        // 宝塔 POST 接口通常返回 {status, msg, data} 包装，有 data 数组时提取
+        if (is_array($r) && isset($r['data']) && is_array($r['data'])) {
+            return $r['data'];
+        }
+        return $r;
     }
 
     /**
