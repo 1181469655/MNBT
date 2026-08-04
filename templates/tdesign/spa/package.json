@@ -6,9 +6,11 @@
   "scripts": {
     "dev:admin": "vite --config vite.admin.config.js",
     "dev:user": "vite --config vite.user.config.js",
+    "dev:docker": "vite --config vite.docker.config.js",
     "build:admin": "vite build --config vite.admin.config.js",
     "build:user": "vite build --config vite.user.config.js",
-    "build": "npm run build:admin && npm run build:user",
+    "build:docker": "vite build --config vite.docker.config.js",
+    "build": "npm run build:admin && npm run build:user && npm run build:docker",
     "preview": "vite preview"
   },
   "dependencies": {

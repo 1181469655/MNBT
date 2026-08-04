@@ -30,9 +30,9 @@ export function setMonitor(data) {
   return apiGn('jkscsz', data)
 }
 
-/** 主题切换: usertheme / admintheme */
-export function setTheme(usertheme, admintheme) {
-  return apiGn('settheme', { usertheme, admintheme })
+/** 主题切换: usertheme / admintheme / dockertheme */
+export function setTheme(usertheme, admintheme, dockertheme = '') {
+  return apiGn('settheme', { usertheme, admintheme, dockertheme })
 }
 
 /** 支付方式列表(走 panel API,如启用支付插件) */

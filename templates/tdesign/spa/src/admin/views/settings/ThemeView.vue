@@ -48,6 +48,21 @@
               </div>
             </div>
 
+            <div v-if="dockerThemes.length" class="td-form-row">
+              <label>Docker 控制台主题</label>
+              <t-select v-model="form.dockertheme" placeholder="请选择 Docker 控制台主题">
+                <t-option
+                  v-for="t in dockerThemes"
+                  :key="t.name"
+                  :value="t.name"
+                  :label="`${t.title}${t.version ? ' v' + t.version : ''} (${t.name})`"
+                />
+              </t-select>
+              <div class="td-form-hint">
+                当前: <code>{{ curDockerTheme || '-' }}</code> · 缺页回退 default
+              </div>
+            </div>
+
             <div class="td-form-actions">
               <t-button theme="primary" :loading="loading" @click="save">
                 <i class="mdi mdi-content-save-outline"></i> 保存主题设置
@@ -100,11 +115,16 @@
             <t-tag v-if="row.has_admin" size="small" theme="success" variant="light">支持</t-tag>
             <span v-else class="td-text-mute">—</span>
           </template>
+          <template #has_docker="{ row }">
+            <t-tag v-if="row.has_docker" size="small" theme="success" variant="light">支持</t-tag>
+            <span v-else class="td-text-mute">—</span>
+          </template>
           <template #active="{ row }">
             <div class="active-tags">
               <t-tag v-if="row.name === curUserTheme" size="small" theme="warning" variant="light">用户端</t-tag>
               <t-tag v-if="row.name === curAdminTheme" size="small" theme="warning" variant="light">管理端</t-tag>
-              <span v-if="row.name !== curUserTheme && row.name !== curAdminTheme" class="td-text-mute">—</span>
+              <t-tag v-if="row.name === curDockerTheme" size="small" theme="warning" variant="light">Docker</t-tag>
+              <span v-if="row.name !== curUserTheme && row.name !== curAdminTheme && row.name !== curDockerTheme" class="td-text-mute">—</span>
             </div>
           </template>
         </t-table>
@@ -128,14 +148,17 @@ const rawThemeList = Array.isArray(boot.themeList)
 const themeList = rawThemeList
 const curUserTheme = boot.curUserTheme || ''
 const curAdminTheme = boot.curAdminTheme || ''
+const curDockerTheme = boot.curDockerTheme || ''
 const loading = ref(false)
 
 const userThemes = computed(() => themeList.filter((t) => t.has_user))
 const adminThemes = computed(() => themeList.filter((t) => t.has_admin))
+const dockerThemes = computed(() => themeList.filter((t) => t.has_docker))
 
 const form = reactive({
   usertheme: curUserTheme || (userThemes.value[0] && userThemes.value[0].name) || '',
   admintheme: curAdminTheme || (adminThemes.value[0] && adminThemes.value[0].name) || '',
+  dockertheme: curDockerTheme || (dockerThemes.value[0] && dockerThemes.value[0].name) || '',
 })
 
 const columns = [
@@ -144,7 +167,8 @@ const columns = [
   { colKey: 'version', title: '版本', width: 100 },
   { colKey: 'has_user', title: '用户端', width: 90, align: 'center' },
   { colKey: 'has_admin', title: '管理端', width: 90, align: 'center' },
-  { colKey: 'active', title: '当前启用', width: 160, align: 'center' },
+  { colKey: 'has_docker', title: 'Docker', width: 90, align: 'center' },
+  { colKey: 'active', title: '当前启用', width: 200, align: 'center' },
   { colKey: 'description', title: '说明', minWidth: 200, ellipsis: true },
 ]
 
@@ -154,7 +178,7 @@ async function save() {
     return
   }
   loading.value = true
-  const r = await setTheme(form.usertheme, form.admintheme)
+  const r = await setTheme(form.usertheme, form.admintheme, form.dockertheme || '')
   loading.value = false
   if (r.ok) {
     MessagePlugin.success('保存成功,建议刷新页面查看效果')

@@ -64,6 +64,19 @@
             </ul>
           </li>
 
+          <li class="td-side-submenu" :class="{ open: openGroups.docker }">
+            <a href="javascript:;" @click="toggleGroup('docker')">
+              <i class="mdi mdi-docker"></i><span>Docker 管理</span>
+              <i class="td-arrow mdi" :class="openGroups.docker ? 'mdi-chevron-down' : 'mdi-chevron-right'"></i>
+            </a>
+            <ul class="td-side-subnav">
+              <li><router-link to="/docker/node" custom v-slot="{ navigate, isActive }"><a href="javascript:;" :class="{ active: isActive }" @click="navigate">Docker 节点</a></router-link></li>
+              <li><router-link to="/docker/node/add" custom v-slot="{ navigate, isActive }"><a href="javascript:;" :class="{ active: isActive }" @click="navigate">添加节点</a></router-link></li>
+              <li><router-link to="/docker/user" custom v-slot="{ navigate, isActive }"><a href="javascript:;" :class="{ active: isActive }" @click="navigate">Docker 用户</a></router-link></li>
+              <li><router-link to="/docker/plan" custom v-slot="{ navigate, isActive }"><a href="javascript:;" :class="{ active: isActive }" @click="navigate">Docker 套餐</a></router-link></li>
+            </ul>
+          </li>
+
           <li class="td-side-submenu" :class="{ open: openGroups.deploy }">
             <a href="javascript:;" @click="toggleGroup('deploy')">
               <i class="mdi mdi-webpack"></i><span>一键部署</span>
@@ -230,6 +243,7 @@ const pluginMenuRef = ref(null)
 const openGroups = reactive({
   host: false,
   node: false,
+  docker: false,
   deploy: false,
   system: false,
   tutorial: false,

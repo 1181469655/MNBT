@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TDesign Docker 控制台 · 开发模式</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script>
+      // 开发模式注入最小 boot,真实字段由 PHP 入口注入
+      window.__TD_BOOT__ = {
+        siteName: 'MNBT(开发)',
+        footer: '',
+        ajaxBase: '/docker/ajax.php',
+        theme: 'tdesign',
+        version: '0.3.0',
+        entry: 'console',
+        hash: '#/console',
+        dockerUser: {
+          username: 'testuser',
+          plan_name: '测试套餐',
+          cpu_max: 1,
+          mem_max: 512,
+        },
+      }
+    </script>
+    <script type="module" src="/src/main-docker.js"></script>
+  </body>
+</html>

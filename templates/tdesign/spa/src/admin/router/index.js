@@ -31,6 +31,11 @@ const TutorialView = () => import('@/admin/views/TutorialView.vue')
 const UpdateView = () => import('@/admin/views/UpdateView.vue')
 const RepairView = () => import('@/admin/views/RepairView.vue')
 
+const DockerNodeView = () => import('@/admin/views/docker/DockerNodeView.vue')
+const DockerNodeAddView = () => import('@/admin/views/docker/DockerNodeAddView.vue')
+const DockerUserView = () => import('@/admin/views/docker/DockerUserView.vue')
+const DockerPlanView = () => import('@/admin/views/docker/DockerPlanView.vue')
+
 const routes = [
   { path: '/login', name: 'login', component: LoginView, meta: { guest: true, title: '登录' } },
   {
@@ -55,6 +60,11 @@ const routes = [
       { path: 'baota/add', name: 'baota-add', component: BaotaAddView, meta: { title: '添加宝塔' } },
       { path: 'node', name: 'node', component: NodeListView, meta: { title: '节点列表' } },
       { path: 'node/scan', name: 'node-scan', component: NodeScanView, meta: { title: '违禁词扫描' } },
+
+      { path: 'docker/node', name: 'docker-node', component: DockerNodeView, meta: { title: 'Docker 节点' } },
+      { path: 'docker/node/add', name: 'docker-node-add', component: DockerNodeAddView, meta: { title: '添加 Docker 节点' } },
+      { path: 'docker/user', name: 'docker-user', component: DockerUserView, meta: { title: 'Docker 用户' } },
+      { path: 'docker/plan', name: 'docker-plan', component: DockerPlanView, meta: { title: 'Docker 套餐' } },
 
       { path: 'program', name: 'program', component: ProgramListView, meta: { title: '程序列表' } },
       { path: 'program/add', name: 'program-add', component: ProgramAddView, meta: { title: '添加程序' } },
