@@ -8,7 +8,8 @@ include __DIR__ . '/head.php';
 @header('Content-Type: application/json; charset=UTF-8');
 mnbt_csrf_validate_request();
 
-$gn = $_GET['gn'] ?? '';
+// 兼容两种传参：默认主题把 gn 放在 URL 查询串（$_GET），SPA 放在 POST body（$_POST）
+$gn = $_GET['gn'] ?? $_POST['gn'] ?? '';
 
 // —— 登录 / 登出（无需 docker 登录态）——
 if ($gn === 'login') {
