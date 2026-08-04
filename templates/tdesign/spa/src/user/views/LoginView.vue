@@ -9,7 +9,7 @@
         <p class="banner-subtitle">控制面板 · 安全稳定的站点管理平台</p>
         <ul class="banner-features">
           <li><i class="mdi mdi-cloud-upload-outline"></i> 一键文件管理</li>
-          <li><i class="mdi mdi-database-sync-outline"></i> 自动数据备份</li>
+          <li><i class="mdi mdi-backup-restore"></i> 自动数据备份</li>
           <li><i class="mdi mdi-chart-bar"></i> 实时站点统计</li>
         </ul>
       </div>
