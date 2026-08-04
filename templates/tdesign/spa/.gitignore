@@ -1,0 +1,22 @@
+# 依赖
+node_modules/
+
+# 日志与缓存
+*.log
+npm-debug.log*
+.pnpm-debug.log*
+.DS_Store
+.idea/
+.vscode/
+*.local
+
+# Vite 缓存
+.vite/
+dist-ssr/
+
+# 环境变量(保留示例)
+.env
+.env.*.local
+
+# dist 构建产物由主题级 .gitignore(templates/tdesign/.gitignore)统一忽略
+# 部署环境需执行 npm run build 生成 admin/dist、docker/dist、user/dist

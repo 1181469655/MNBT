@@ -1,0 +1,452 @@
+/**
+ * TDesign 管理后台主题全局样式
+ * 主色: TDesign 默认品牌蓝 #0052D9
+ * 配色克制、卡片化、轻间距,符合用户偏好(自然、不粗糙)
+ */
+
+:root {
+  --td-brand: #0052d9;
+  --td-brand-light: #e8f3ff;
+  --td-brand-dark: #003cab;
+  --td-success: #2ba471;
+  --td-warning: #e37318;
+  --td-error: #d54941;
+  --td-text: #181818;
+  --td-text-secondary: #595959;
+  --td-text-placeholder: #8c8c8c;
+  --td-border: #e7e7e7;
+  --td-bg: #f5f6f8;
+  --td-surface: #ffffff;
+
+  /* 侧栏(白色高端风) */
+  --td-sidebar-bg: #ffffff;
+  --td-sidebar-surface: #ffffff;
+  --td-sidebar-text: #1a2b3a;
+  --td-sidebar-text-2: #5e6c84;
+  --td-sidebar-text-3: #8c9bab;
+  --td-sidebar-hover: #f3f5f8;
+  --td-sidebar-active-bg: #e8f3ff;
+  --td-sidebar-active-text: #0052d9;
+  --td-sidebar-border: #ebedf0;
+  --td-sidebar-divider: #f5f6f8;
+  --td-sidebar-group-label: #8c9bab;
+  --td-sidebar-width: 232px;
+  --td-sidebar-collapsed: 64px;
+
+  --td-header-height: 56px;
+  --td-radius: 6px;
+  --td-radius-lg: 10px;
+  --td-radius-xl: 14px;
+  --td-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.04);
+  --td-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --td-shadow-md: 0 4px 16px rgba(15, 23, 42, 0.06);
+  --td-shadow-lg: 0 8px 28px rgba(15, 23, 42, 0.08);
+
+  /* 缓动曲线 */
+  --td-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --td-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --td-dur: 0.2s;
+  --td-dur-lg: 0.32s;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+  font-size: 14px;
+  color: var(--td-text);
+  background: var(--td-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: var(--td-brand);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+/* 确保 Material Design Icons 字体始终生效,防止被组件样式覆盖(只保留字体族,避免影响对齐) */
+.mdi {
+  font-family: 'Material Design Icons';
+  font-style: normal;
+}
+
+/* 通用页面容器 */
+.td-page {
+  padding: 20px 24px;
+  min-height: calc(100vh - var(--td-header-height));
+}
+
+.td-page-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.td-page-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.td-page-subtitle {
+  font-size: 12px;
+  color: var(--td-text-secondary);
+  margin: 2px 0 0;
+}
+
+/* 通用卡片 */
+.td-card {
+  background: var(--td-surface);
+  border-radius: var(--td-radius-lg);
+  box-shadow: var(--td-shadow);
+  border: 1px solid var(--td-border);
+}
+
+.td-card-head {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--td-border);
+  font-weight: 600;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.td-card-body {
+  padding: 18px;
+}
+
+/* 表单页窄容器 */
+.td-form-narrow {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+/* 状态色块 */
+.td-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 18px;
+  border: 1px solid transparent;
+}
+.td-tag-success { background: #e8f8f0; color: #2ba471; border-color: #c5e8d4; }
+.td-tag-warning { background: #fff3e0; color: #e37318; border-color: #ffd9a8; }
+.td-tag-danger  { background: #fdecee; color: #d54941; border-color: #f7c5c8; }
+.td-tag-info    { background: #e8f3ff; color: #0052d9; border-color: #b6d4ff; }
+.td-tag-default { background: #f2f3f5; color: #595959; border-color: #e7e7e7; }
+
+/* TDesign 组件微调 */
+.t-card {
+  border-radius: var(--td-radius-lg) !important;
+}
+
+.t-table {
+  background: transparent;
+}
+
+/* 表格内行高与 padding 更紧凑 */
+.t-table td,
+.t-table th {
+  padding: 8px 12px !important;
+}
+
+/* 链接型按钮去下划线 */
+.t-link:hover {
+  text-decoration: none;
+}
+
+/* 滚动条美化 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: #d6dce5;
+  border-radius: 4px;
+  transition: background var(--td-dur) var(--td-ease);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #b6bfcc;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ============== 表单页通用 ============== */
+.td-form {
+  max-width: 720px;
+}
+/* 弹窗 body 限制高度并滚动（TDesign 默认无 max-height,长表单会撑满屏幕）*/
+.t-dialog__body {
+  max-height: calc(100vh - 440px);
+  overflow-y: auto;
+}
+/* 弹窗内表单右侧留出滚动条空间 */
+.t-dialog__body .td-form {
+  padding-right: 6px;
+}
+.td-form-row {
+  margin-bottom: 16px;
+}
+.td-form-row > label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 6px;
+  color: var(--td-text);
+}
+.td-form-row .td-form-hint {
+  font-size: 12px;
+  color: var(--td-text-placeholder);
+  margin-top: 4px;
+  line-height: 1.5;
+}
+.td-form-actions {
+  margin-top: 20px;
+  display: flex;
+  gap: 10px;
+}
+.td-form-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: var(--td-bg);
+  border-radius: var(--td-radius);
+  margin-bottom: 12px;
+}
+.td-form-switch-txt strong {
+  display: block;
+  font-size: 13px;
+  color: var(--td-text);
+  font-weight: 500;
+}
+.td-form-switch-txt span {
+  display: block;
+  font-size: 12px;
+  color: var(--td-text-secondary);
+  margin-top: 2px;
+}
+.td-form-note {
+  margin-top: 16px;
+  padding: 10px 14px;
+  background: #fff9e6;
+  border: 1px solid #ffe69b;
+  border-radius: var(--td-radius);
+  font-size: 12px;
+  color: #8a6d3b;
+  line-height: 1.7;
+}
+.td-form-note b {
+  color: #665028;
+}
+
+/* ============== 表格页工具条 ============== */
+.td-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--td-surface);
+  border: 1px solid var(--td-border);
+  border-bottom: none;
+  border-radius: var(--td-radius-lg) var(--td-radius-lg) 0 0;
+  box-shadow: var(--td-shadow);
+}
+.td-toolbar-spacer {
+  flex: 1;
+}
+.td-toolbar .t-input,
+.td-toolbar .t-select {
+  width: auto;
+  min-width: 160px;
+}
+
+/* ============== 表格容器 ============== */
+.td-table-wrap {
+  background: var(--td-surface);
+  border: 1px solid var(--td-border);
+  border-radius: var(--td-radius-lg);
+  overflow: hidden;
+  box-shadow: var(--td-shadow);
+}
+/* 工具栏与表格容器相邻时合并为一个整体,消除中间框线 */
+.td-toolbar + .td-table-wrap {
+  border-top: none;
+  border-radius: 0 0 var(--td-radius-lg) var(--td-radius-lg);
+}
+.td-table-wrap .t-table {
+  background: transparent;
+}
+
+/* ============== 空状态 ============== */
+.td-empty {
+  text-align: center;
+  padding: 48px 16px;
+  color: var(--td-text-placeholder);
+  font-size: 13px;
+}
+.td-empty i {
+  font-size: 36px;
+  display: block;
+  margin-bottom: 8px;
+  color: #cbd5e1;
+}
+
+/* ============== 标签 chips ============== */
+.td-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  line-height: 18px;
+}
+.td-chip-success { background: #e8f8f0; color: #2ba471; }
+.td-chip-warning { background: #fff3e0; color: #e37318; }
+.td-chip-danger  { background: #fdecee; color: #d54941; }
+.td-chip-info    { background: #e8f3ff; color: #0052d9; }
+.td-chip-default { background: #f2f3f5; color: #595959; }
+
+/* ============== 行内操作按钮 ============== */
+.td-row-actions {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+.td-row-actions .t-button {
+  padding: 0 6px;
+  height: 24px;
+  min-width: 24px;
+}
+
+/* ============== 紧凑卡片(设置子区块) ============== */
+.td-set-card {
+  background: var(--td-surface);
+  border: 1px solid var(--td-border);
+  border-radius: var(--td-radius-lg);
+  box-shadow: var(--td-shadow);
+  margin-bottom: 14px;
+  overflow: hidden;
+}
+.td-set-card-hd {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--td-border);
+}
+.td-set-card-hd .td-set-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: var(--td-brand-light);
+  color: var(--td-brand);
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.td-set-card-hd h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--td-text);
+}
+.td-set-card-hd p {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--td-text-secondary);
+}
+.td-set-card-bd {
+  padding: 18px;
+}
+
+/* ============== 代码片段 ============== */
+.td-code {
+  display: inline-block;
+  padding: 1px 6px;
+  background: #f3f3f3;
+  border-radius: 4px;
+  font-family: Consolas, Monaco, monospace;
+  font-size: 12px;
+  color: #d63384;
+  word-break: break-all;
+}
+.td-code-block {
+  display: block;
+  padding: 8px 12px;
+  background: #f7f8fa;
+  border: 1px solid var(--td-border);
+  border-radius: var(--td-radius);
+  font-family: Consolas, Monaco, monospace;
+  font-size: 12px;
+  color: var(--td-text);
+  word-break: break-all;
+  margin: 4px 0;
+  user-select: all;
+}
+
+/* ============== 工具类 ============== */
+.td-text-mute { color: var(--td-text-secondary); }
+.td-text-danger { color: var(--td-error); }
+.td-text-success { color: var(--td-success); }
+.td-text-warning { color: var(--td-warning); }
+.td-text-xs { font-size: 11px; }
+.td-text-sm { font-size: 12px; }
+.td-mt-8 { margin-top: 8px; }
+.td-mt-16 { margin-top: 16px; }
+.td-mb-8 { margin-bottom: 8px; }
+.td-mb-16 { margin-bottom: 16px; }
+.td-flex { display: flex; }
+.td-flex-center { display: flex; align-items: center; }
+.td-flex-between { display: flex; align-items: center; justify-content: space-between; }
+.td-gap-8 { gap: 8px; }
+.td-gap-12 { gap: 12px; }
+
+/* ============== 通用过渡 ============== */
+.td-fade-enter-active,
+.td-fade-leave-active {
+  transition: opacity var(--td-dur) var(--td-ease);
+}
+.td-fade-enter-from,
+.td-fade-leave-to {
+  opacity: 0;
+}
+
+@keyframes td-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.td-anim-fade-in {
+  animation: td-fade-in var(--td-dur-lg) var(--td-ease-out);
+}
+
+@keyframes td-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+.td-anim-pulse {
+  animation: td-pulse 1.6s var(--td-ease) infinite;
+}

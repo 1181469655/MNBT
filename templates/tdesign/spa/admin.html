@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TDesign 管理后台 · 开发模式</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script>
+      // 开发模式注入最小 boot,真实字段由 PHP 入口注入
+      window.__TD_BOOT__ = {
+        siteName: 'MNBT(开发)',
+        footer: '',
+        adminUser: 'admin',
+        loggedIn: true,
+        needCaptcha: false,
+        ajaxBase: '/admin/ajax.php',
+        codeUrl: '/admin/code.php',
+        logo: '/imsetes/admin_logo/logo.login.png',
+        logoHead: '/imsetes/admin_logo/logo.head.png',
+        logoIndex: '/imsetes/admin_logo/logo.index.png',
+        auther: '',
+        theme: 'tdesign',
+        version: '0.2.0',
+        entry: 'dashboard',
+        hash: '#/dashboard',
+        pluginMenuHtml: '',
+      }
+    </script>
+    <script type="module" src="/src/main-admin.js"></script>
+  </body>
+</html>

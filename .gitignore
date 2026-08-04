@@ -45,7 +45,3 @@ admin/_debug_*.php
 # 文档备份
 admin/mnbt/*.docx
 admin/mnbt/*.zip
-# 模板目录
-/templates/qingliangyun
-/templates/tdesign
-/templates/sakura

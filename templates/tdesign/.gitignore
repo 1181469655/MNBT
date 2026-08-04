@@ -1,0 +1,29 @@
+# ===== tdesign 主题独立 .gitignore =====
+
+# SPA 构建依赖(不提交)
+node_modules/
+
+# Vite 构建缓存
+spa/.vite/
+spa/dist-ssr/
+
+# npm 日志
+*.log
+npm-debug.log*
+.pnpm-debug.log*
+
+# 环境变量(保留示例,不提交真实配置)
+.env
+.env.*.local
+
+# 编辑器与系统文件
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# SPA 构建产物(admin/docker/user 的 dist)
+# 过滤后需在部署环境执行 npm run build 才会生成,否则页面提示"尚未构建"
+dist/

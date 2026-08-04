@@ -1,0 +1,8 @@
+{
+  "name": "tdesign",
+  "title": "TDesign 双端主题",
+  "version": "0.2.0",
+  "description": "基于 Vue 3 + TDesign Vue Next 的双端 SPA 主题,覆盖用户端与管理端全部页面",
+  "author": "MNBT",
+  "scope": ["user", "admin"]
+}
