@@ -208,7 +208,7 @@ if ($egn === 'docker_plan_add') {
 		mnbt_log($user, 'Docker套餐', '添加套餐 ' . $name, '添加成功', $DB);
 		json_exit('添加成功');
 	}
-	json_exit('添加失败');
+	json_exit('添加失败：' . $DB->error());
 }
 
 if ($egn === 'docker_plan_edit') {
@@ -224,7 +224,7 @@ if ($egn === 'docker_plan_edit') {
 		mnbt_log($user, 'Docker套餐', '编辑套餐 ID' . $id, '编辑成功', $DB);
 		json_exit('编辑成功');
 	}
-	json_exit('编辑失败');
+	json_exit('编辑失败：' . $DB->error());
 }
 
 if ($egn === 'docker_plan_del') {
@@ -235,7 +235,7 @@ if ($egn === 'docker_plan_del') {
 		mnbt_log($user, 'Docker套餐', '删除套餐 ID' . $id, '删除成功', $DB);
 		json_exit('删除成功');
 	}
-	json_exit('删除失败');
+	json_exit('删除失败：' . $DB->error());
 }
 
 // ========================================================================

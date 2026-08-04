@@ -1,5 +1,6 @@
 <?php
-define('IN_CRONLITE', true);
+if (defined('SYSTEM_ROOT')) return;
+if (!defined('IN_CRONLITE')) define('IN_CRONLITE', true);
 define('SYSTEM_ROOT', dirname(__FILE__).'/');
 define('ROOT', dirname(SYSTEM_ROOT).'/');
 
