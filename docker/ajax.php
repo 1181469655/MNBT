@@ -208,6 +208,38 @@ if ($gn === 'app_create') {
 		}
 	}
 
+	// —— 端口冲突检测：检查请求的端口是否已被同节点其他容器占用 ——
+	$requestedPorts = [];
+	foreach ($params as $k => $v) {
+		// 识别端口参数：key 含 _port 或值看起来像端口号（1-65535 的纯数字字符串）
+		if (is_string($v) && ctype_digit($v) && (int)$v >= 1 && (int)$v <= 65535) {
+			$requestedPorts[(int)$v] = $k;
+		}
+	}
+	if (!empty($requestedPorts)) {
+		$installed = $bt->installed_apps();
+		$existingPorts = [];
+		$list = $installed['data'] ?? $installed;
+		if (is_array($list)) {
+			foreach ($list as $app) {
+				$appPorts = $app['port'] ?? [];
+				foreach ($appPorts as $p) {
+					$existingPorts[(int)$p] = ($app['service_name'] ?? '') . '/' . ($app['apptitle'] ?? $app['appname'] ?? '');
+				}
+			}
+		}
+		$conflicts = [];
+		foreach ($requestedPorts as $port => $key) {
+			if (isset($existingPorts[$port])) {
+				$conflicts[] = $port . '（参数 ' . $key . '，已被 ' . $existingPorts[$port] . ' 占用）';
+			}
+		}
+		if (!empty($conflicts)) {
+			mnbt_log($me['username'], 'Docker容器', '创建容器 ' . $app_name . ' 端口冲突：' . implode('; ', $conflicts), '创建失败', $DB);
+			docker_json(100, '端口冲突：' . implode('；', $conflicts) . '。请返回应用商店，系统将自动分配新端口。');
+		}
+	}
+
 	$r = $bt->app_create($params);
 	$ok = ($r['status'] ?? false) || ((($r['code'] ?? 1) === 0) && (($r['status'] ?? false) === true));
 	if ($ok) {
