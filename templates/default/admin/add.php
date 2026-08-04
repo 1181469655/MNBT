@@ -800,5 +800,113 @@ var nt = new Date().getTime();//获取当前时间
 
   </script>
 
+<?php }elseif($set=='dknode'){
+// 添加 Docker 节点（独立宝塔 Docker 面板实例，不依赖 MN_bt）
+?>
+<div class="container-fluid p-t-15">
+  <div class="row">
+    <div class="col-lg-12">
+      <div class="card">
+        <header class="card-header"><div class="card-title">添加 Docker 节点</div></header>
+        <div class="card-body">
+
+  <div class="form-group">
+	  <label for="dk_name"><b>节点名称 *</b></label>
+	  <input type="text" name="dk_name" id="dk_name" class="form-control" placeholder="如：北京节点A" required/>
+	<small>仅用于显示，便于区分多个 Docker 节点</small></div><br/>
+
+  <div class="form-group">
+	  <label for="dk_btip"><b>宝塔面板地址 *</b></label>
+	  <input type="text" name="dk_btip" id="dk_btip" class="form-control" placeholder="IP 或域名（如 1.2.3.4 或 bt.example.com）" required/>
+	<small>宝塔面板的访问地址，IP 或域名（如面板开启了域名访问则填域名）</small></div><br/>
+
+  <div class="form-group">
+	  <label for="dk_btdk"><b>宝塔端口</b></label>
+	  <input type="text" name="dk_btdk" id="dk_btdk" class="form-control" value="8888" placeholder="宝塔对接端口" required/>
+	<small>默认 8888，如修改过则填写修改后的端口</small></div><br/>
+
+  <div class="form-group">
+	  <label class="btn-block"><b>安全访问 (HTTPS)</b></label>
+	  <div class="col-xs-6">
+	    <div class="custom-control custom-switch custom-info">
+	      <input type="checkbox" class="custom-control-input" name="dk_ptl" id="dk_ptl">
+	      <label class="custom-control-label" for="dk_ptl"></label>
+	    </div>
+	    <small>宝塔面板开启了「面板 SSL」（HTTPS 访问）时打开此开关；否则请保持关闭，否则无法与宝塔通信</small>
+	  </div>
+  </div><br/>
+
+  <div class="form-group">
+	  <label for="dk_btmy"><b>宝塔接口密钥 *</b></label>
+	  <textarea name="dk_btmy" id="dk_btmy" rows="2" class="form-control" placeholder="宝塔面板 API 密钥" required></textarea>
+	<small>宝塔面板 → 设置 → API 接口 → 接口密钥</small></div><br/>
+
+  <div class="form-group">
+	  <label for="dk_ktmy"><b>调用密钥（外部 API 鉴权）</b></label>
+	  <input type="text" name="dk_ktmy" id="dk_ktmy" class="form-control" placeholder="留空则外部 API 不校验调用密钥"/>
+	<small>用于 api/docker.php 外部开通接口的鉴权（mn_keye 校验），留空则不校验</small></div><br/>
+
+  <div class="form-group">
+	  <label for="dk_qmk"><b>二级验证密钥</b></label>
+	  <input type="text" name="dk_qmk" id="dk_qmk" class="form-control" placeholder="与调用密钥组合 md5 校验"/>
+	<small>外部 API 鉴权时 mn_keye = md5(ktmy . qmk)，需与调用方一致</small></div><br/>
+
+  <div class="form-group">
+	  <label class="btn-block" for="dk_qk">节点开关</label>
+	  <div class="col-xs-6">
+	    <div class="custom-control custom-switch custom-info">
+	      <input type="checkbox" class="custom-control-input" name="dk_qk" id="dk_qk" checked="true">
+	      <label class="custom-control-label" for="dk_qk"></label>
+	    </div>
+	  </div>
+  </div>
+
+  <button class="btn btn-primary form-control" type="button" onclick="tjDkNode()"><label><i class="mdi mdi-checkbox-marked-circle-outline"></i></label>确认添加</button>
+
+  <h6 class="mt-3">说明：</h6>
+  <p>Docker 节点是<b>独立的宝塔 Docker 面板实例</b>，不依赖 MNBT 的「宝塔列表」（MN_bt 表）。<br/>
+  对接的宝塔面板需<b>已安装 Docker 管理器插件</b>（应用商店搜索「Docker管理器」安装）。<br/>
+  添加完成后可在「Docker 管理 → 节点管理」查看、编辑、检测 Docker 安装状态及容器列表。</p>
+</div>
+</div>
+</div>
+</div>
+
+<script type="text/javascript">
+function tjDkNode(){
+  var name = $('#dk_name').val().trim();
+  var btip = $('#dk_btip').val().trim();
+  var btdk = $('#dk_btdk').val().trim();
+  var btmy = $('#dk_btmy').val().trim();
+  var ktmy = $('#dk_ktmy').val().trim();
+  var qmk  = $('#dk_qmk').val().trim();
+  var ptl  = $('#dk_ptl').prop('checked') ? 'true' : 'false';
+  var qk   = $('#dk_qk').prop('checked')  ? 'true' : 'false';
+  if(!name || !btip || !btmy){
+    msalert(3,'节点名称、面板地址、接口密钥不能为空！',2000);
+    return;
+  }
+  msloading('正在添加中，请稍后...');
+  var data = {
+    gn: 'docker_node_add',
+    name: name, btip: btip, btdk: btdk, ptl: ptl,
+    btmy: btmy, ktmy: ktmy, qmk: qmk, qk: qk
+  };
+  $.post('./ajax.php', data, function(res){
+    msloadingde();
+    var j = JSON.parse(res);
+    var msg = j.msg || j.code;
+    if((j.msg||'').indexOf('成功') >= 0){
+      msalert(1, msg, 2000);
+      setTimeout(function(){ window.location.href = './docker.php?gn=node'; }, 800);
+    }else{
+      msalert(4, msg, 3000);
+    }
+  }).fail(function(){
+    msloadingde();
+    msalert(4,'请求失败，请重试',2000);
+  });
+}
+</script>
 <?php }  ?>
 <!-- 域名添加已迁移至 domain_shop 插件，访问路径：plugin.php?p=domain_shop&page=product_add -->

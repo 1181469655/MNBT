@@ -1,7 +1,7 @@
 <?php
 /**
- * MNBT 主题系统（用户端 + 管理端）
- * 目录: templates/{theme}/user/ 与 templates/{theme}/admin/
+ * MNBT 主题系统（用户端 + 管理端 + Docker 端）
+ * 目录: templates/{theme}/user/ 、templates/{theme}/admin/ 、templates/{theme}/docker/
  * 缺页自动回退到 templates/default/{scope}/
  */
 
@@ -13,7 +13,7 @@ define('MNBT_THEME_ROOT', ROOT . 'templates/');
 define('MNBT_THEME_DEFAULT', 'default');
 
 // 主题可注册的菜单渲染器：scope => callback(array $items): string
-$GLOBALS['mnbt_theme_menu_renderers'] = ['user' => null, 'admin' => null];
+$GLOBALS['mnbt_theme_menu_renderers'] = ['user' => null, 'admin' => null, 'docker' => null];
 
 /**
  * 规范化主题名
@@ -24,15 +24,27 @@ function mnbt_theme_sanitize($name)
 }
 
 /**
+ * 规范化 scope：user | admin | docker（非法值回退 user）
+ */
+function mnbt_theme_normalize_scope($scope)
+{
+	if ($scope === 'admin') return 'admin';
+	if ($scope === 'docker') return 'docker';
+	return 'user';
+}
+
+/**
  * 当前主题名
- * @param string $scope user|admin
+ * @param string $scope user|admin|docker
  */
 function mnbt_theme_name($scope = 'user')
 {
 	global $conf;
-	$scope = ($scope === 'admin') ? 'admin' : 'user';
-	$confKey = $scope === 'admin' ? 'admintheme' : 'usertheme';
-	$fileKey = $scope === 'admin' ? 'active_admin_theme' : 'active_user_theme';
+	$scope = mnbt_theme_normalize_scope($scope);
+	$confKeyMap = ['user' => 'usertheme', 'admin' => 'admintheme', 'docker' => 'docker_theme'];
+	$fileKeyMap = ['user' => 'active_user_theme', 'admin' => 'active_admin_theme', 'docker' => 'active_docker_theme'];
+	$confKey = $confKeyMap[$scope];
+	$fileKey = $fileKeyMap[$scope];
 
 	$name = '';
 	if (is_array($conf) && !empty($conf[$confKey])) {
@@ -50,14 +62,14 @@ function mnbt_theme_name($scope = 'user')
 
 /**
  * 解析视图路径（带 default 回退）
- * @param string $view 如 login / head，或 user/login / admin/login
- * @param string $scope user|admin
+ * @param string $view 如 login / head，或 user/login / admin/login / docker/login
+ * @param string $scope user|admin|docker
  */
 function mnbt_theme_resolve($view, $scope = 'user')
 {
 	$view = str_replace('\\', '/', (string)$view);
 	$view = ltrim($view, '/');
-	$scope = ($scope === 'admin') ? 'admin' : 'user';
+	$scope = mnbt_theme_normalize_scope($scope);
 
 	if (strpos($view, 'user/') === 0) {
 		$scope = 'user';
@@ -65,6 +77,9 @@ function mnbt_theme_resolve($view, $scope = 'user')
 	} elseif (strpos($view, 'admin/') === 0) {
 		$scope = 'admin';
 		$view = substr($view, 6);
+	} elseif (strpos($view, 'docker/') === 0) {
+		$scope = 'docker';
+		$view = substr($view, 7);
 	}
 
 	$view = preg_replace('/\.php$/i', '', $view);
@@ -96,7 +111,7 @@ function mnbt_theme_resolve($view, $scope = 'user')
  */
 function mnbt_theme_url($path = '', $scope = 'user')
 {
-	$scope = ($scope === 'admin') ? 'admin' : 'user';
+	$scope = mnbt_theme_normalize_scope($scope);
 	$path = ltrim(str_replace('\\', '/', (string)$path), '/');
 	if ($path !== '' && (strpos($path, '..') !== false || $path[0] === '/')) {
 		$path = '';
@@ -174,7 +189,7 @@ function mnbt_register_theme_menu_renderer($scope, $callback)
 	if (!is_callable($callback)) {
 		return false;
 	}
-	$scope = ($scope === 'admin') ? 'admin' : 'user';
+	$scope = mnbt_theme_normalize_scope($scope);
 	$GLOBALS['mnbt_theme_menu_renderers'][$scope] = $callback;
 	return true;
 }
@@ -188,7 +203,7 @@ function mnbt_register_theme_menu_renderer($scope, $callback)
 function mnbt_theme_ensure_loaded($scope = 'user')
 {
 	static $loaded = [];
-	$scope = ($scope === 'admin') ? 'admin' : 'user';
+	$scope = mnbt_theme_normalize_scope($scope);
 	if (!empty($loaded[$scope])) {
 		return;
 	}
@@ -399,6 +414,18 @@ function mnbt_admin_include($view, array $vars = [])
 	return mnbt_theme_include($view, $vars, 'admin');
 }
 
+/** Docker 端快捷渲染 */
+function mnbt_docker_render($view, array $vars = [], $exit = true)
+{
+	return mnbt_render($view, $vars, $exit, 'docker');
+}
+
+/** Docker 端快捷 include */
+function mnbt_docker_include($view, array $vars = [])
+{
+	return mnbt_theme_include($view, $vars, 'docker');
+}
+
 function mnbt_user_require_login()
 {
 	global $islogins;
@@ -433,7 +460,7 @@ function mnbt_admin_guest_only()
 
 /**
  * 列出主题
- * @param string|null $scope user|admin|null(全部，只要有任一侧目录)
+ * @param string|null $scope user|admin|docker|null(全部，只要有任一侧目录)
  */
 function mnbt_theme_list($scope = null)
 {
@@ -452,13 +479,17 @@ function mnbt_theme_list($scope = null)
 		}
 		$hasUser = is_dir($base . '/user');
 		$hasAdmin = is_dir($base . '/admin');
+		$hasDocker = is_dir($base . '/docker');
 		if ($scope === 'user' && !$hasUser) {
 			continue;
 		}
 		if ($scope === 'admin' && !$hasAdmin) {
 			continue;
 		}
-		if ($scope === null && !$hasUser && !$hasAdmin) {
+		if ($scope === 'docker' && !$hasDocker) {
+			continue;
+		}
+		if ($scope === null && !$hasUser && !$hasAdmin && !$hasDocker) {
 			continue;
 		}
 		$meta = [
@@ -468,6 +499,7 @@ function mnbt_theme_list($scope = null)
 			'description' => '',
 			'has_user' => $hasUser,
 			'has_admin' => $hasAdmin,
+			'has_docker' => $hasDocker,
 		];
 		$json = $base . '/theme.json';
 		if (is_file($json)) {
@@ -489,18 +521,20 @@ function mnbt_theme_list($scope = null)
 function mnbt_theme_set_active($scope, $name)
 {
 	global $DB, $conf, $siteid;
-	$scope = ($scope === 'admin') ? 'admin' : 'user';
+	$scope = mnbt_theme_normalize_scope($scope);
 	$name = mnbt_theme_sanitize($name);
 	if ($name === '' || !is_dir(MNBT_THEME_ROOT . $name . '/' . $scope)) {
 		return [false, '主题不存在或不支持该端：' . $name];
 	}
 
-	$file = MNBT_THEME_ROOT . ($scope === 'admin' ? 'active_admin_theme' : 'active_user_theme');
+	$fileKeyMap = ['user' => 'active_user_theme', 'admin' => 'active_admin_theme', 'docker' => 'active_docker_theme'];
+	$confKeyMap = ['user' => 'usertheme', 'admin' => 'admintheme', 'docker' => 'docker_theme'];
+	$file = MNBT_THEME_ROOT . $fileKeyMap[$scope];
 	if (@file_put_contents($file, $name) === false) {
 		return [false, '无法写入主题配置文件，请检查 templates 目录写权限'];
 	}
 
-	$confKey = $scope === 'admin' ? 'admintheme' : 'usertheme';
+	$confKey = $confKeyMap[$scope];
 	if (is_array($conf)) {
 		$conf[$confKey] = $name;
 	}

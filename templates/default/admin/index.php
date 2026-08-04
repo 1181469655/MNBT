@@ -120,6 +120,16 @@
               </ul>
             </li>
 
+            <li class="nav-item nav-item-has-subnav">
+              <a href="javascript:void(0)"><i class="mdi mdi-package-variant-closed"></i><span>Docker 管理</span></a>
+              <ul class="nav nav-subnav">
+                <li><a class="multitabs" href="docker.php?gn=node">节点管理</a></li>
+                <li><a class="multitabs" href="add.php?gn=dknode">添加 Docker 节点</a></li>
+                <li><a class="multitabs" href="docker.php?gn=user">Docker 用户</a></li>
+                <li><a class="multitabs" href="docker.php?gn=plan">套餐管理</a></li>
+              </ul>
+            </li>
+
             <li class="nav-item">
               <a href="javascript:void(0)" data-toggle="modal" data-target="#exampleModal" data-whatever="@mdo" data-backdrop="false"><i class="mdi mdi-backup-restore"></i><span>系统修复</span></a>
             </li>

@@ -1040,6 +1040,87 @@ curl -X POST http://your-domain/admin/ajax.php \
 
 ---
 
+## 8. Docker 容器服务 API（V1.83）
+
+### 8.1 外部开通 API（api/docker.php）
+
+鉴权与 `api/api.php` 完全一致：`mn_key`=系统 API 密钥，`mn_bh`=节点编号，`mn_keye`=md5(节点 ktmy . qmk)，`mn_vs`>=15。
+
+#### 连接验证（gn=cfif）
+
+```bash
+curl -X POST "http://your-domain/api/docker.php?gn=cfif" \
+  -d "mn_bh=1&mn_key=YOUR_API_KEY&mn_keye=MD5_KEY&mn_vs=15&username=test"
+```
+
+#### 开通 Docker 账户（gn=kt）
+
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `username` | 是 | Docker 账号（≥4位，唯一） |
+| `password` | 是 | 密码（≥6位，bcrypt 存储） |
+| `dqtime` | 否 | 到期时间，`0`=永久（默认） |
+| `plan_id` | 否 | 套餐 ID（需为上架状态） |
+| `email` | 否 | 邮箱 |
+
+```bash
+curl -X POST "http://your-domain/api/docker.php?gn=kt" \
+  -d "mn_bh=1&mn_key=YOUR_API_KEY&mn_keye=MD5_KEY&mn_vs=15&username=duser1&password=dpass123&dqtime=2026-12-31&plan_id=1"
+```
+
+响应：`{"success":true,"code":200,"msg":"Docker 账户开通成功！"}`
+
+> 开通仅创建账户，容器由用户登录 `docker/` 控制台后在应用商店自行创建（单容器模型）。
+
+### 8.2 Docker 控制台 AJAX（docker/ajax.php）
+
+认证：`docker_token` cookie + CSRF（`_csrf` 字段或 `X-CSRF-TOKEN` 头）。
+
+| `gn` | 方法 | 说明 |
+|------|------|------|
+| `login` | POST | 登录（username/password） |
+| `logout` | POST | 登出 |
+| `my_container` | POST | 获取我的容器（单容器隔离过滤） |
+| `container_start` | POST | 启动我的容器 |
+| `container_stop` | POST | 停止我的容器 |
+| `container_restart` | POST | 重启我的容器 |
+| `install_log` | POST | 安装进度日志（get_cmd_log） |
+| `image_list` | POST | 本地镜像列表 |
+| `volume_list` | POST | 存储卷列表 |
+| `compose_list` | POST | Compose 模板 + 项目 |
+| `app_list` | POST | 应用商店列表（get_apps） |
+| `app_detail` | POST | 单应用详情（appname） |
+| `app_dependence` | POST | 依赖查询 |
+| `app_create` | POST | 创建应用/开通容器（单容器+配额校验） |
+
+`app_create` 关键参数：`app_name`/`m_version`/`s_version`/`cpus`/`memory_limit`/`allow_access` + 应用专属字段（来自 get_apps 的 env/field）。后端自动生成 `service_name=mnbt_<username>`，强制 cpus/memory 不超过套餐上限。
+
+### 8.3 后台管理 AJAX（admin/ajax.php，gn=docker_*）
+
+需管理员登录。指令前缀 `docker_`：
+
+| `gn` | 说明 |
+|------|------|
+| `docker_user_list` | 用户列表（bootstrap-table） |
+| `docker_user_add` / `docker_user_edit` / `docker_user_del` | 用户增改删 |
+| `docker_user_reset` | 重置密码 |
+| `docker_user_pause` / `docker_user_resume` | 暂停/恢复 |
+| `docker_plan_list` / `docker_plan_add` / `docker_plan_edit` / `docker_plan_del` | 套餐管理 |
+| `docker_node_config` | 节点 Docker 配置（get_config） |
+| `docker_node_containers` | 节点容器列表 |
+| `docker_options` | 节点/套餐下拉数据 |
+
+### 8.4 到期软删定时任务
+
+```bash
+# 建议每 30 分钟执行
+curl "http://your-domain/docker_cron.php?my=YOUR_API_KEY"
+```
+
+三阶段：`active→expired`（到期）→ `pruned`（满7天删容器）→ 物理删除（再满7天）。
+
+---
+
 **相关文档：**
 
 - [README.md](file:///d:/documents/GitHub/MNBT/README.md) —— 项目总览
