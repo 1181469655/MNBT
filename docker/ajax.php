@@ -303,6 +303,21 @@ if ($gn === 'app_create') {
 }
 
 // —— 反向代理管理 ——
+// 获取容器端口列表（供反向代理页面选择）
+if ($gn === 'container_ports') {
+	$res = $bt->installed_apps();
+	$container = docker_find_my_installed_app($me, $res);
+	$ports = [];
+	if ($container) {
+		$rawPorts = $container['port'] ?? [];
+		foreach ($rawPorts as $p) {
+			$ports[] = (int)$p;
+		}
+	}
+	sort($ports);
+	docker_json(200, 'ok', ['ports' => $ports]);
+}
+
 if ($gn === 'proxy_list') {
 	$px = docker_user_proxy($me);
 	if (!$px) docker_json(100, '所属节点不可用');
@@ -327,12 +342,17 @@ if ($gn === 'proxy_create') {
 		}
 	}
 	$domains = daddslashes($_POST['domains'] ?? '');
-	$proxy_pass = daddslashes($_POST['proxy_pass'] ?? '');
+	$port = (int)($_POST['port'] ?? 0);
+	$proto = daddslashes($_POST['proto'] ?? 'http');
+	$ip = daddslashes($_POST['ip'] ?? '127.0.0.1');
 	$proxy_path = daddslashes($_POST['proxy_path'] ?? '/');
 	$remark = daddslashes($_POST['remark'] ?? '');
-	if ($domains === '' || $proxy_pass === '') {
-		docker_json(100, '域名和代理目标不能为空');
+	if ($domains === '' || $port <= 0) {
+		docker_json(100, '域名和容器端口不能为空');
 	}
+	// 代理目标，IP 默认 127.0.0.1（容器与本机同机部署），协议由用户选择
+	$proto = ($proto === 'https') ? 'https' : 'http';
+	$proxy_pass = $proto . '://' . $ip . ':' . $port;
 	$r = $px->proxy_create([
 		'domains'    => $domains,
 		'proxy_pass' => $proxy_pass,

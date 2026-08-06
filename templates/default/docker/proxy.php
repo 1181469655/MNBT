@@ -23,9 +23,15 @@ include __DIR__ . '/head.php';
 (function(){
 	var PROXY_MAX = <?= json_encode($proxy_max) ?>;
 	var HAS_CONTAINER = <?php echo (!empty($me['container_id']) || !empty($me['service_name'])) ? 'true' : 'false'; ?>;
-	var CONTAINER_IP = <?= json_encode($node['btip'] ?? '') ?>;
+	var CONTAINER_PORTS = [];
 
 	function esc(s){ return $('<div>').text(s == null ? '' : String(s)).html(); }
+
+	function loadPorts(){
+		return dkAjax('container_ports', {}, {silent:true}).then(function(r){
+			CONTAINER_PORTS = r.ports || [];
+		});
+	}
 
 	function loadList(){
 		$('#dkProxyLoading').show(); $('#dkProxyList').hide();
@@ -55,22 +61,26 @@ include __DIR__ . '/head.php';
 
 	window.dkProxyAdd = function(){
 		if (!HAS_CONTAINER) { dkToast('请先创建容器', 'error'); return; }
-		if (PROXY_MAX > 0) {
-			dkAjax('proxy_list', {}, {silent:true}).then(function(r){
-				var count = (r.data || []).length;
-				if (count >= PROXY_MAX) { dkToast('反向代理数量已达上限（'+PROXY_MAX+'个）', 'error'); return; }
+		loadPorts().then(function(){
+			if (PROXY_MAX > 0) {
+				dkAjax('proxy_list', {}, {silent:true}).then(function(r){
+					var count = (r.data || []).length;
+					if (count >= PROXY_MAX) { dkToast('反向代理数量已达上限（'+PROXY_MAX+'个）', 'error'); return; }
+					showAddForm();
+				});
+			} else {
 				showAddForm();
-			});
-		} else {
-			showAddForm();
-		}
+			}
+		});
 	};
 
 	function showAddForm(){
+		if (!CONTAINER_PORTS.length) { dkToast('未检测到容器端口，请确认容器已创建并运行', 'error'); return; }
+		var portOpts = CONTAINER_PORTS.map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
 		var body =
 			'<form id="dkProxyForm">' +
 				'<div class="dk-field"><label>域名 *</label><input class="dk-input" name="domains" placeholder="多个域名用换行分隔，如 example.com"></div>' +
-				'<div class="dk-field"><label>代理目标 *</label><input class="dk-input" name="proxy_pass" placeholder="http://'+ esc(CONTAINER_IP) +':端口"></div>' +
+				'<div class="dk-field"><label>容器端口 *</label><div style="display:flex;gap:8px"><select class="dk-select" name="proto" style="flex:0 0 100px"><option value="http">http://</option><option value="https">https://</option></select><select class="dk-select" name="ip" style="flex:0 0 130px" disabled><option>127.0.0.1</option></select><select class="dk-select" name="port">'+ portOpts +'</select></div><div class="dk-muted" style="font-size:12px;margin-top:4px">代理目标：&lt;协议&gt;://&lt;IP&gt;:&lt;端口&gt;（容器与本机同机部署）</div></div>' +
 				'<div class="dk-field"><label>代理路径</label><input class="dk-input" name="proxy_path" value="/" placeholder="/"></div>' +
 				'<div class="dk-field"><label>备注</label><input class="dk-input" name="remark" placeholder="可选"></div>' +
 			'</form>';
@@ -80,8 +90,8 @@ include __DIR__ . '/head.php';
 			var btn = $(this);
 			var fd = new FormData($('#dkProxyForm')[0]);
 			var domains = (fd.get('domains') || '').trim();
-			var proxy_pass = (fd.get('proxy_pass') || '').trim();
-			if (!domains || !proxy_pass) { dkToast('域名和代理目标不能为空', 'error'); return; }
+			var port = (fd.get('port') || '').trim();
+			if (!domains || !port) { dkToast('域名和端口不能为空', 'error'); return; }
 			btn.prop('disabled', true).html('<span class="dk-spin"></span> 提交中…');
 			dkAjax('proxy_create', fd, {timeout:30000}).then(function(r){
 				dkCloseModal();
