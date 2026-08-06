@@ -248,6 +248,13 @@ body.dk-body {
 /* ===== 表单组 ===== */
 .dk-form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
 .dk-form-grid .dk-field-full { grid-column: 1 / -1; }
+.dk-quota-bar {
+  display: flex; gap: 12px; margin-bottom: 16px; padding: 12px 14px;
+  background: #f0f4ff; border-radius: var(--dk-radius-sm); border: 1px solid #dbe4ff;
+}
+.dk-quota-item { flex: 1; text-align: center; }
+.dk-quota-label { display: block; font-size: 12px; color: var(--dk-muted); margin-bottom: 4px; }
+.dk-quota-val { font-size: 15px; font-weight: 600; color: var(--dk-primary); }
 .dk-select {
   width: 100%; padding: 10px 12px; border: 1px solid var(--dk-border);
   border-radius: var(--dk-radius-sm); font-size: 14px; background: #f9fafb; outline: none;

@@ -201,10 +201,11 @@ if ($egn === 'docker_plan_add') {
 	$jc = daddslashes($_POST['jc'] ?? '');
 	$cpu_max = daddslashes($_POST['cpu_max'] ?? '1');
 	$mem_max = daddslashes($_POST['mem_max'] ?? '512');
+	$disk_max = daddslashes($_POST['disk_max'] ?? '0');
 	$jg = daddslashes($_POST['jg'] ?? '0');
 	$qk = daddslashes($_POST['qk'] ?? 'true');
 	if ($name === '') json_exit('套餐名不能为空');
-	if ($DB->query_prepare("INSERT INTO MN_docker_plan (name,jc,cpu_max,mem_max,jg,qk,date) VALUES (?,?,?,?,?,?,?)", [$name, $jc, $cpu_max, $mem_max, $jg, $qk, $date])) {
+	if ($DB->query_prepare("INSERT INTO MN_docker_plan (name,jc,cpu_max,mem_max,disk_max,jg,qk,date) VALUES (?,?,?,?,?,?,?,?)", [$name, $jc, $cpu_max, $mem_max, $disk_max, $jg, $qk, $date])) {
 		mnbt_log($user, 'Docker套餐', '添加套餐 ' . $name, '添加成功', $DB);
 		json_exit('添加成功');
 	}
@@ -217,10 +218,11 @@ if ($egn === 'docker_plan_edit') {
 	$jc = daddslashes($_POST['jc'] ?? '');
 	$cpu_max = daddslashes($_POST['cpu_max'] ?? '1');
 	$mem_max = daddslashes($_POST['mem_max'] ?? '512');
+	$disk_max = daddslashes($_POST['disk_max'] ?? '0');
 	$jg = daddslashes($_POST['jg'] ?? '0');
 	$qk = daddslashes($_POST['qk'] ?? 'true');
 	if ($id <= 0) json_exit('参数错误');
-	if ($DB->query_prepare("UPDATE MN_docker_plan SET name=?,jc=?,cpu_max=?,mem_max=?,jg=?,qk=? WHERE id=?", [$name, $jc, $cpu_max, $mem_max, $jg, $qk, $id])) {
+	if ($DB->query_prepare("UPDATE MN_docker_plan SET name=?,jc=?,cpu_max=?,mem_max=?,disk_max=?,jg=?,qk=? WHERE id=?", [$name, $jc, $cpu_max, $mem_max, $disk_max, $jg, $qk, $id])) {
 		mnbt_log($user, 'Docker套餐', '编辑套餐 ID' . $id, '编辑成功', $DB);
 		json_exit('编辑成功');
 	}
@@ -243,7 +245,7 @@ if ($egn === 'docker_plan_del') {
 // ========================================================================
 if ($egn === 'docker_options') {
 	$nodes = $DB->get_all_prepare("SELECT id,name,btip,btdk,ptl,qk FROM MN_docker_node ORDER BY id") ?: [];
-	$plans = $DB->get_all_prepare("SELECT id,name,cpu_max,mem_max,jg,qk FROM MN_docker_plan WHERE qk='true' ORDER BY id") ?: [];
+	$plans = $DB->get_all_prepare("SELECT id,name,cpu_max,mem_max,disk_max,jg,qk FROM MN_docker_plan WHERE qk='true' ORDER BY id") ?: [];
 	exit(json_encode(['code' => 0, 'nodes' => $nodes, 'plans' => $plans], JSON_UNESCAPED_UNICODE));
 }
 

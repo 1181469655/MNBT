@@ -96,6 +96,8 @@ CREATE TABLE IF NOT EXISTS `MN_docker_user` (
   `app_name` varchar(64) DEFAULT NULL,       -- 应用名（源自 get_apps）
   `container_spec` text,                     -- 用户选择的容器规格 JSON（镜像/版本/cpus/mem/appenv）
   `container_status` varchar(20) DEFAULT 'none', -- none/creating/running/stopped/failed
+  `disk_usage` bigint(20) NOT NULL DEFAULT '0', -- 最近磁盘用量（字节，由 get_path_size 采集）
+  `disk_usage_at` varchar(50) DEFAULT NULL,     -- 磁盘用量采集时间
   `expired_at` varchar(50) DEFAULT NULL,     -- 软删开始时间（到期时间）
   `prune_due` varchar(50) DEFAULT NULL,      -- 7 天物理删除到期时间（空=未排程）
   `extra` text,                              -- JSON 扩展（compose_dir 等）
@@ -116,6 +118,7 @@ CREATE TABLE IF NOT EXISTS `MN_docker_plan` (
   `jc` text,                                 -- 介绍
   `cpu_max` varchar(20) NOT NULL DEFAULT '1',-- CPU 核上限（create_app.cpus）
   `mem_max` varchar(20) NOT NULL DEFAULT '512',-- 内存 MB 上限（create_app.memory_limit）
+  `disk_max` varchar(20) NOT NULL DEFAULT '0',-- 磁盘配额 MB 上限（0=不限制，通过 get_installed_apps.path + get_path_size 采集比对）
   `jg` varchar(50) NOT NULL,                 -- 价格
   `qk` varchar(10) NOT NULL DEFAULT 'true',  -- 上架/下架
   `date` varchar(50) NOT NULL,
@@ -234,6 +237,7 @@ class bt_docker
     public function app_create($params);        // create_app：P0 直接实现（异步任务封装）
     public function app_dependence($app);       // get_dependence_apps
     public function get_cmd_log();              // 容器执行日志（轮询安装进度用）
+    public function get_path_size($path);       // 获取指定路径磁盘占用大小（字节）
 }
 ```
 
@@ -392,6 +396,13 @@ docker/                        # 新顶层控制器
 | 应用商店列表 | `get_apps`（`bt_docker::app_list()`） | 289 个应用及参数定义，供用户选购 |
 | 用量限制 | `create_app` 的 `cpus` / `memory_limit` | 安装时传入，取值不得超过 `MN_docker_user.cpu_max` / `mem_max` |
 | 应用安装 | `create_app`（`bt_docker::app_create()`） | 返回"等待 1-5 分钟初始化"，**P0 直接实现，前端轮询 `get_cmd_log` 异步跟进安装进度** |
+| **磁盘配额** | `get_installed_apps`（获取 `path`）+ `get_path_size`（获取路径大小） | 用户查看容器时实时采集磁盘用量，与 `MN_docker_plan.disk_max` 比对；用量 ≥ 90% 时前端标红告警 |
+
+> **磁盘配额实现方案**：Docker 本身无磁盘容量限制端口，宝塔也未提供此功能。采用两个端点变通实现：
+> 1. `bt_docker::installed_apps()` → 返回每个已安装应用的 `path`（容器安装目录）
+> 2. `bt_docker::get_path_size($path)` → 调用宝塔文件 API `/files?action=get_path_size` 获取该路径磁盘占用大小
+> 3. 用户每次查看"我的容器"时实时采集并存入 `MN_docker_user.disk_usage`，与套餐 `disk_max`（MB，0=不限制）比对展示
+> 4. **磁盘超额自动停机**：当检测到磁盘用量超过配额且容器正在运行，自动调用 `container_stop` 停机，记录操作日志，前端展示红色告警提示
 
 ---
 

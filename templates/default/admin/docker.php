@@ -167,6 +167,7 @@ $(function(){
 			{field:'plan_name', title:'套餐'},
 			{field:'app_name', title:'应用'},
 			{field:'container_status', title:'容器状态', formatter:function(v){ var m={none:'未创建',creating:'创建中',running:'运行中',stopped:'已停止',failed:'失败'}; return '<span class="dk-tag-sm dk-tag-'+(v==='running'?'active':(v==='none'?'none':(v==='creating'?'paused':'expired')))+'">'+(m[v]||v)+'</span>'; }},
+			{field:'disk_usage', title:'磁盘用量', formatter:function(v){ v=parseInt(v,10)||0; if(v<=0) return '-'; if(v<1073741824) return (v/1048576).toFixed(1)+' MB'; return (v/1073741824).toFixed(2)+' GB'; }},
 			{field:'data', title:'开通'},
 			{field:'datae', title:'到期', formatter:function(v){ return v==='0000-00-00'?'永久':v; }},
 			{field:'qk', title:'状态', formatter:dkStatusTag},
@@ -186,7 +187,7 @@ function dkUserEdit(id){
 	$.post('./ajax.php', {gn:'docker_options'}, function(html){
 		var opt = JSON.parse(html);
 		var nodeOpts = (opt.nodes||[]).map(function(n){ return '<option value="'+n.id+'">'+n.name+' ('+n.btip+')</option>'; }).join('');
-		var planOpts = '<option value="0">无套餐</option>' + (opt.plans||[]).map(function(p){ return '<option value="'+p.id+'">'+p.name+' ('+p.cpu_max+'核/'+p.mem_max+'MB/¥'+p.jg+')</option>'; }).join('');
+		var planOpts = '<option value="0">无套餐</option>' + (opt.plans||[]).map(function(p){ return '<option value="'+p.id+'">'+p.name+' ('+p.cpu_max+'核/'+p.mem_max+'MB/'+(p.disk_max&&p.disk_max!=='0'?p.disk_max+'MB磁盘/':'')+'¥'+p.jg+')</option>'; }).join('');
 		$.confirm({
 			title: id?'编辑用户':'添加用户', columnClass:'m', content:
 			'<form class="form-horizontal">'+
@@ -245,6 +246,7 @@ $(function(){
 			{field:'jc', title:'介绍', formatter:function(v){ return v||'-'; }},
 			{field:'cpu_max', title:'CPU核'},
 			{field:'mem_max', title:'内存MB'},
+			{field:'disk_max', title:'磁盘MB', formatter:function(v){ return v && v!=='0' ? v+' MB' : '不限制'; }},
 			{field:'jg', title:'价格'},
 			{field:'qk', title:'上架', formatter:function(v){ return v==='true'?'<span class="dk-tag-sm dk-tag-active">上架</span>':'<span class="dk-tag-sm dk-tag-none">下架</span>'; }},
 			{field:'id', title:'操作', formatter:function(v){ return '<div class="btn-group btn-group-sm"><button class="btn btn-default" onclick="dkPlanEdit('+v+')">编辑</button><button class="btn btn-danger" onclick="dkPlanDel('+v+')">删除</button></div>'; }}
@@ -261,11 +263,12 @@ function dkPlanEdit(id){
 			'<div class="form-group"><label>介绍</label><textarea class="form-control" id="dk_jc" rows="2"></textarea></div>'+
 			'<div class="form-group"><label>CPU 核上限</label><input class="form-control" id="dk_cpu" value="1" type="number" step="0.1"></div>'+
 			'<div class="form-group"><label>内存 MB 上限</label><input class="form-control" id="dk_mem" value="512" type="number" step="32"></div>'+
+			'<div class="form-group"><label>磁盘配额 MB（0=不限制）</label><input class="form-control" id="dk_disk" value="0" type="number" step="128"></div>'+
 			'<div class="form-group"><label>价格</label><input class="form-control" id="dk_jg" value="0"></div>'+
 			'<div class="form-group"><label>上架</label><select class="form-control" id="dk_qk"><option value="true">上架</option><option value="false">下架</option></select></div>'+
 		'</form>',
 		buttons:{ ok:{text:'保存',btnClass:'btn-primary',action:function(){
-			var d={gn:id?'docker_plan_edit':'docker_plan_add', id:id, name:$('#dk_name').val(), jc:$('#dk_jc').val(), cpu_max:$('#dk_cpu').val(), mem_max:$('#dk_mem').val(), jg:$('#dk_jg').val(), qk:$('#dk_qk').val()};
+			var d={gn:id?'docker_plan_edit':'docker_plan_add', id:id, name:$('#dk_name').val(), jc:$('#dk_jc').val(), cpu_max:$('#dk_cpu').val(), mem_max:$('#dk_mem').val(), disk_max:$('#dk_disk').val(), jg:$('#dk_jg').val(), qk:$('#dk_qk').val()};
 			if(!d.name){ $.alert('套餐名必填'); return false; }
 			$.post('./ajax.php', d, function(r){ var j=JSON.parse(r); $.alert(j.msg||j.code); if((j.msg||'').indexOf('成功')>=0) dkPlanReload(); });
 			return true;

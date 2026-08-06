@@ -75,12 +75,39 @@ if ($gn === 'my_container') {
 			$me['container_id'] = $cid;
 			$me['container_status'] = $mapped;
 		}
+		// 磁盘用量采集：从容器安装路径获取磁盘占用大小
+		$containerPath = (string)($container['path'] ?? '');
+		if ($containerPath !== '') {
+			$sizeResult = $bt->get_path_size($containerPath);
+			$diskSize = (int)($sizeResult['size'] ?? 0);
+			if ($diskSize > 0) {
+				$DB->query_prepare("UPDATE MN_docker_user SET disk_usage=?, disk_usage_at=? WHERE id=?", [$diskSize, $date, $me['id']]);
+				$me['disk_usage'] = $diskSize;
+				$me['disk_usage_at'] = $date;
+			}
+			// 磁盘超限自动停机：超过配额且容器正在运行
+			$plan = docker_user_plan($me);
+			$diskMax = $plan ? (int)$plan['disk_max'] : 0;
+			if ($diskMax > 0 && $diskSize > $diskMax * 1048576 && $mapped === 'running') {
+				$cid = (string)($container['container_id'] ?? '');
+				$cname = ltrim((string)($container['name'] ?? ($container['Names'][0] ?? '')), '/');
+				if ($cid !== '') {
+					$bt->container_stop($cid, $cname);
+					$DB->query_prepare("UPDATE MN_docker_user SET container_status='stopped' WHERE id=?", [$me['id']]);
+					$me['container_status'] = 'stopped';
+					$mapped = 'stopped';
+					mnbt_log($me['username'], 'Docker容器', '磁盘超限自动停机：用量 ' . round($diskSize / 1048576, 1) . 'MB / 配额 ' . $diskMax . 'MB', '已停机', $DB);
+				}
+			}
+		}
 	} else if ($me['container_status'] === 'running' || $me['container_status'] === 'stopped') {
 		// 应用列表中找不到，可能已被删除
-		$DB->query_prepare("UPDATE MN_docker_user SET container_id=NULL, container_status='none', service_name=NULL WHERE id=?", [$me['id']]);
+		$DB->query_prepare("UPDATE MN_docker_user SET container_id=NULL, container_status='none', service_name=NULL, disk_usage=0, disk_usage_at=NULL WHERE id=?", [$me['id']]);
 		$me['container_id'] = null;
 		$me['container_status'] = 'none';
 		$me['service_name'] = null;
+		$me['disk_usage'] = 0;
+		$me['disk_usage_at'] = null;
 		$container = null;
 	}
 	// 优先用 server_ip（节点外网 IP），否则回退到 host_ip
@@ -88,6 +115,7 @@ if ($gn === 'my_container') {
 	docker_json(200, 'ok', [
 		'container' => $container,
 		'me'        => array_merge($me, ['password_hash' => null]),
+		'plan'      => docker_user_plan($me),
 		// 节点 IP 优先取容器返回的 server_ip（最准确），否则回退到 MN_docker_node.btip
 		'node'      => [
 			'btip' => $containerIp ?: ($nodeInfo['btip'] ?? ''),
@@ -111,6 +139,28 @@ if (in_array($gn, ['container_start', 'container_stop', 'container_restart'], tr
 	$map = ['container_start' => 'container_start', 'container_stop' => 'container_stop', 'container_restart' => 'container_restart'];
 	$r = $bt->{$map[$gn]}($cid, $cname);
 	docker_json(($r['status'] ?? $r['code'] ?? false) ? 200 : 100, $r['msg'] ?? ($r['message'] ?? '操作完成'), ['raw' => $r]);
+}
+
+// —— 删除容器（卸载应用）——
+if ($gn === 'container_remove') {
+	if (empty($me['service_name'])) {
+		docker_json(100, '您还没有容器，请先在应用商店创建');
+	}
+	// 从 installed_apps 获取宝塔安装 ID（remove_app 的 id 参数，非 Docker container_id）
+	$apps = $bt->installed_apps();
+	$myApp = docker_find_my_installed_app($me, $apps);
+	$appId = (string)($myApp['id'] ?? '');
+	if ($appId === '') {
+		docker_json(100, '未找到应用安装 ID，请刷新后重试', ['raw' => $myApp]);
+	}
+	$r = $bt->app_remove(['id' => $appId, 'delete_data' => '0']);
+	$ok = ($r['status'] ?? false) || (($r['code'] ?? 1) === 0);
+	if ($ok) {
+		$DB->query_prepare("UPDATE MN_docker_user SET container_id=NULL, container_status='none', service_name=NULL, app_name=NULL, container_spec=NULL, disk_usage=0, disk_usage_at=NULL WHERE id=?", [$me['id']]);
+		mnbt_log($me['username'], 'Docker容器', '删除容器 ' . $me['service_name'] . ' (id=' . $appId . ')', '删除成功', $DB);
+		docker_json(200, '容器已删除');
+	}
+	docker_json(100, '删除失败：' . ($r['msg'] ?? ($r['message'] ?? '未知错误')), ['raw' => $r]);
 }
 
 // —— 镜像列表 ——

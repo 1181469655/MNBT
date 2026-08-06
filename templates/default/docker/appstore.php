@@ -3,6 +3,7 @@
 $active = 'appstore';
 $cpu_max = $plan ? $plan['cpu_max'] : '1';
 $mem_max = $plan ? $plan['mem_max'] : '512';
+$disk_max = $plan ? $plan['disk_max'] : '0';
 include __DIR__ . '/head.php';
 ?>
 <?php if (!empty($me['container_id']) || !empty($me['service_name'])): ?>
@@ -25,6 +26,7 @@ include __DIR__ . '/head.php';
 	var APPS = [];
 	var CPU_MAX = <?= json_encode((float)$cpu_max) ?>;
 	var MEM_MAX = <?= json_encode((float)$mem_max) ?>;
+	var DISK_MAX = <?= json_encode((float)$disk_max) ?>;
 	var HAS_CONTAINER = <?php echo (!empty($me['container_id']) || !empty($me['service_name'])) ? 'true' : 'false'; ?>;
 
 	function esc(s){ return $('<div>').text(s == null ? '' : String(s)).html(); }
@@ -168,9 +170,12 @@ include __DIR__ . '/head.php';
 			'<form id="dkInstallForm">' +
 				// version 下拉（替换原来的空白输入框）
 				versionFieldHtml() +
+				'<div class="dk-quota-bar">' +
+					'<div class="dk-quota-item"><span class="dk-quota-label">CPU</span><span class="dk-quota-val">'+ CPU_MAX +' 核</span></div>' +
+					'<div class="dk-quota-item"><span class="dk-quota-label">内存</span><span class="dk-quota-val">'+ MEM_MAX +' MB</span></div>' +
+					'<div class="dk-quota-item"><span class="dk-quota-label">磁盘</span><span class="dk-quota-val">'+ (DISK_MAX > 0 ? (DISK_MAX >= 1024 ? (DISK_MAX/1024).toFixed(1)+' GB' : DISK_MAX+' MB') : '不限制') +'</span></div>' +
+				'</div>' +
 				'<div class="dk-form-grid">' +
-					'<div class="dk-field"><label>CPU 核数（0=不限制，上限 '+ CPU_MAX +'，整数）</label><input class="dk-input" type="number" step="1" min="0" max="'+ CPU_MAX +'" name="cpus" value="0"></div>' +
-					'<div class="dk-field"><label>内存 MB（0=不限制，上限 '+ MEM_MAX +'）</label><input class="dk-input" type="number" step="32" min="0" max="'+ MEM_MAX +'" name="memory_limit" value="0"></div>' +
 					'<div class="dk-field dk-field-full"><label>允许外网访问</label><label><input type="checkbox" name="allow_access" value="1" checked> 允许（通过主机IP+端口访问，设了域名可不勾）</label></div>' +
 					envHtml +
 				'</div>' +
@@ -189,11 +194,9 @@ include __DIR__ . '/head.php';
 		fd.append('m_version', ver[0] || '');
 		// s_version 留空（无子版本的应用）：宝塔后端会只用 m_version 作为镜像 tag
 		fd.append('s_version', ver[1] || '');
-		// 强制配额上限 + cpus 取整（宝塔后端用 int() 转换）
-		var cpus = parseInt(parseFloat(fd.get('cpus')) || 0, 10);
-		if (cpus > CPU_MAX) cpus = Math.floor(CPU_MAX);
-		fd.set('cpus', String(cpus));
-		if (parseFloat(fd.get('memory_limit')) > MEM_MAX) fd.set('memory_limit', String(MEM_MAX));
+		// 配额直接使用套餐值，不允许用户修改
+		fd.set('cpus', String(Math.floor(CPU_MAX)));
+		fd.set('memory_limit', String(MEM_MAX));
 		btn.prop('disabled', true).html('<span class="dk-spin"></span> 提交中…');
 		dkAjax('app_create', fd, {timeout:120000}).then(function(r){
 			dkCloseModal();

@@ -43,7 +43,7 @@ include __DIR__ . '/head.php';
 		return name.charAt(0).toUpperCase();
 	}
 
-	function renderContainer(c, me, node){
+	function renderContainer(c, me, node, plan){
 		// get_installed_apps 返回字段：service_name/appname/apptitle/status/port[]/host_ip/server_ip/container_id/appinfo[]
 		var name = c.service_name || me.service_name || '';
 		var appTitle = c.apptitle || c.appname || me.app_name || '';
@@ -54,6 +54,21 @@ include __DIR__ . '/head.php';
 		var appinfo = c.appinfo || [];
 		var cs = me.container_status || 'running';
 		var nodeIp = (node && node.btip) ? node.btip : (c.server_ip || c.host_ip || '');
+		// 磁盘用量
+		var diskUsage = parseInt(me.disk_usage, 10) || 0;
+		var diskMax = plan && plan.disk_max ? parseInt(plan.disk_max, 10) : 0;
+		var diskHtml = diskUsage > 0 ? fmtBytes(diskUsage) : '暂无数据';
+		var diskOverQuota = false;
+		if (diskMax > 0 && diskUsage > 0) {
+			diskHtml += ' / ' + (diskMax >= 1024 ? (diskMax/1024).toFixed(1) + ' GB' : diskMax + ' MB');
+			var pct = diskUsage / (diskMax * 1048576) * 100;
+			if (pct >= 100) { diskHtml += ' <span class="dk-tag dk-tag-expired" style="font-size:11px">已超限</span>'; diskOverQuota = true; }
+			else if (pct > 90) diskHtml += ' <span class="dk-tag dk-tag-expired" style="font-size:11px">' + pct.toFixed(0) + '% 即将超限</span>';
+			else if (pct > 70) diskHtml += ' <span class="dk-tag dk-tag-paused" style="font-size:11px">' + pct.toFixed(0) + '%</span>';
+			else diskHtml += ' <span class="dk-tag dk-tag-none" style="font-size:11px">' + pct.toFixed(0) + '%</span>';
+		} else if (diskMax > 0) {
+			diskHtml += ' / ' + (diskMax >= 1024 ? (diskMax/1024).toFixed(1) + ' GB' : diskMax + ' MB');
+		}
 		var actions = '';
 		if (cs === 'running') {
 			actions = '<button class="dk-btn dk-btn-warning dk-btn-sm" onclick="dkContainerOp(\'container_stop\')">停止</button>' +
@@ -62,6 +77,7 @@ include __DIR__ . '/head.php';
 			actions = '<button class="dk-btn dk-btn-success dk-btn-sm" onclick="dkContainerOp(\'container_start\')">启动</button>' +
 				'<button class="dk-btn dk-btn-ghost dk-btn-sm" onclick="dkContainerOp(\'container_restart\')">重启</button>';
 		}
+		actions += '<button class="dk-btn dk-btn-danger dk-btn-sm" onclick="dkContainerRemove()">删除容器</button>';
 		return '<div class="dk-card">' +
 			'<div class="dk-card-head">' +
 				'<div class="dk-app-title">' +
@@ -70,6 +86,7 @@ include __DIR__ . '/head.php';
 				'</div>' +
 				statusTag(cs) +
 			'</div>' +
+			(diskOverQuota && cs === 'stopped' ? '<div class="dk-alert dk-alert-danger" style="margin:0 20px 0 20px;border-radius:0 0 var(--dk-radius) var(--dk-radius)">磁盘用量已超出配额（'+ (diskMax >= 1024 ? (diskMax/1024).toFixed(1) + ' GB' : diskMax + ' MB') +'），容器已被自动停机。请清理数据后重新启动。</div>' : '') +
 			'<div class="dk-card-body">' +
 				'<div class="dk-metrics" style="margin-bottom:20px">' +
 					'<div class="dk-metric"><div class="dk-m-label">服务名</div><div class="dk-m-value dk-mono" style="font-size:14px">'+ esc(name || '-') +'</div></div>' +
@@ -84,6 +101,7 @@ include __DIR__ . '/head.php';
 						'<tr><th>端口映射</th><td>'+ renderPortsFromArray(portsArr, nodeIp, appinfo) +'</td></tr>' +
 						(home ? '<tr><th>应用主页</th><td><a href="'+ esc(home.trim()) +'" target="_blank" rel="noopener" class="dk-port-link">'+ esc(home.trim()) +'</a></td></tr>' : '') +
 						'<tr><th>服务名</th><td class="dk-mono">'+ esc(name || '-') +'</td></tr>' +
+						'<tr><th>磁盘用量</th><td>'+ diskHtml +'</td></tr>' +
 					'</tbody></table>' +
 				'</div>' +
 				'<div class="dk-row-actions" style="margin-top:20px">'+ actions +
@@ -150,12 +168,21 @@ include __DIR__ . '/head.php';
 		});
 	};
 
+	window.dkContainerRemove = function(){
+		if (!confirm('确定要删除容器吗？容器数据将被永久清除，此操作不可恢复。')) return;
+		dkAjax('container_remove', {}).then(function(r){
+			dkToast(r.msg || '操作已提交', 'success');
+			setTimeout(load, 2000);
+		});
+	};
+
 	function load(){
 		return dkAjax('my_container', {}, {silent:true}).then(function(r){
 			if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
 			var me = r.me || {};
 			var c = r.container;
 			var node = r.node || {};
+			var plan = r.plan || null;
 			var html;
 			if (!me.service_name && !me.container_id) {
 				html = renderEmpty();
@@ -164,7 +191,7 @@ include __DIR__ . '/head.php';
 				// creating 状态：每 8 秒自动刷新检查容器是否就绪
 				pollTimer = setInterval(load, 8000);
 			} else if (c) {
-				html = renderContainer(c, me, node);
+				html = renderContainer(c, me, node, plan);
 			} else {
 				html = renderEmpty();
 			}

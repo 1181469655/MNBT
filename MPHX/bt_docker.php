@@ -252,6 +252,33 @@ class bt_docker
         return $this->HttpPost('install_apphub');
     }
 
+    /**
+     * 卸载应用（删除容器及数据）
+     * @param array $params remove_app 参数（service_name 必填）
+     */
+    public function app_remove($params)
+    {
+        return $this->HttpPost('remove_app', $params);
+    }
+
+    // ========================================================================
+    //  文件/磁盘（GET /files?action=get_path_size）
+    // ========================================================================
+
+    /**
+     * 获取指定路径的磁盘占用大小（字节）
+     * 调用宝塔面板文件 API：/files?action=get_path_size
+     * @param string $path 容器安装目录（来自 get_installed_apps 的 path 字段）
+     * @return array 含 size（字节）字段
+     */
+    public function get_path_size($path)
+    {
+        $keyData = $this->GetKeyData();
+        $keyData['path'] = $path;
+        $url = $this->BT_PANEL . '/files?action=get_path_size';
+        return $this->request($url, $keyData, 30);
+    }
+
     // ========================================================================
     //  内部工具（签名与请求 transport，自持，不改 bt_api）
     // ========================================================================
