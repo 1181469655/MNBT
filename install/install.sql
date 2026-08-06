@@ -340,6 +340,7 @@ CREATE TABLE `MN_docker_plan` (
   `cpu_max` varchar(20) NOT NULL DEFAULT '1',                   -- CPU 核上限（create_app.cpus）
   `mem_max` varchar(20) NOT NULL DEFAULT '512',                 -- 内存 MB 上限（create_app.memory_limit）
   `disk_max` varchar(20) NOT NULL DEFAULT '0',                  -- 磁盘配额 MB 上限（0=不限制，create_app.appenv 下发）
+  `proxy_max` varchar(20) NOT NULL DEFAULT '0',                 -- 反向代理数量上限（0=不限制）
   `jg` varchar(50) NOT NULL,                                    -- 价格
   `qk` varchar(10) NOT NULL DEFAULT 'true',                     -- 上架/下架
   `date` varchar(50) NOT NULL,                                  -- 添加时间

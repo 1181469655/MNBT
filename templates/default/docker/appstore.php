@@ -4,6 +4,7 @@ $active = 'appstore';
 $cpu_max = $plan ? $plan['cpu_max'] : '1';
 $mem_max = $plan ? $plan['mem_max'] : '512';
 $disk_max = $plan ? $plan['disk_max'] : '0';
+$proxy_max = $plan ? $plan['proxy_max'] : '0';
 include __DIR__ . '/head.php';
 ?>
 <?php if (!empty($me['container_id']) || !empty($me['service_name'])): ?>
@@ -27,6 +28,7 @@ include __DIR__ . '/head.php';
 	var CPU_MAX = <?= json_encode((float)$cpu_max) ?>;
 	var MEM_MAX = <?= json_encode((float)$mem_max) ?>;
 	var DISK_MAX = <?= json_encode((float)$disk_max) ?>;
+	var PROXY_MAX = <?= json_encode((int)$proxy_max) ?>;
 	var HAS_CONTAINER = <?php echo (!empty($me['container_id']) || !empty($me['service_name'])) ? 'true' : 'false'; ?>;
 
 	function esc(s){ return $('<div>').text(s == null ? '' : String(s)).html(); }
@@ -174,6 +176,7 @@ include __DIR__ . '/head.php';
 					'<div class="dk-quota-item"><span class="dk-quota-label">CPU</span><span class="dk-quota-val">'+ CPU_MAX +' 核</span></div>' +
 					'<div class="dk-quota-item"><span class="dk-quota-label">内存</span><span class="dk-quota-val">'+ MEM_MAX +' MB</span></div>' +
 					'<div class="dk-quota-item"><span class="dk-quota-label">磁盘</span><span class="dk-quota-val">'+ (DISK_MAX > 0 ? (DISK_MAX >= 1024 ? (DISK_MAX/1024).toFixed(1)+' GB' : DISK_MAX+' MB') : '不限制') +'</span></div>' +
+					'<div class="dk-quota-item"><span class="dk-quota-label">代理数</span><span class="dk-quota-val">'+ (PROXY_MAX > 0 ? PROXY_MAX+' 个' : '不限制') +'</span></div>' +
 				'</div>' +
 				'<div class="dk-form-grid">' +
 					'<div class="dk-field dk-field-full"><label>允许外网访问</label><label><input type="checkbox" name="allow_access" value="1" checked> 允许（通过主机IP+端口访问，设了域名可不勾）</label></div>' +

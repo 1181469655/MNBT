@@ -302,4 +302,64 @@ if ($gn === 'app_create') {
 	docker_json(100, '创建失败：' . ($r['msg'] ?? ($r['message'] ?? '未知错误')), ['raw' => $r]);
 }
 
+// —— 反向代理管理 ——
+if ($gn === 'proxy_list') {
+	$px = docker_user_proxy($me);
+	if (!$px) docker_json(100, '所属节点不可用');
+	$r = $px->proxy_list(1, 200);
+	$list = $r['data'] ?? $r;
+	if (!is_array($list)) $list = [];
+	docker_json(200, 'ok', ['data' => $list]);
+}
+
+if ($gn === 'proxy_create') {
+	$px = docker_user_proxy($me);
+	if (!$px) docker_json(100, '所属节点不可用');
+	// 配额检查
+	$plan = docker_user_plan($me);
+	$proxyMax = $plan ? (int)$plan['proxy_max'] : 0;
+	if ($proxyMax > 0) {
+		$existing = $px->proxy_list(1, 200);
+		$existingList = $existing['data'] ?? $existing;
+		$count = is_array($existingList) ? count($existingList) : 0;
+		if ($count >= $proxyMax) {
+			docker_json(100, '反向代理数量已达上限（' . $proxyMax . '个），请先删除后再添加');
+		}
+	}
+	$domains = daddslashes($_POST['domains'] ?? '');
+	$proxy_pass = daddslashes($_POST['proxy_pass'] ?? '');
+	$proxy_path = daddslashes($_POST['proxy_path'] ?? '/');
+	$remark = daddslashes($_POST['remark'] ?? '');
+	if ($domains === '' || $proxy_pass === '') {
+		docker_json(100, '域名和代理目标不能为空');
+	}
+	$r = $px->proxy_create([
+		'domains'    => $domains,
+		'proxy_pass' => $proxy_pass,
+		'proxy_path' => $proxy_path ?: '/',
+		'remark'     => $remark,
+	]);
+	$ok = ($r['status'] ?? false) || (($r['code'] ?? 1) === 0);
+	if ($ok) {
+		mnbt_log($me['username'], 'Docker代理', '创建反向代理 ' . $domains . ' → ' . $proxy_pass, '创建成功', $DB);
+		docker_json(200, '反向代理创建成功');
+	}
+	docker_json(100, '创建失败：' . ($r['msg'] ?? ($r['message'] ?? '未知错误')), ['raw' => $r]);
+}
+
+if ($gn === 'proxy_delete') {
+	$px = docker_user_proxy($me);
+	if (!$px) docker_json(100, '所属节点不可用');
+	$id = (int)($_POST['id'] ?? 0);
+	$site_name = daddslashes($_POST['site_name'] ?? '');
+	if ($id <= 0 || $site_name === '') docker_json(100, '参数错误');
+	$r = $px->proxy_delete($id, $site_name);
+	$ok = ($r['status'] ?? false) || (($r['code'] ?? 1) === 0);
+	if ($ok) {
+		mnbt_log($me['username'], 'Docker代理', '删除反向代理 #' . $id . ' ' . $site_name, '删除成功', $DB);
+		docker_json(200, '反向代理已删除');
+	}
+	docker_json(100, '删除失败：' . ($r['msg'] ?? ($r['message'] ?? '未知错误')), ['raw' => $r]);
+}
+
 docker_json(100, '未知操作');

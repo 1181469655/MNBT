@@ -7,6 +7,7 @@ $node = $node ?? null;
 $navItems = [
 	'console'  => ['我的容器', 'console.php', '▣'],
 	'appstore' => ['应用商店', 'appstore.php', '▦'],
+	'proxy'    => ['反向代理', 'proxy.php', '⇄'],
 	'image'    => ['本地镜像', 'image.php', '▤'],
 	'volume'   => ['存储卷', 'volume.php', '▥'],
 	'compose'  => ['Compose', 'compose.php', '⊟'],
@@ -92,7 +93,7 @@ $(document).on('click', '.dk-modal-mask', function(e){ if (e.target === this) dk
 			<h2><?= htmlspecialchars($title ?? '') ?></h2>
 			<div class="dk-badges">
 				<?php if (!empty($plan)): ?>
-					<span class="dk-tag dk-tag-none"><?= htmlspecialchars($plan['name']) ?> · <?= htmlspecialchars($plan['cpu_max']) ?>核 / <?= htmlspecialchars($plan['mem_max']) ?>MB</span>
+					<span class="dk-tag dk-tag-none"><?= htmlspecialchars($plan['name']) ?> · <?= htmlspecialchars($plan['cpu_max']) ?>核 / <?= htmlspecialchars($plan['mem_max']) ?>MB<?php if (!empty($plan['disk_max']) && $plan['disk_max'] !== '0'): ?> / <?= $plan['disk_max'] >= 1024 ? round($plan['disk_max']/1024, 1) . 'GB' : $plan['disk_max'] . 'MB' ?>磁盘<?php endif; ?><?php if (!empty($plan['proxy_max']) && $plan['proxy_max'] !== '0'): ?> / <?= $plan['proxy_max'] ?>代理<?php endif; ?></span>
 				<?php endif; ?>
 			</div>
 		</div>

@@ -158,10 +158,42 @@ Docker 控制台是独立于用户端/管理端的第三套视图体系，有独
 | 函数 | 用途 |
 |------|------|
 | `dkAjax(gn, data, opts)` | Docker AJAX 请求（自动附带 CSRF token） |
-| `dkToast(msg, type)` | 消息提示 |
-| `dkModal(title, body, foot)` | 模态框 |
-| `dockerLogout()` | 退出登录 |
+| `dkToast(msg, type)` | 消息提示（`info` / `success` / `error`） |
+| `dkModal(html, title)` | 模态框（html 为内容，title 为标题） |
 | `dkCloseModal()` | 关闭模态框 |
+| `dockerLogout()` | 退出登录 |
+| `dkContainerOp(gn)` | 容器操作（`container_start` / `container_stop` / `container_restart`） |
+| `dkContainerRemove()` | 删除容器（带确认弹窗，调用 `remove_app` 卸载） |
+
+**Docker 视图可用的 PHP 变量**（由控制器传入）：
+
+| 变量 | 说明 |
+|------|------|
+| `$me` | 当前 Docker 用户（`MN_docker_user` 行） |
+| `$plan` | 用户套餐（`MN_docker_plan` 行，含 `cpu_max`/`mem_max`/`disk_max`） |
+| `$node` | 所属节点信息（`MN_docker_node` 行） |
+| `$title` | 页面标题 |
+| `$active` | 当前激活的导航项（`console`/`appstore`/`image`/`volume`/`compose`） |
+
+**Docker 关键 CSS 类**：
+
+| 类名 | 用途 |
+|------|------|
+| `.dk-card` / `.dk-card-head` / `.dk-card-body` | 卡片容器 |
+| `.dk-btn` / `.dk-btn-sm` / `.dk-btn-primary` / `.dk-btn-danger` / `.dk-btn-warning` / `.dk-btn-success` / `.dk-btn-ghost` / `.dk-btn-block` | 按钮 |
+| `.dk-tag` / `.dk-tag-running` / `.dk-tag-stopped` / `.dk-tag-creating` / `.dk-tag-none` / `.dk-tag-expired` / `.dk-tag-paused` | 状态标签 |
+| `.dk-quota-bar` / `.dk-quota-item` / `.dk-quota-label` / `.dk-quota-val` | 安装弹窗中的配额展示条（蓝色底，三列居中） |
+| `.dk-alert` / `.dk-alert-info` / `.dk-alert-warn` / `.dk-alert-danger` | 提示条 |
+| `.dk-form-grid` / `.dk-field` / `.dk-field-full` | 表单布局 |
+| `.dk-metrics` / `.dk-metric` / `.dk-m-label` / `.dk-m-value` | 指标卡片（容器详情页） |
+| `.dk-empty` / `.dk-empty-ico` | 空状态提示 |
+| `.dk-spinner-overlay` / `.dk-spin` | 加载动画 |
+| `.dk-app-card` / `.dk-app-head` / `.dk-app-icon` / `.dk-app-desc` | 应用卡片（应用商店列表） |
+| `.dk-modal` / `.dk-modal-head` / `.dk-modal-body` / `.dk-modal-foot` / `.dk-modal-close` | 模态框 |
+| `.dk-toast` | Toast 消息 |
+| `.dk-sidebar` / `.dk-nav` / `.dk-nav-section` | 侧栏导航 |
+| `.dk-topbar` / `.dk-badges` | 顶栏 |
+| `.dk-mono` | 等宽字体 |
 
 **Docker 控制器路径**：
 

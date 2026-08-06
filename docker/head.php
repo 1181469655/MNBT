@@ -8,6 +8,7 @@ if (!defined('IN_CRONLITE')) {
 }
 include dirname(__DIR__) . '/MPHX/common.php';
 include_once SYSTEM_ROOT . 'bt_docker.php';
+include_once SYSTEM_ROOT . 'bt_proxy.php';
 include_once SYSTEM_ROOT . 'docker.member.php';
 
 /**
@@ -24,6 +25,20 @@ function docker_user_node($dockerUser)
 	}
 	$url = ($node['ptl'] === 'true' ? 'https' : 'http') . '://' . $node['btip'] . ':' . $node['btdk'];
 	return [new bt_docker($url, $node['btmy']), $node];
+}
+
+/**
+ * 根据 Docker 用户所属节点构造 bt_proxy 实例
+ */
+function docker_user_proxy($dockerUser)
+{
+	global $DB;
+	$node = $DB->get_row_prepare("SELECT * FROM MN_docker_node WHERE id=? limit 1", [(int)$dockerUser['ssbt']]);
+	if (!$node || $node['qk'] !== 'true') {
+		return null;
+	}
+	$url = ($node['ptl'] === 'true' ? 'https' : 'http') . '://' . $node['btip'] . ':' . $node['btdk'];
+	return new bt_proxy($url, $node['btmy']);
 }
 
 /**
