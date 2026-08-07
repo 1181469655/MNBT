@@ -1076,23 +1076,25 @@ class bt_api
      * 获取可部署的软件包列表
      * @return array
      */
-    public function deployment_get_list()
+    public function deployment_get_list($timeout = 25)
     {
         $url = $this->BT_PANEL . '/deployment?action=GetList';
         $p_data = $this->GetKeyData();
+        $p_data['action'] = 'GetList';
         $p_data['type'] = 0;
-        return json_decode($this->HttpPostCookie($url, $p_data), true);
+        return json_decode($this->HttpPostCookie($url, $p_data, $timeout), true);
     }
 
     /**
      * 获取可用于一键部署的网站和框架列表
      * @return array
      */
-    public function deployment_get_site_list()
+    public function deployment_get_site_list($timeout = 25)
     {
         $url = $this->BT_PANEL . '/deployment?action=GetSiteList';
         $p_data = $this->GetKeyData();
-        return json_decode($this->HttpPostCookie($url, $p_data), true);
+        $p_data['action'] = 'GetSiteList';
+        return json_decode($this->HttpPostCookie($url, $p_data, $timeout), true);
     }
 
     /**
@@ -1102,49 +1104,58 @@ class bt_api
      * @param string $project_type 项目类型（php/java），默认 php
      * @return array
      */
-    public function deployment_setup_package($dname, $site_name, $project_type = 'php')
+    public function deployment_setup_package($dname, $site_name, $project_type = 'php', $timeout = 25)
     {
         $url = $this->BT_PANEL . '/deployment?action=SetupPackage';
         $p_data = $this->GetKeyData();
+        $p_data['action'] = 'SetupPackage';
         $p_data['dname'] = $dname;
         $p_data['site_name'] = $site_name;
         if ($project_type !== 'php') {
             $p_data['project_type'] = $project_type;
         }
-        return json_decode($this->HttpPostCookie($url, $p_data), true);
+        $raw = $this->HttpPostCookie($url, $p_data, $timeout);
+        $decoded = json_decode($raw, true);
+        if (!is_array($decoded)) {
+            return ['status' => false, 'msg' => '面板响应异常：' . mb_substr((string)$raw, 0, 200)];
+        }
+        return $decoded;
     }
 
     /**
      * 检测服务器环境
      * @return array
      */
-    public function deployment_check_project_env()
+    public function deployment_check_project_env($timeout = 25)
     {
         $url = $this->BT_PANEL . '/deployment?action=check_project_env';
         $p_data = $this->GetKeyData();
-        return json_decode($this->HttpPostCookie($url, $p_data), true);
+        $p_data['action'] = 'check_project_env';
+        return json_decode($this->HttpPostCookie($url, $p_data, $timeout), true);
     }
 
     /**
      * 获取部署进度
      * @return array|null
      */
-    public function deployment_get_speed()
+    public function deployment_get_speed($timeout = 25)
     {
         $url = $this->BT_PANEL . '/deployment?action=GetSpeed';
         $p_data = $this->GetKeyData();
-        return json_decode($this->HttpPostCookie($url, $p_data), true);
+        $p_data['action'] = 'GetSpeed';
+        return json_decode($this->HttpPostCookie($url, $p_data, $timeout), true);
     }
 
     /**
      * 获取部署日志
      * @return array
      */
-    public function deployment_get_in_log()
+    public function deployment_get_in_log($timeout = 25)
     {
         $url = $this->BT_PANEL . '/deployment?action=GetInLog';
         $p_data = $this->GetKeyData();
-        return json_decode($this->HttpPostCookie($url, $p_data), true);
+        $p_data['action'] = 'GetInLog';
+        return json_decode($this->HttpPostCookie($url, $p_data, $timeout), true);
     }
 
     /**
@@ -1159,10 +1170,11 @@ class bt_api
      * @param string $mysql_version MySQL 版本（仅 Java）
      * @return array
      */
-    public function deployment_add_package($name, $title, $version, $php = '', $enable_functions = '', $project_type = 'php', $java_version = '', $mysql_version = '')
+    public function deployment_add_package($name, $title, $version, $php = '', $enable_functions = '', $project_type = 'php', $java_version = '', $mysql_version = '', $timeout = 25)
     {
         $url = $this->BT_PANEL . '/deployment?action=AddPackage';
         $p_data = $this->GetKeyData();
+        $p_data['action'] = 'AddPackage';
         $p_data['name'] = $name;
         $p_data['title'] = $title;
         $p_data['version'] = $version;
@@ -1178,7 +1190,7 @@ class bt_api
                 $p_data['enable_functions'] = $enable_functions;
             }
         }
-        return json_decode($this->HttpPostCookie($url, $p_data), true);
+        return json_decode($this->HttpPostCookie($url, $p_data, $timeout), true);
     }
 
     /**
@@ -1186,12 +1198,13 @@ class bt_api
      * @param string $p_name 软件包英文名称
      * @return array
      */
-    public function deployment_get_package_other($p_name)
+    public function deployment_get_package_other($p_name, $timeout = 25)
     {
         $url = $this->BT_PANEL . '/deployment?action=GetPackageOther';
         $p_data = $this->GetKeyData();
+        $p_data['action'] = 'GetPackageOther';
         $p_data['p_name'] = $p_name;
-        return json_decode($this->HttpPostCookie($url, $p_data), true);
+        return json_decode($this->HttpPostCookie($url, $p_data, $timeout), true);
     }
 
     /**
@@ -1200,13 +1213,14 @@ class bt_api
      * @param string $site_name 网站名称
      * @return array
      */
-    public function deployment_del_package($dname, $site_name)
+    public function deployment_del_package($dname, $site_name, $timeout = 25)
     {
         $url = $this->BT_PANEL . '/deployment?action=DelPackage';
         $p_data = $this->GetKeyData();
+        $p_data['action'] = 'DelPackage';
         $p_data['dname'] = $dname;
         $p_data['site_name'] = $site_name;
-        return json_decode($this->HttpPostCookie($url, $p_data), true);
+        return json_decode($this->HttpPostCookie($url, $p_data, $timeout), true);
     }
 
     // ========================================================================
@@ -1386,7 +1400,7 @@ class bt_api
         ];
     }
 
-    private function HttpPostCookie($url, $data, $timeout = 60)
+    private function HttpPostCookie($url, $data, $timeout = 60, $connectTimeout = 10)
     {
         $cookie_file = ROOT . 'api/cookie/' . md5($this->BT_PANEL) . '.cookie';
         if (!file_exists($cookie_file)) {
@@ -1397,6 +1411,7 @@ class bt_api
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $connectTimeout);
         curl_setopt($ch, CURLOPT_POST, 1);
         curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
         curl_setopt($ch, CURLOPT_COOKIEJAR, $cookie_file);
@@ -1406,6 +1421,9 @@ class bt_api
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
         $output = curl_exec($ch);
+        if ($output === false) {
+            $output = '{"status":false,"msg":"连接面板失败：' . addslashes((string)curl_error($ch)) . '"}';
+        }
         curl_close($ch);
         return $output;
     }
