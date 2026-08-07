@@ -103,14 +103,12 @@
             </t-select>
           </t-form-item>
 
-          <!-- CPU / 内存 -->
-          <div class="dk-form-grid">
-            <t-form-item :label="`CPU 核数（0=不限制，上限 ${cpuMax}）`">
-              <t-input-number v-model="installForm.cpus" :min="0" :max="cpuMax" :step="1" />
-            </t-form-item>
-            <t-form-item :label="`内存 MB（0=不限制，上限 ${memMax}）`">
-              <t-input-number v-model="installForm.memory_limit" :min="0" :max="memMax" :step="32" />
-            </t-form-item>
+          <!-- 配额展示条 -->
+          <div class="dk-quota-bar">
+            <div class="dk-quota-item"><span class="dk-quota-label">CPU</span><span class="dk-quota-val">{{ cpuMax }} 核</span></div>
+            <div class="dk-quota-item"><span class="dk-quota-label">内存</span><span class="dk-quota-val">{{ memMax }} MB</span></div>
+            <div class="dk-quota-item"><span class="dk-quota-label">磁盘</span><span class="dk-quota-val">{{ diskLabel }}</span></div>
+            <div class="dk-quota-item"><span class="dk-quota-label">代理数</span><span class="dk-quota-val">{{ proxyLabel }}</span></div>
           </div>
 
           <!-- 允许外网访问 -->
@@ -185,6 +183,14 @@ const dynamicFields = ref([])
 
 const cpuMax = Number(dockerUser.cpu_max || 1)
 const memMax = Number(dockerUser.mem_max || 512)
+const diskMax = Number(dockerUser.disk_max || 0)
+const proxyMax = Number(dockerUser.proxy_max || 0)
+
+const diskLabel = computed(() => {
+  if (!diskMax) return '不限制'
+  return diskMax >= 1024 ? (diskMax / 1024).toFixed(1) + ' GB' : diskMax + ' MB'
+})
+const proxyLabel = computed(() => proxyMax > 0 ? proxyMax + ' 个' : '不限制')
 
 const filteredApps = computed(() => {
   const q = keyword.value.toLowerCase().trim()
@@ -317,8 +323,6 @@ function openInstall(app) {
 
   // 重置表单
   Object.keys(installForm).forEach((k) => delete installForm[k])
-  installForm.cpus = 0
-  installForm.memory_limit = 0
   installForm.allow_access = true
 
   // 设置版本默认值
@@ -346,8 +350,8 @@ async function doInstall() {
     app_name: currentApp.value.appname,
     m_version: mVersion || '',
     s_version: sVersion || '',
-    cpus: String(Math.min(parseInt(installForm.cpus || 0, 10), cpuMax)),
-    memory_limit: String(Math.min(parseFloat(installForm.memory_limit || 0), memMax)),
+    cpus: String(Math.floor(cpuMax)),
+    memory_limit: String(memMax),
     allow_access: installForm.allow_access ? '1' : '0',
   }
   dynamicFields.value.forEach((f) => {
@@ -521,4 +525,11 @@ onMounted(() => {
   grid-template-columns: 1fr 1fr;
   gap: 14px;
 }
+.dk-quota-bar {
+  display: flex; gap: 12px; margin-bottom: 16px; padding: 12px 14px;
+  background: rgba(0, 82, 217, 0.04); border-radius: 8px; border: 1px solid rgba(0, 82, 217, 0.12);
+}
+.dk-quota-item { flex: 1; text-align: center; }
+.dk-quota-label { display: block; font-size: 12px; color: var(--td-text-color-secondary, #6b7280); margin-bottom: 4px; }
+.dk-quota-val { font-size: 15px; font-weight: 600; color: var(--td-brand-color, #0052d9); }
 </style>

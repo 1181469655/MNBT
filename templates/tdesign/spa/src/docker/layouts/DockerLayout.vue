@@ -48,6 +48,9 @@
     <main class="dk-main">
       <header class="dk-topbar">
         <h2>{{ currentTitle }}</h2>
+        <div class="dk-topbar-badges" v-if="planLabel">
+          <t-tag variant="light" theme="default">{{ planLabel }}</t-tag>
+        </div>
       </header>
       <div class="dk-content">
         <router-view />
@@ -71,12 +74,23 @@ const user = boot.dockerUser || {}
 const menus = [
   { path: '/console', title: '我的容器', icon: 'mdi-view-dashboard-outline' },
   { path: '/appstore', title: '应用商店', icon: 'mdi-store' },
+  { path: '/proxy', title: '反向代理', icon: 'mdi-swap-horizontal' },
   { path: '/image', title: '镜像管理', icon: 'mdi-package-variant' },
   { path: '/volume', title: '数据卷', icon: 'mdi-database' },
   { path: '/compose', title: 'Compose', icon: 'mdi-file-tree' },
 ]
 
 const currentTitle = computed(() => route.meta?.title || 'Docker 控制台')
+
+const planLabel = computed(() => {
+  const parts = []
+  if (user.plan_name) parts.push(user.plan_name)
+  if (user.cpu_max) parts.push(`${user.cpu_max}核`)
+  if (user.mem_max) parts.push(`${user.mem_max}MB`)
+  if (user.disk_max && user.disk_max !== '0') parts.push(user.disk_max >= 1024 ? `${(user.disk_max/1024).toFixed(1)}GB磁盘` : `${user.disk_max}MB磁盘`)
+  if (user.proxy_max && user.proxy_max !== '0') parts.push(`${user.proxy_max}代理`)
+  return parts.length > 1 ? parts.join(' · ') : ''
+})
 
 async function onLogout() {
   await dockerLogout()
@@ -257,6 +271,9 @@ async function onLogout() {
   font-size: 18px;
   font-weight: 600;
   color: var(--td-text-color-primary, #1f2937);
+}
+.dk-topbar-badges {
+  margin-left: auto;
 }
 .dk-content {
   padding: 24px 28px 48px;

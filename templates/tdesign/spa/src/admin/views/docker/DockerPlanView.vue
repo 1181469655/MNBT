@@ -67,6 +67,16 @@
             <t-input-number v-model="editForm.mem_max" :min="32" :step="32" />
           </div>
         </div>
+        <div class="td-form-grid">
+          <div class="td-form-row">
+            <label>磁盘配额 MB（0=不限制）</label>
+            <t-input-number v-model="editForm.disk_max" :min="0" :step="128" />
+          </div>
+          <div class="td-form-row">
+            <label>代理数量上限（0=不限制）</label>
+            <t-input-number v-model="editForm.proxy_max" :min="0" :step="1" />
+          </div>
+        </div>
         <div class="td-form-row">
           <label>价格</label>
           <t-input-number v-model="editForm.jg" :min="0" :step="0.01" />
@@ -98,6 +108,8 @@ const columns = [
   { colKey: 'jc', title: '介绍', minWidth: 200, ellipsis: true },
   { colKey: 'cpu_max', title: 'CPU 核', width: 100, align: 'center' },
   { colKey: 'mem_max', title: '内存 MB', width: 110, align: 'center' },
+  { colKey: 'disk_max', title: '磁盘 MB', width: 110, align: 'center', cell: (h, { row }) => row.disk_max && row.disk_max !== '0' ? row.disk_max + ' MB' : '不限制' },
+  { colKey: 'proxy_max', title: '代理数', width: 90, align: 'center', cell: (h, { row }) => row.proxy_max && row.proxy_max !== '0' ? row.proxy_max + '个' : '不限制' },
   { colKey: 'jg', title: '价格', width: 100, align: 'center' },
   { colKey: 'qk', title: '上架', width: 90, align: 'center' },
   { colKey: 'operate', title: '操作', width: 140, fixed: 'right' },
@@ -124,6 +136,8 @@ function openEdit(row) {
     jc: row ? row.jc || '' : '',
     cpu_max: row ? Number(row.cpu_max || 1) : 1,
     mem_max: row ? Number(row.mem_max || 512) : 512,
+    disk_max: row ? Number(row.disk_max || 0) : 0,
+    proxy_max: row ? Number(row.proxy_max || 0) : 0,
     jg: row ? Number(row.jg || 0) : 0,
     qk: row ? (row.qk === 'true' ? 'true' : 'false') : 'true',
   })
@@ -143,6 +157,8 @@ async function onEdit() {
     jc: f.jc,
     cpu_max: String(f.cpu_max),
     mem_max: String(f.mem_max),
+    disk_max: String(f.disk_max),
+    proxy_max: String(f.proxy_max),
     jg: String(f.jg),
     qk: f.qk,
   }

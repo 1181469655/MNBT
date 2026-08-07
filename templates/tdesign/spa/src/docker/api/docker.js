@@ -131,6 +131,35 @@ export function createApp(params) {
   return dkApi('app_create', params)
 }
 
+// ===== 容器操作 =====
+
+/** 删除容器（卸载应用） */
+export function containerRemove() {
+  return dkApi('container_remove')
+}
+
+/** 获取容器端口列表 */
+export function getContainerPorts() {
+  return dkApi('container_ports', {}, { silent: true })
+}
+
+// ===== 反向代理 =====
+
+/** 反向代理列表 */
+export function listProxy() {
+  return dkApi('proxy_list', {}, { silent: true })
+}
+
+/** 创建反向代理 */
+export function createProxy(params) {
+  return dkApi('proxy_create', params)
+}
+
+/** 删除反向代理 */
+export function deleteProxy(id, siteName) {
+  return dkApi('proxy_delete', { id, site_name: siteName })
+}
+
 // ===== 镜像 =====
 
 /** 镜像列表 */

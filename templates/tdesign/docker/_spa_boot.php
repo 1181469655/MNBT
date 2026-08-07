@@ -35,6 +35,8 @@ $boot = [
 		'plan_name'     => $dkPlan['name'] ?? '',
 		'cpu_max'       => $dkPlan['cpu_max'] ?? 1,
 		'mem_max'       => $dkPlan['mem_max'] ?? 512,
+		'disk_max'      => $dkPlan['disk_max'] ?? '0',
+		'proxy_max'     => $dkPlan['proxy_max'] ?? '0',
 	]) : null,
 ];
 

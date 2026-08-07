@@ -110,7 +110,7 @@
               v-for="p in planOptions"
               :key="p.id"
               :value="p.id"
-              :label="`${p.name} (${p.cpu_max}核/${p.mem_max}MB/¥${p.jg})`"
+              :label="planLabel(p)"
             />
           </t-select>
         </div>
@@ -181,6 +181,7 @@ const columns = [
   { colKey: 'plan_name', title: '套餐', minWidth: 110, ellipsis: true },
   { colKey: 'app_name', title: '应用', minWidth: 110, ellipsis: true },
   { colKey: 'container_status', title: '容器状态', width: 110, align: 'center' },
+  { colKey: 'disk_usage', title: '磁盘用量', width: 110, align: 'center', cell: (h, { row }) => formatDiskUsage(row.disk_usage) },
   { colKey: 'data', title: '开通', width: 160 },
   { colKey: 'datae', title: '到期', width: 110 },
   { colKey: 'qk', title: '状态', width: 90, align: 'center' },
@@ -214,8 +215,23 @@ const qkMap = {
   expired: ['danger', '已到期'],
   pruned: ['default', '已清理'],
 }
+function planLabel(p) {
+  let s = `${p.name} (${p.cpu_max}核/${p.mem_max}MB`
+  if (p.disk_max && p.disk_max !== '0') s += `/${p.disk_max}MB磁盘`
+  if (p.proxy_max && p.proxy_max !== '0') s += `/${p.proxy_max}代理`
+  s += `/¥${p.jg})`
+  return s
+}
+
 function csText(v) { return (csMap[v] || ['default', v || '未知'])[1] }
 function csTheme(v) { return (csMap[v] || ['default'])[0] }
+function formatDiskUsage(n) {
+  n = parseInt(n, 10) || 0
+  if (n <= 0) return '-'
+  if (n < 1073741824) return (n / 1048576).toFixed(1) + ' MB'
+  return (n / 1073741824).toFixed(2) + ' GB'
+}
+
 function qkText(v) { return (qkMap[v] || ['default', v || '未知'])[1] }
 function qkTheme(v) { return (qkMap[v] || ['default'])[0] }
 

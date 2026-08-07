@@ -145,8 +145,9 @@ Docker 控制台是独立于用户端/管理端的第三套视图体系，有独
 | `head.php` | 公共引导文件（主题配置、节点信息、用户信息、导航菜单） | 改整体风格必改 |
 | `foot.php` | 公共尾部（Toast/Modal 容器、HTML 文档闭合） | 改整体风格必改 |
 | `login.php` | Docker 登录页 | 强烈建议覆盖 |
-| `console.php` | 我的容器（单容器详情页） | 建议 |
-| `appstore.php` | 应用商店（宝塔应用市场） | 建议 |
+| `console.php` | 我的容器（单容器详情页，含磁盘用量/配额显示） | 建议 |
+| `appstore.php` | 应用商店（含配额展示条：CPU/内存/磁盘/代理数） | 建议 |
+| `proxy.php` | 反向代理管理（列表/添加/删除，端口从容器端口选择，IP 锁定 127.0.0.1） | 建议 |
 | `image.php` | 镜像管理 | 可选 |
 | `volume.php` | 数据卷管理 | 可选 |
 | `compose.php` | Compose 模板 | 可选 |
@@ -164,16 +165,18 @@ Docker 控制台是独立于用户端/管理端的第三套视图体系，有独
 | `dockerLogout()` | 退出登录 |
 | `dkContainerOp(gn)` | 容器操作（`container_start` / `container_stop` / `container_restart`） |
 | `dkContainerRemove()` | 删除容器（带确认弹窗，调用 `remove_app` 卸载） |
+| `dkProxyAdd()` | 打开反向代理添加弹窗（先加载容器端口列表） |
+| `dkProxyDel(id, name)` | 删除反向代理规则 |
 
 **Docker 视图可用的 PHP 变量**（由控制器传入）：
 
 | 变量 | 说明 |
 |------|------|
 | `$me` | 当前 Docker 用户（`MN_docker_user` 行） |
-| `$plan` | 用户套餐（`MN_docker_plan` 行，含 `cpu_max`/`mem_max`/`disk_max`） |
+| `$plan` | 用户套餐（`MN_docker_plan` 行，含 `cpu_max`/`mem_max`/`disk_max`/`proxy_max`） |
 | `$node` | 所属节点信息（`MN_docker_node` 行） |
 | `$title` | 页面标题 |
-| `$active` | 当前激活的导航项（`console`/`appstore`/`image`/`volume`/`compose`） |
+| `$active` | 当前激活的导航项（`console`/`appstore`/`proxy`/`image`/`volume`/`compose`） |
 
 **Docker 关键 CSS 类**：
 
@@ -693,6 +696,8 @@ my_theme.zip
 | `templates/default/**/assets/` | 默认主题私有资源（`mnbt_theme_asset`） |
 | `templates/default/**` | 官方默认视图 |
 | `templates/layui/**` | Layui 混合栈示例主题 |
+| `MPHX/bt_docker.php` | Docker API 封装（容器/镜像/应用商店） |
+| `MPHX/bt_proxy.php` | 反向代理 API 封装（站点创建/删除/列表） |
 | `templates/default/docker/` | Docker 控制台默认视图（V1.83+） |
 | `docker/` | Docker 控制台控制器（V1.83+） |
 
