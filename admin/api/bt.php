@@ -97,7 +97,13 @@ if($egn=='listbt') {
 	$pageu=(intval($_POST['page'])-1) * $pagesize;
 	$countdata=$DB->count_prepare("SELECT count(*) from MN_bt WHERE 1");
 	$data=["total"=>$countdata];
-	$data["rows"]=$DB->get_all_prepare("SELECT * FROM MN_bt order by $paixu $sorting limit $pageu,$pagesize");
+	$rows=$DB->get_all_prepare("SELECT * FROM MN_bt order by $paixu $sorting limit $pageu,$pagesize");
+	// 计算调用密钥 dymy = md5(ktmy.qmk)，前端直接用不需要算 md5
+	foreach($rows as &$r){
+		$r['dymy']=md5($r['ktmy'].$r['qmk']);
+	}
+	unset($r);
+	$data["rows"]=$rows;
 	exit(json_encode($data));
 	return;
 }

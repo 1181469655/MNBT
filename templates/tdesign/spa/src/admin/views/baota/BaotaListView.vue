@@ -49,9 +49,12 @@
         </template>
         <template #ktmy="{ row }">
           <div class="td-flex-center td-gap-8">
-            <span class="td-mono">{{ showKtmy[row.id] ? (row.ktmy || '-') : '********' }}</span>
+            <span class="td-mono">{{ showKtmy[row.id] ? (row.dymy || '-') : '********' }}</span>
             <t-link theme="primary" @click="toggleKtmy(row.id)">
               <i class="mdi" :class="showKtmy[row.id] ? 'mdi-eye-off' : 'mdi-eye'"></i>
+            </t-link>
+            <t-link v-if="showKtmy[row.id]" theme="default" @click="copyDymy(row)" title="复制调用密钥">
+              <i class="mdi mdi-content-copy"></i>
             </t-link>
           </div>
         </template>
@@ -230,6 +233,20 @@ function fmtTime(v) {
 
 function toggleKtmy(id) {
   showKtmy[id] = !showKtmy[id]
+}
+function copyDymy(row) {
+  const val = row.dymy || ''
+  navigator.clipboard.writeText(val).then(() => {
+    MessagePlugin.success('调用密钥已复制')
+  }).catch(() => {
+    const ta = document.createElement('textarea')
+    ta.value = val
+    ta.style.position = 'fixed'; ta.style.left = '-9999px'
+    document.body.appendChild(ta)
+    ta.select(); document.execCommand('copy')
+    document.body.removeChild(ta)
+    MessagePlugin.success('调用密钥已复制')
+  })
 }
 function toggleBtmy(id) {
   showBtmy[id] = !showBtmy[id]
