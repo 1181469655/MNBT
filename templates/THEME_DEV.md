@@ -136,7 +136,79 @@ templates/my_theme/user/login.php
 | `tutorial.php` | 教程与监控说明 | 可选 |
 | `update.php` | 系统更新 | 可选 |
 
-### 3.3 不走主题的路径（一般不要动）
+### 3.3 Docker 控制台 `templates/{theme}/docker/` <small>（V1.83 新增）</small>
+
+Docker 控制台是独立于用户端/管理端的第三套视图体系，有独立的认证机制（`docker_token` cookie）。
+
+| 视图文件 | 说明 | 建议 |
+|----------|------|------|
+| `head.php` | 公共引导文件（主题配置、节点信息、用户信息、导航菜单） | 改整体风格必改 |
+| `foot.php` | 公共尾部（Toast/Modal 容器、HTML 文档闭合） | 改整体风格必改 |
+| `login.php` | Docker 登录页 | 强烈建议覆盖 |
+| `console.php` | 我的容器（单容器详情页，含磁盘用量/配额显示） | 建议 |
+| `appstore.php` | 应用商店（含配额展示条：CPU/内存/磁盘/代理数） | 建议 |
+| `proxy.php` | 反向代理管理（列表/添加/删除，端口从容器端口选择，IP 锁定 127.0.0.1） | 建议 |
+| `image.php` | 镜像管理 | 可选 |
+| `volume.php` | 数据卷管理 | 可选 |
+| `compose.php` | Compose 模板 | 可选 |
+
+**静态资源**：`templates/{theme}/docker/assets/`（CSS、JS、图片、SVG），使用 `mnbt_theme_asset('docker.css', 'docker')` 引用。
+
+**Docker 视图依赖的公共 JS 函数**（在 `head.php` 中加载）：
+
+| 函数 | 用途 |
+|------|------|
+| `dkAjax(gn, data, opts)` | Docker AJAX 请求（自动附带 CSRF token） |
+| `dkToast(msg, type)` | 消息提示（`info` / `success` / `error`） |
+| `dkModal(html, title)` | 模态框（html 为内容，title 为标题） |
+| `dkCloseModal()` | 关闭模态框 |
+| `dockerLogout()` | 退出登录 |
+| `dkContainerOp(gn)` | 容器操作（`container_start` / `container_stop` / `container_restart`） |
+| `dkContainerRemove()` | 删除容器（带确认弹窗，调用 `remove_app` 卸载） |
+| `dkProxyAdd()` | 打开反向代理添加弹窗（先加载容器端口列表） |
+| `dkProxyDel(id, name)` | 删除反向代理规则 |
+
+**Docker 视图可用的 PHP 变量**（由控制器传入）：
+
+| 变量 | 说明 |
+|------|------|
+| `$me` | 当前 Docker 用户（`MN_docker_user` 行） |
+| `$plan` | 用户套餐（`MN_docker_plan` 行，含 `cpu_max`/`mem_max`/`disk_max`/`proxy_max`） |
+| `$node` | 所属节点信息（`MN_docker_node` 行） |
+| `$title` | 页面标题 |
+| `$active` | 当前激活的导航项（`console`/`appstore`/`proxy`/`image`/`volume`/`compose`） |
+
+**Docker 关键 CSS 类**：
+
+| 类名 | 用途 |
+|------|------|
+| `.dk-card` / `.dk-card-head` / `.dk-card-body` | 卡片容器 |
+| `.dk-btn` / `.dk-btn-sm` / `.dk-btn-primary` / `.dk-btn-danger` / `.dk-btn-warning` / `.dk-btn-success` / `.dk-btn-ghost` / `.dk-btn-block` | 按钮 |
+| `.dk-tag` / `.dk-tag-running` / `.dk-tag-stopped` / `.dk-tag-creating` / `.dk-tag-none` / `.dk-tag-expired` / `.dk-tag-paused` | 状态标签 |
+| `.dk-quota-bar` / `.dk-quota-item` / `.dk-quota-label` / `.dk-quota-val` | 安装弹窗中的配额展示条（蓝色底，三列居中） |
+| `.dk-alert` / `.dk-alert-info` / `.dk-alert-warn` / `.dk-alert-danger` | 提示条 |
+| `.dk-form-grid` / `.dk-field` / `.dk-field-full` | 表单布局 |
+| `.dk-metrics` / `.dk-metric` / `.dk-m-label` / `.dk-m-value` | 指标卡片（容器详情页） |
+| `.dk-empty` / `.dk-empty-ico` | 空状态提示 |
+| `.dk-spinner-overlay` / `.dk-spin` | 加载动画 |
+| `.dk-app-card` / `.dk-app-head` / `.dk-app-icon` / `.dk-app-desc` | 应用卡片（应用商店列表） |
+| `.dk-modal` / `.dk-modal-head` / `.dk-modal-body` / `.dk-modal-foot` / `.dk-modal-close` | 模态框 |
+| `.dk-toast` | Toast 消息 |
+| `.dk-sidebar` / `.dk-nav` / `.dk-nav-section` | 侧栏导航 |
+| `.dk-topbar` / `.dk-badges` | 顶栏 |
+| `.dk-mono` | 等宽字体 |
+
+**Docker 控制器路径**：
+
+| 控制器 | 路径 |
+|--------|------|
+| 页面入口 | `docker/console.php`、`docker/appstore.php` 等 |
+| AJAX 后端 | `docker/ajax.php` |
+| CSS 样式 | `templates/default/docker/assets/docker.css` |
+
+**主题 scope 注册**：`docker` scope 在 `MPHX/theme.php` 中注册，与 `user`/`admin` 独立。`theme.json` 可声明 `"scope": ["user", "admin", "docker"]`。
+
+### 3.4 不走主题的路径（一般不要动）
 
 | 路径 | 原因 |
 |------|------|
@@ -624,6 +696,10 @@ my_theme.zip
 | `templates/default/**/assets/` | 默认主题私有资源（`mnbt_theme_asset`） |
 | `templates/default/**` | 官方默认视图 |
 | `templates/layui/**` | Layui 混合栈示例主题 |
+| `MPHX/bt_docker.php` | Docker API 封装（容器/镜像/应用商店） |
+| `MPHX/bt_proxy.php` | 反向代理 API 封装（站点创建/删除/列表） |
+| `templates/default/docker/` | Docker 控制台默认视图（V1.83+） |
+| `docker/` | Docker 控制台控制器（V1.83+） |
 
 ---
 
@@ -634,5 +710,6 @@ my_theme.zip
 - 若官方修改某页 DOM 结构，依赖旧 DOM 的自定义主题可能需跟进调整
 - 资源 API：`mnbt_theme_url` 会对主题私有文件做 default 回退；`mnbt_asset_url` 始终指向 `imsetes/`
 - `layui` 主题自 v1.81 起提供，作为混合栈示例
+- `docker` scope 自 v1.83 起支持，提供独立的 Docker 控制台视图体系
 
 如有疑问，可在项目 Issue 中反馈并附上主题目录结构与报错截图。

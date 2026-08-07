@@ -1,0 +1,152 @@
+<style>
+.host-console { padding: 0; }
+.host-console .info-row { display: flex; align-items: center; padding: 15px 0; border-bottom: 1px solid #f0f0f0; gap: 12px; }
+.host-console .info-row:last-child { border-bottom: none; }
+.host-console .info-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+.host-console .info-icon.url  { background: #e6f4ff; color: #1677ff; }
+.host-console .info-icon.user { background: #f6ffed; color: #52c41a; }
+.host-console .info-icon.pwd  { background: #fff7e6; color: #fa8c16; }
+.host-console .info-icon.stat { background: #f0f0f0; color: #666; }
+.host-console .info-icon.stat.on      { background: #f6ffed; color: #52c41a; }
+.host-console .info-icon.stat.suspend { background: #fff2f0; color: #ff4d4f; }
+.host-console .info-icon.stat.unknown { background: #f0f0f0; color: #999; }
+.host-console .info-body { flex: 1; min-width: 0; }
+.host-console .info-label { color: #999; font-size: 12px; margin-bottom: 2px; }
+.host-console .info-value { font-size: 14px; word-break: break-all; color: #333; }
+.host-console .info-value code { background: #f5f5f5; padding: 2px 8px; border-radius: 4px; font-size: 13px; color: #d4380d; }
+.host-console .copy-btn { flex-shrink: 0; width: 28px; height: 28px; border: 1px solid #d9d9d9; border-radius: 6px; background: #fff; color: #999; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; transition: all .2s; }
+.host-console .copy-btn:hover { border-color: #1677ff; color: #1677ff; }
+.host-console .copy-btn.copied { border-color: #52c41a; color: #52c41a; background: #f6ffed; }
+.host-console .status-text { font-size: 14px; color: #333; }
+.host-console .quota-item { padding: 12px 0; border-bottom: 1px solid #f0f0f0; }
+.host-console .quota-item:last-child { border-bottom: none; }
+.host-console .quota-head { display: flex; justify-content: space-between; font-size: 13px; color: #666; margin-bottom: 8px; }
+.host-console .quota-bar { height: 8px; background: #f0f0f0; border-radius: 4px; overflow: hidden; }
+.host-console .quota-fill { height: 100%; border-radius: 4px; transition: width .3s; }
+.host-console .quota-fill.ok    { background: #52c41a; }
+.host-console .quota-fill.warn  { background: #fa8c16; }
+.host-console .quota-fill.danger{ background: #ff4d4f; }
+.host-console .quota-unlimited { color: #999; font-size: 13px; }
+.host-console .btn-area { margin-top: 16px; }
+</style>
+
+<div class="card">
+    <div class="card-body host-console">
+
+        <div class="info-row">
+            <div class="info-icon url">🌐</div>
+            <div class="info-body">
+                <div class="info-label">控制台地址</div>
+                <div class="info-value">
+                    {if condition="!empty($console_url)"}
+                    <a href="{$console_url}" target="_blank">{$console_url}</a>
+                    {else /}
+                    <span style="color:#999">未配置</span>
+                    {/if}
+                </div>
+            </div>
+            {if condition="!empty($console_url)"}
+            <button class="copy-btn" onclick="hostCopy(this,'{$console_url}')" title="复制">📋</button>
+            {/if}
+        </div>
+
+        <div class="info-row">
+            <div class="info-icon user">👤</div>
+            <div class="info-body">
+                <div class="info-label">登录账号</div>
+                <div class="info-value"><code>{$username|default='—'}</code></div>
+            </div>
+            {if condition="!empty($username)"}
+            <button class="copy-btn" onclick="hostCopy(this,'{$username}')" title="复制">📋</button>
+            {/if}
+        </div>
+
+        <div class="info-row">
+            <div class="info-icon pwd">🔑</div>
+            <div class="info-body">
+                <div class="info-label">登录密码</div>
+                <div class="info-value"><code>{$password|default='—'}</code></div>
+            </div>
+            {if condition="!empty($password)"}
+            <button class="copy-btn" onclick="hostCopy(this,'{$password}')" title="复制">📋</button>
+            {/if}
+        </div>
+
+        <div class="info-row">
+            <div class="info-icon stat {$status_class}">📊</div>
+            <div class="info-body">
+                <div class="info-label">主机状态</div>
+                <div class="status-text">{$status_text}</div>
+            </div>
+        </div>
+
+        {if condition="$quota"}
+        <div style="margin-top:14px;border-top:1px solid #f0f0f0;padding-top:6px;">
+            <div class="info-label" style="margin:10px 0 4px;">配额用量</div>
+
+            <div class="quota-item">
+                <div class="quota-head">
+                    <span>网站空间</span>
+                    <span>{$quota.web_size_used} / {if condition="$quota.web_size_max==0"}不限{else /}{$quota.web_size_max}{/if} MB</span>
+                </div>
+                {if condition="$quota.web_size_max>0"}
+                <div class="quota-bar">
+                    <div class="quota-fill {$quota_pct.web_size.cls}" style="width:{$quota_pct.web_size.pct}%"></div>
+                </div>
+                {else /}
+                <div class="quota-unlimited">不限制</div>
+                {/if}
+            </div>
+
+            <div class="quota-item">
+                <div class="quota-head">
+                    <span>数据库空间</span>
+                    <span>{$quota.sql_size_used} / {if condition="$quota.sql_size_max==0"}不限{else /}{$quota.sql_size_max}{/if} MB</span>
+                </div>
+                {if condition="$quota.sql_size_max>0"}
+                <div class="quota-bar">
+                    <div class="quota-fill {$quota_pct.sql_size.cls}" style="width:{$quota_pct.sql_size.pct}%"></div>
+                </div>
+                {else /}
+                <div class="quota-unlimited">不限制</div>
+                {/if}
+            </div>
+
+            <div class="quota-item">
+                <div class="quota-head">
+                    <span>流量</span>
+                    <span>{$quota.flow_used} / {if condition="$quota.flow_max==0"}不限{else /}{$quota.flow_max}{/if} MB</span>
+                </div>
+                {if condition="$quota.flow_max>0"}
+                <div class="quota-bar">
+                    <div class="quota-fill {$quota_pct.flow.cls}" style="width:{$quota_pct.flow.pct}%"></div>
+                </div>
+                {else /}
+                <div class="quota-unlimited">不限制</div>
+                {/if}
+            </div>
+        </div>
+        {/if}
+
+        {if condition="!empty($console_url)"}
+        <div class="btn-area">
+            <a href="{$console_url}" target="_blank" class="btn btn-primary btn-sm">前往控制台</a>
+        </div>
+        {/if}
+
+    </div>
+</div>
+
+<script>
+function hostCopy(btn, text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed'; ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select(); document.execCommand('copy');
+    document.body.removeChild(ta);
+    btn.classList.add('copied');
+    btn.innerHTML = '✓';
+    setTimeout(function(){ btn.classList.remove('copied'); btn.innerHTML = '📋'; }, 1500);
+}
+</script>

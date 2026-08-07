@@ -362,8 +362,10 @@ if ($set == 'wz') {
 <?php } elseif ($set == 'theme') {
   $userThemes = mnbt_theme_list('user');
   $adminThemes = mnbt_theme_list('admin');
+  $dockerThemes = mnbt_theme_list('docker');
   $curUserTheme = mnbt_theme_name('user');
   $curAdminTheme = mnbt_theme_name('admin');
+  $curDockerTheme = mnbt_theme_name('docker');
 ?>
 <div class="mn-set-card">
   <div class="mn-set-card-hd">
@@ -397,6 +399,19 @@ if ($set == 'wz') {
       <small>当前：<?=htmlspecialchars($curAdminTheme)?> · 缺页回退 default</small>
     </div>
     <div class="mn-set-field">
+      <label for="dockertheme">Docker 控制台主题</label>
+      <select class="form-control" id="dockertheme" name="dockertheme">
+        <?php if (empty($dockerThemes)): ?>
+        <option value="">（暂无可用 Docker 主题）</option>
+        <?php else: foreach ($dockerThemes as $t): ?>
+        <option value="<?=htmlspecialchars($t['name'])?>" <?=$curDockerTheme === $t['name'] ? 'selected' : ''?>>
+          <?=htmlspecialchars($t['title'])?><?=$t['version'] ? ' v'.htmlspecialchars($t['version']) : ''?> (<?=htmlspecialchars($t['name'])?>)
+        </option>
+        <?php endforeach; endif; ?>
+      </select>
+      <small>当前：<?=htmlspecialchars($curDockerTheme)?> · Docker 控制台（/docker/）皮肤</small>
+    </div>
+    <div class="mn-set-field">
       <label>已安装主题</label>
       <div class="table-responsive">
         <table class="table table-hover mn-set-table">
@@ -407,6 +422,7 @@ if ($set == 'wz') {
               <th>版本</th>
               <th>用户端</th>
               <th>管理端</th>
+              <th>Docker端</th>
               <th>说明</th>
             </tr>
           </thead>
@@ -414,7 +430,7 @@ if ($set == 'wz') {
           <?php
           $all = mnbt_theme_list(null);
           if (empty($all)): ?>
-            <tr><td colspan="6" class="text-center text-muted">未发现主题</td></tr>
+            <tr><td colspan="7" class="text-center text-muted">未发现主题</td></tr>
           <?php else: foreach ($all as $t): ?>
             <tr>
               <td><code><?=htmlspecialchars($t['name'])?></code></td>
@@ -422,6 +438,7 @@ if ($set == 'wz') {
               <td><?=htmlspecialchars($t['version'] ?: '-')?></td>
               <td><?=!empty($t['has_user']) ? '<span class="text-success">支持</span>' : '<span class="text-muted">—</span>'?></td>
               <td><?=!empty($t['has_admin']) ? '<span class="text-success">支持</span>' : '<span class="text-muted">—</span>'?></td>
+              <td><?=!empty($t['has_docker']) ? '<span class="text-success">支持</span>' : '<span class="text-muted">—</span>'?></td>
               <td><?=htmlspecialchars($t['description'] ?: '-')?></td>
             </tr>
           <?php endforeach; endif; ?>

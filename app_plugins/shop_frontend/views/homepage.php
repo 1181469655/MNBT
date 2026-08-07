@@ -7,6 +7,7 @@
 <?php if ($favicon): ?><link rel="icon" href="<?= htmlspecialchars($favicon) ?>"><?php endif; ?>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/css/materialdesignicons.min.css">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="<?= shop_frontend_asset_url('style.css') ?>">
 <style>
 :root {
   --brand: <?= htmlspecialchars($primary ?: '#2563eb') ?>;
@@ -30,27 +31,7 @@ body{
 }
 a{text-decoration:none;color:inherit}
 img{max-width:100%;display:block}
-.w{width:min(1160px,calc(100% - 48px));margin:0 auto}
-
-/* ── Navbar ── */
-.navbar{
-  position:sticky;top:0;z-index:100;
-  background:rgba(255,255,255,.88);
-  border-bottom:1px solid var(--border);
-  backdrop-filter:blur(12px);
-}
-.navbar .w{height:68px;display:flex;align-items:center;justify-content:space-between;gap:24px}
-.nav-brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:1.1rem;color:var(--text);letter-spacing:-.02em}
-.nav-brand img{height:34px;width:auto;border-radius:8px}
-.nav-brand .mark{
-  width:36px;height:36px;border-radius:8px;background:var(--brand);color:#fff;
-  display:grid;place-items:center;font-weight:800;font-size:15px;
-}
-.nav-links{display:flex;align-items:center;gap:4px}
-.nav-links a{
-  padding:8px 14px;border-radius:8px;font-size:14px;font-weight:500;color:var(--text-2);transition:.15s;
-}
-.nav-links a:hover{background:var(--bg);color:var(--text)}
+.w{width:min(1120px,calc(100% - 48px));margin:0 auto}
 
 .btn{
   display:inline-flex;align-items:center;justify-content:center;gap:7px;
@@ -160,7 +141,6 @@ img{max-width:100%;display:block}
 .banner .btn-fill:hover{background:rgba(255,255,255,.92)}
 
 /* ── Footer ── */
-.foot{border-top:1px solid var(--border);background:var(--bg);padding:28px 0;color:var(--text-3);font-size:13px;text-align:center}
 
 @media(max-width:860px){
   .g-feat,.g-plan{grid-template-columns:1fr}
@@ -168,40 +148,13 @@ img{max-width:100%;display:block}
   .banner{flex-direction:column;text-align:center;padding:32px 24px}
 }
 @media(max-width:540px){
-  .navbar .w{height:auto;padding:12px 0;flex-wrap:wrap;gap:10px}
-  .nav-links{width:100%;justify-content:flex-end}
   .hero .btns{flex-direction:column;align-items:center}
 }
 </style>
 </head>
 <body>
 
-<header class="navbar">
-  <div class="w">
-    <a class="nav-brand" href="/">
-      <?php if ($logo): ?>
-        <img src="<?= htmlspecialchars($logo) ?>" alt="<?= htmlspecialchars($title) ?>">
-      <?php else: ?>
-        <span class="mark"><?= htmlspecialchars(mb_substr($title, 0, 1, 'UTF-8')) ?></span>
-      <?php endif; ?>
-      <?= htmlspecialchars($title) ?>
-    </a>
-    <nav class="nav-links">
-      <a href="<?= $url('/shop') ?>">套餐</a>
-      <?php if ($user): ?>
-        <a href="<?= $url('/shop/orders') ?>">订单</a>
-        <a href="<?= $url('/balance') ?>">余额</a>
-        <a class="btn btn-ghost" style="font-weight:600" href="<?= $url('/user') ?>">
-          <span class="mdi mdi-account-circle"></span> <?= htmlspecialchars($user['username']) ?>
-        </a>
-        <a class="btn btn-outline" href="<?= $url('/account/logout') ?>">退出</a>
-      <?php else: ?>
-        <a href="<?= $url('/account/login') ?>">登录</a>
-        <a class="btn btn-fill" href="<?= $url('/account/register') ?>">免费注册</a>
-      <?php endif; ?>
-    </nav>
-  </div>
-</header>
+<?php include __DIR__ . '/partials/navbar.php'; ?>
 
 <section class="hero">
   <div class="w">
@@ -309,7 +262,7 @@ img{max-width:100%;display:block}
   </div>
 </section>
 
-<footer class="foot"><div class="w"><?= htmlspecialchars($footer) ?></div></footer>
+<footer class="sf-footer"><div class="sf-container"><?= htmlspecialchars($footer) ?></div></footer>
 
 </body>
 </html>

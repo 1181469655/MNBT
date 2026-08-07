@@ -1,11 +1,11 @@
-# 梦奈宝塔主机系统 (MNBT) V1.81
+# 梦奈宝塔主机系统 (MNBT) V1.83
 
 基于宝塔面板 API 的虚拟主机分销管理系统，支持多节点宝塔面板统一管理、用户自主开通主机、一键部署网站程序、在线文件管理、Gzip/缓存配置、URL/资源监控告警、违禁词扫描、**可切换前端主题**、**PHP 业务插件**等功能。
 
 ![PHP](https://img.shields.io/badge/PHP-7.4%20~%208.4-777BB4?logo=php&logoColor=white)
 ![MySQL](https://img.shields.io/badge/MySQL-5.6%2B-4479A1?logo=mysql&logoColor=white)
 ![License](https://img.shields.io/badge/license-Commercial-blue)
-![Version](https://img.shields.io/badge/version-1.81-green)
+![Version](https://img.shields.io/badge/version-1.83-green)
 
 ---
 
@@ -437,6 +437,59 @@ $params = [
 
 ---
 
+## Docker 容器服务（V1.83）
+
+基于宝塔面板 Docker 模块的容器托管能力，独立于主机业务，单容器模型。
+
+### 架构
+
+- **独立认证**：`docker/` 控制台使用独立 `docker_token` cookie，与 `admin_token`/`user_token` 隔离
+- **API 封装**：`MPHX/bt_docker.php`，GET 路由 `/btdocker/*`（签名入 query）+ POST 路由 `/mod/docker/com/*/stype`（签名入 body），与 `bt_api` 分离
+- **单容器模型**：每个 Docker 账户最多创建一个容器，`MN_docker_user.service_name/container_id` 锚定
+- **主题 scope**：`theme.php` 新增 `docker` scope，视图位于 `templates/{theme}/docker/`
+
+### 数据表
+
+| 表 | 说明 |
+|------|------|
+| `MN_docker_user` | Docker 用户（账号/密码/节点/套餐/容器锚点/到期软删字段） |
+| `MN_docker_plan` | 套餐（CPU/内存配额/价格） |
+| `MN_docker_order` | 订单（P0 预留，未接支付） |
+
+升级 SQL：`update/update_v183_docker.sql`（全新安装已在 `install/install.sql` 内置）
+
+### 入口
+
+| 路径 | 说明 |
+|------|------|
+| `docker/login.php` | Docker 用户登录 |
+| `docker/console.php` | 我的容器（状态/启停/安装日志轮询） |
+| `docker/appstore.php` | 应用商店（get_apps + create_app 异步安装） |
+| `docker/image.php` `docker/volume.php` `docker/compose.php` | 镜像/存储卷/Compose |
+| `docker/ajax.php` | 控制台 AJAX（gn=login/logout/my_container/container_*/app_*/install_log） |
+| `admin/docker.php` | 后台管理（用户/套餐/节点容器三 Tab） |
+| `admin/api/docker.php` | 后台 AJAX（docker_user_* / docker_plan_* / docker_node_*） |
+| `api/docker.php` | 对外开通 API（gn=kt，鉴权同 api/api.php） |
+| `docker_cron.php` | 到期软删定时任务（建议每 30 分钟：`/docker_cron.php?my=API密钥`） |
+
+### 到期软删流程
+
+1. `active` 且到期 → `qk=expired`，`expired_at=到期时间`
+2. `expired` 满 7 天 → cron 删除节点容器 → `qk=pruned`，`prune_due=当天`
+3. `pruned` 满 7 天 → 物理删除用户行
+
+### create_app 异步安装
+
+应用安装为异步任务：提交后返回"等待 1-5 分钟初始化"，前端轮询 `install_log`（`get_cmd_log`）跟进进度，`console.php` 每 8 秒刷新容器状态。
+
+### 鉴权说明
+
+- 控制台 cookie：`docker_token`，`authcode` 加密，`session_hash = md5(user_id . password_hash . SYS_KEY)`，改密后旧 cookie 失效
+- 密码：`password_hash`/`password_verify`（bcrypt）
+- CSRF：复用 `mnbt_csrf_*`，AJAX 携带 `_csrf` 或 `X-CSRF-TOKEN`
+
+---
+
 ## 前端模板
 
 ### 内置主题
@@ -794,7 +847,34 @@ backup/
 
 ## 更新日志
 
-### V1.81（当前）
+### V1.83（当前）
+
+**Docker 容器托管**
+
+- 独立于主机业务的 Docker 容器托管模块，单容器模型（每用户最多创建一个容器）
+- 独立认证：`docker/` 控制台使用独立 `docker_token` cookie，与 `admin_token`/`user_token` 隔离
+- 独立表：`MN_docker_node`（节点）、`MN_docker_user`（用户）、`MN_docker_plan`（套餐）、`MN_docker_order`（订单）
+- 宝塔 Docker API 封装：`MPHX/bt_docker.php`，支持容器列表/创建/启停/删除、镜像/应用商店/已安装应用、Compose 模板/数据卷等全部接口
+- 用户端：`docker/` 控制台（我的容器、应用商店、镜像管理、数据卷、Compose 模板），支持容器创建进度追踪、端口映射可视化、应用参数中文说明
+- 管理端：Docker 节点管理、套餐管理、用户管理、订单管理、到期软删流程（`active` → `expired` → `pruned` → 物理删除）
+- 外部 API：`api/docker.php`（`mn_key` 鉴权），供第三方对接容器开通/续费/删除
+- 升级 SQL：`update/update_v183_docker.sql`
+- 文档：`docs/Docker_API.md`（内部 API 对接文档）
+
+**前端设计升级**
+
+- Docker 控制台整体改为浅色简约圆角设计，白色侧边栏 + 浅灰背景
+- 新增 `docker.svg` 横向 logo，登录页与侧边栏统一使用
+- 主题色从 `#3a7bd5` 升级为 `#2563eb`，圆角从 10px 提升到 14px
+- 顶部栏毛玻璃效果（`backdrop-filter: blur`），输入框/按钮 focus 光晕
+- 应用商店搜索框胶囊形圆角，卡片 hover 柔和投影
+
+**模板开发文档更新**
+
+- `templates/THEME_DEV.md` 新增 Docker 视图清单与主题开发说明
+- 新增 `docker` scope 视图支持（`templates/{theme}/docker/`），缺页回退 `default`
+
+### V1.81
 
 **PHP 业务插件系统（P0 + P1）**
 

@@ -1,7 +1,7 @@
 # MNBT API 文档
 
-> **版本**：V1.81  
-> **更新日期**：2026-07-26  
+> **版本**：V1.83  
+> **更新日期**：2026-08-04  
 > **适用范围**：梦奈宝塔主机系统（MNBT）前端、移动端、第三方对接、插件开发
 
 本文件汇总 MNBT 全部对外接口，包括：
@@ -1037,6 +1037,213 @@ curl -X POST http://your-domain/admin/ajax.php \
   -H "Cookie: admin_token=xxxxxx" \
   -d "gn=p_domain_addym&url=example.com&bt=1&jg=10&ymjs=介绍&kg=true&channel=pan&provider_id=0"
 ```
+
+---
+
+## 8. Docker 容器服务 API（V1.83）
+
+### 8.1 外部开通 API（api/docker.php）
+
+鉴权与 `api/api.php` 完全一致：`mn_key`=系统 API 密钥，`mn_bh`=节点编号，`mn_keye`=md5(节点 ktmy . qmk)，`mn_vs`>=15。
+
+#### 连接验证（gn=cfif）
+
+```bash
+curl -X POST "http://your-domain/api/docker.php?gn=cfif" \
+  -d "mn_bh=1&mn_key=YOUR_API_KEY&mn_keye=MD5_KEY&mn_vs=15&username=test"
+```
+
+#### 开通 Docker 账户（gn=kt）
+
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `username` | 是 | Docker 账号（≥4位，唯一） |
+| `password` | 是 | 密码（≥6位，bcrypt 存储） |
+| `dqtime` | 否 | 到期时间，`0`=永久（默认） |
+| `plan_id` | 否 | 套餐 ID（需为上架状态） |
+| `email` | 否 | 邮箱 |
+
+```bash
+curl -X POST "http://your-domain/api/docker.php?gn=kt" \
+  -d "mn_bh=1&mn_key=YOUR_API_KEY&mn_keye=MD5_KEY&mn_vs=15&username=duser1&password=dpass123&dqtime=2026-12-31&plan_id=1"
+```
+
+响应：`{"success":true,"code":200,"msg":"Docker 账户开通成功！"}`
+
+> 开通仅创建账户，容器由用户登录 `docker/` 控制台后在应用商店自行创建（单容器模型）。
+
+### 8.2 Docker 控制台 AJAX（docker/ajax.php）
+
+认证：`docker_token` cookie + CSRF（`_csrf` 字段或 `X-CSRF-TOKEN` 头）。
+
+| `gn` | 方法 | 说明 |
+|------|------|------|
+| `login` | POST | 登录（username/password） |
+| `logout` | POST | 登出 |
+| `my_container` | POST | 获取我的容器（单容器隔离过滤） |
+| `container_start` | POST | 启动我的容器 |
+| `container_stop` | POST | 停止我的容器 |
+| `container_restart` | POST | 重启我的容器 |
+| `install_log` | POST | 安装进度日志（get_cmd_log） |
+| `image_list` | POST | 本地镜像列表 |
+| `volume_list` | POST | 存储卷列表 |
+| `compose_list` | POST | Compose 模板 + 项目 |
+| `app_list` | POST | 应用商店列表（get_apps） |
+| `app_detail` | POST | 单应用详情（appname） |
+| `app_dependence` | POST | 依赖查询 |
+| `app_create` | POST | 创建应用/开通容器（单容器+配额校验） |
+
+`app_create` 关键参数：`app_name`/`m_version`/`s_version`/`cpus`/`memory_limit`/`allow_access` + 应用专属字段（来自 get_apps 的 env/field）。后端自动生成 `service_name=mnbt_<username>`，强制 cpus/memory 不超过套餐上限。
+
+### 8.3 后台管理 AJAX（admin/ajax.php，gn=docker_*）
+
+需管理员登录。指令前缀 `docker_`：
+
+| `gn` | 说明 |
+|------|------|
+| `docker_user_list` | 用户列表（bootstrap-table） |
+| `docker_user_add` / `docker_user_edit` / `docker_user_del` | 用户增改删 |
+| `docker_user_reset` | 重置密码 |
+| `docker_user_pause` / `docker_user_resume` | 暂停/恢复 |
+| `docker_plan_list` / `docker_plan_add` / `docker_plan_edit` / `docker_plan_del` | 套餐管理 |
+| `docker_node_config` | 节点 Docker 配置（get_config） |
+| `docker_node_containers` | 节点容器列表 |
+| `docker_options` | 节点/套餐下拉数据 |
+
+### 8.4 到期软删定时任务
+
+```bash
+# 建议每 30 分钟执行
+curl "http://your-domain/docker_cron.php?my=YOUR_API_KEY"
+```
+
+三阶段：`active→expired`（到期）→ `pruned`（满7天删容器）→ 物理删除（再满7天）。
+
+### 8.5 魔方财务对接 API（V1.83+）
+
+以下 `gn` 供魔方财务（idcsmart）server module 调用，鉴定方式与 §8.1 完全一致。
+
+> 所有请求均携带：`mn_bh` / `mn_key` / `mn_keye` / `mn_vs=15` / `username`。
+
+#### 暂停 Docker 账户（gn=zt）
+
+```
+POST api/docker.php?gn=zt
+```
+
+停容器（若存在）＋ `qk=paused`，禁止登录。已暂停/到期状态视为成功。
+响应：`{"success":true,"code":200,"msg":"Docker 账户已暂停"}`
+
+#### 恢复 Docker 账户（gn=jc）
+
+```
+POST api/docker.php?gn=jc
+```
+
+`paused → active`，恢复登录。仅 `paused` 状态可恢复（`expired` 走续费 `xf`）。
+响应：`{"success":true,"code":200,"msg":"Docker 账户已恢复"}`
+
+#### 删除 Docker 账户（gn=tj）
+
+```
+POST api/docker.php?gn=tj
+```
+
+先删除节点容器（失败则拒绝删行），再物理删除用户行。与 7 天软删 cron 互不冲突。
+响应：`{"success":true,"code":200,"msg":"Docker 账户已删除"}`
+
+#### 续费（gn=xf）
+
+```
+POST api/docker.php?gn=xf
+```
+
+| 参数 | 说明 |
+|------|------|
+| `setdate` | 到期日期 `Y-m-d`，`0`=永久 |
+
+若原 `expired` 且新到期未过，同时恢复 `active` 并尝试启动容器。
+响应：`{"success":true,"code":200,"msg":"Docker 账户续费成功"}`
+
+#### 变更套餐（gn=bg）
+
+```
+POST api/docker.php?gn=bg
+```
+
+| 参数 | 说明 |
+|------|------|
+| `plan_id` | 新套餐 ID（`MN_docker_plan.id`） |
+
+仅更新 `plan_id` 记录，运行中容器配额不实时调整（重装/重建容器时生效）。
+响应：`{"success":true,"code":200,"msg":"套餐变更成功"}`
+
+#### 重置密码（gn=czmm）
+
+```
+POST api/docker.php?gn=czmm
+```
+
+| 参数 | 说明 |
+|------|------|
+| `password` | 新密码（≥6 位） |
+
+旧 `docker_token` 因 session_hash 依赖密码 hash 自动失效。
+响应：`{"success":true,"code":200,"msg":"密码重置成功"}`
+
+#### 状态查询（gn=ztcx）
+
+```
+POST api/docker.php?gn=ztcx
+```
+
+返回用户信息、容器详情（调 `installed_apps` 前缀匹配 `service_name`）、节点信息。容器未创建时 `container` 为 `null`。
+
+响应：
+
+```json
+{
+  "success": true, "code": 200, "msg": "ok",
+  "data": {
+    "user": { "username": "test", "qk": "active", "datae": "0000-00-00",
+              "plan_id": 1, "container_status": "running",
+              "service_name": "mnbt_test", "disk_usage": 12345678 },
+    "container": { "service_name": "mnbt_test", "apptitle": "FRP 服务端",
+                   "status": "running", "port": ["29369"],
+                   "container_id": "b0a0d1bb...", "appinfo": [...] },
+    "node": { "btip": "150.158.137.178", "ptl": "true" }
+  }
+}
+```
+
+#### 用量查询（gn=sy）
+
+```
+POST api/docker.php?gn=sy
+```
+
+容器运行中时实时刷新磁盘用量（`installed_apps` → `get_path_size`）。
+
+```json
+{
+  "success": true, "code": 200, "msg": "ok",
+  "data": {
+    "disk_usage": 12345678, "disk_max": 1048576,
+    "disk_max_mb": 1024, "unit": "bytes", "quota_reached": false
+  }
+}
+```
+
+#### 容器启停
+
+```
+POST api/docker.php?gn=start   # 启动
+POST api/docker.php?gn=stop    # 停止
+POST api/docker.php?gn=restart # 重启
+```
+
+要求 `qk=active` 且已创建容器。
+响应：`{"success":true,"code":200,"msg":"容器已启动/已停止/已重启"}`
 
 ---
 

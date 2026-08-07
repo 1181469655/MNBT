@@ -49,6 +49,38 @@
 /* 公告/广告 */
 .ly-gg-item { margin: 4px 0; font-size: 12px; border-radius: 4px; }
 
+/* 系统通知横幅 */
+.ly-gg-banner {
+  display: flex; align-items: center; gap: 10px;
+  background: #eaf6fe; border: 1px solid #bee5f8; border-left: 4px solid #12b7f5;
+  border-radius: 8px; padding: 12px 16px; margin-bottom: 15px;
+  font-size: 14px; color: #0a6a9c; box-shadow: 0 1px 2px 0 rgba(0,0,0,.05);
+}
+.ly-gg-banner .mdi { font-size: 22px; color: #12b7f5; }
+.ly-gg-banner b { color: #12688f; font-size: 15px; }
+
+/* 广告弹窗网格 */
+.ly-ad-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+}
+.ly-ad-card {
+  border: 1px solid #e8eaed; border-radius: 8px; padding: 14px 16px;
+  background: #fafbfc; transition: box-shadow .2s, border-color .2s;
+  overflow: hidden;
+}
+.ly-ad-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.08); border-color: #d0d5db; }
+.ly-ad-card--full { grid-column: 1 / -1; }
+.ly-ad-card .ly-ad-name {
+  font-size: 15px; font-weight: 600; color: #17a2b8; text-decoration: none;
+  display: block; margin-bottom: 6px;
+}
+.ly-ad-card .ly-ad-name:hover { color: #117a8b; }
+.ly-ad-card .ly-ad-nr { font-size: 12px; color: #666; line-height: 1.7; }
+.ly-ad-card .ly-ad-nr img { max-width: 100%; height: auto; }
+@media (max-width: 560px) {
+  .ly-ad-grid { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 768px) {
   .ly-stat-card { min-width: 120px; padding: 12px 10px; }
   .ly-stat-card .ly-stat-icon { width: 36px; height: 36px; font-size: 17px; }
@@ -57,6 +89,12 @@
 </style>
 
 <div class="ly-dash">
+
+<!-- ====== 系统通知横幅 ====== -->
+<div class="ly-gg-banner">
+  <i class="mdi mdi-qqchat"></i>
+  <span>使用本系统的请进入我们的QQ群：<b>994752422</b>方便进行通知！</span>
+</div>
 
 <!-- ====== 统计概览 ====== -->
 <div class="ly-stat-row">
@@ -229,36 +267,6 @@
   </div>
 </div>
 
-<!-- ====== 公告 + 广告 ====== -->
-<fieldset class="layui-elem-field layui-field-title" style="margin-top:25px;">
-  <legend><i class="mdi mdi-bullhorn"></i> 公告 &amp; 广告</legend>
-</fieldset>
-
-<div class="layui-row layui-col-space15">
-  <div class="layui-col-md6">
-    <div class="layui-card">
-      <div class="layui-card-header">
-        官网公告
-        <button type="button" class="layui-btn layui-btn-xs layui-btn-normal" id="butos" data-toggle="popover" data-placement="top" data-content="版本更新提示">
-          <i id="tbcls" class="mdi mdi-information"></i>
-        </button>
-      </div>
-      <div class="layui-card-body" id="mngf" style="font-size:13px;line-height:1.8;"></div>
-    </div>
-  </div>
-  <div class="layui-col-md6">
-    <div class="layui-card">
-      <div class="layui-card-header">
-        广告列表
-        <span style="font-size:11px;color:#999;">广告均由第三方提供</span>
-      </div>
-      <div class="layui-card-body" id="gglt">
-        <span class="layui-badge-rim" style="font-size:11px;">广告均由第三方提供！其内容与本系统无关！</span>
-      </div>
-    </div>
-  </div>
-</div>
-
 <!-- ====== 插件组件 ====== -->
 <?php
 if (function_exists('mnbt_plugin_render_widgets_html')) {
@@ -268,32 +276,43 @@ if (function_exists('mnbt_plugin_render_widgets_html')) {
 
 </div><!-- /ly-dash -->
 
+<!-- ====== 广告弹窗 ====== -->
+<div class="modal fade" id="adModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header bg-info">
+        <h5 class="modal-title"><i class="mdi mdi-bullhorn" style="margin-right:6px;"></i>广告</h5>
+        <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body" id="adModalBody" style="max-height:60vh;overflow-y:auto;"></div>
+    </div>
+  </div>
+</div>
+
 <script>
-// 公告加载
-msloading('正在获取中，请稍后...','text-info','text-default','#mngf');
-msloading('正在获取中，请稍后...','text-info','text-default','#gglt');
-
-let datar = {};
-datar["gn"]="mnbt";
-$.post('./ajax.php', datar, function (date) {
-    var jsoe= JSON.parse(date);
-    document.getElementById("mngf").innerHTML=jsoe.gg;
-    document.getElementById("tbcls").className='mdi '+jsoe.cl;
-    document.getElementById("tbcls").innerHTML=jsoe.vs;
-    document.getElementById("butos").setAttribute("data-content", jsoe.gx);
-    msloadingde("#mngf");
-});
-
+// 广告弹窗
 let data = {};
 data["gn"]="gglist";
 $.post('./ajax.php', data, function (date) {
     var jsoe= JSON.parse(date);
-    for(var i in jsoe){
-        var tmp = document.createElement("div");
-        tmp.innerHTML= '<span class="layui-badge-rim ly-gg-item">'+jsoe[i].nr+'<a href="http://'+jsoe[i].url+'/" target="_blank" style="margin-left:8px;">'+jsoe[i].name+'</a></span>';
-        document.getElementById("gglt").appendChild(tmp);
+    if(jsoe && jsoe.length>0){
+        var html='<div class="ly-ad-grid">';
+        for(var i in jsoe){
+            if(jsoe[i].html){
+                html+= '<div class="ly-ad-card ly-ad-card--full">'+jsoe[i].html+'</div>';
+            }else{
+                html+= '<div class="ly-ad-card">'+
+                       '<a href="http://'+jsoe[i].url+'/" target="_blank" class="ly-ad-name"><i class="mdi mdi-bullhorn" style="margin-right:4px;"></i>'+jsoe[i].name+'</a>'+
+                       '<div class="ly-ad-nr">'+jsoe[i].nr+'</div>'+
+                       '</div>';
+            }
+        }
+        html+='</div>';
+        document.getElementById("adModalBody").innerHTML = html;
+        $('#adModal').modal('show');
     }
-    msloadingde("#gglt");
 });
 </script>
 </body>

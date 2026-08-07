@@ -37,8 +37,8 @@ $et_zj=$DB->get_row_prepare("SELECT * FROM MN_zj WHERE user=? limit 1", [$user])
 if($cert=='' || $cert['qk']=='false')api_json_exit(100, '错误！该宝塔不存在或该宝塔已经被关闭');
 $adyjm=$cert['ktmy'].$cert['qmk'];$mdjm=md5($adyjm);
 if($keye!=$mdjm){
-    mnbt_log('外部API','API鉴权','API-'.$bh.' '.$user.' 宝塔调用密钥错误','鉴权失败',$DB);
-    api_json_exit(100, '错误！您所传输的宝塔调用密钥与该宝塔的调用密钥不匹配！');
+    mnbt_log('外部API','API鉴权','API-'.$bh.' '.$user.' 宝塔调用密钥错误(发送:'.substr($keye,0,8).',期望:'.substr($mdjm,0,8).',btdh='.$bh.')','鉴权失败',$DB);
+    api_json_exit(100, '调用密钥不匹配！正确的调用密钥为：'.$mdjm);
 }
 $btipe=($cert['ptl']=='true'?'https':'http').'://'.$cert['btip'].':'.$cert['btdk'];
 $btkeye=$cert['btmy'];
@@ -200,6 +200,56 @@ if($gn=='cfif'){
     $llmax_array['max'] = $_POST['ll'];
     if($DB->query_prepare("UPDATE `MN_zj` SET `hxa` = ?, `hxb` = ?, `llmax` = ? WHERE `user` = ?", [json_encode($hxa_array), json_encode($hxb_array), json_encode($llmax_array), $user])) api_json_exit(200, '主机修改成功');
     api_json_exit(100, '主机修改失败我也不知道什么问题，请联系开发者');
+}elseif($gn == 'start'){
+    if(empty($et_zj)) api_json_exit(100, '不存在主机用户名');
+    if($et_zj['qk'] == 'false') api_json_exit(100, '该主机已暂停，请先解除暂停');
+    $api = new bt_api($btipe, $btkeye);
+    $r_data = $api->siteqt($et_zj['btid'], $et_zj['sqldz'], true);
+    if(($r_data['status'] ?? false) == 1 || ($r_data['status'] ?? false) == '1' || ($r_data['status'] ?? false) === true){
+        api_lifecycle_log('API站点启动', '启动站点 '.$et_zj['sqldz'].' 成功', '操作成功');
+        api_json_exit(200, '站点启动成功！');
+    }
+    api_lifecycle_log('API站点启动', '启动站点 '.$et_zj['sqldz'].' 失败：'.($r_data['msg'] ?? '未知错误'), '操作失败');
+    api_json_exit(100, '站点启动失败！'.($r_data['msg'] ?? '未知错误'));
+}elseif($gn == 'stop'){
+    if(empty($et_zj)) api_json_exit(100, '不存在主机用户名');
+    $api = new bt_api($btipe, $btkeye);
+    $r_data = $api->siteqt($et_zj['btid'], $et_zj['sqldz'], false);
+    if(($r_data['status'] ?? false) == 1 || ($r_data['status'] ?? false) == '1' || ($r_data['status'] ?? false) === true){
+        api_lifecycle_log('API站点停止', '停止站点 '.$et_zj['sqldz'].' 成功', '操作成功');
+        api_json_exit(200, '站点停止成功！');
+    }
+    api_lifecycle_log('API站点停止', '停止站点 '.$et_zj['sqldz'].' 失败：'.($r_data['msg'] ?? '未知错误'), '操作失败');
+    api_json_exit(100, '站点停止失败！'.($r_data['msg'] ?? '未知错误'));
+}elseif($gn == 'ztcx'){
+    if(empty($et_zj)) api_json_exit(100, '不存在主机用户名');
+    // 解析配额 JSON（hxa 网站空间 / hxb 数据库空间 / llmax 流量）
+    $hxa_arr = json_decode($et_zj['hxa'], true) ?: [];
+    $hxb_arr = json_decode($et_zj['hxb'], true) ?: [];
+    $ll_arr  = json_decode($et_zj['llmax'], true) ?: [];
+    api_json_exit(200, 'ok', [
+        'data' => [
+            'user' => [
+                'username' => $et_zj['user'],
+                'domain'   => $et_zj['sqldz'],
+                'qk'       => $et_zj['qk'],
+                'datae'    => $et_zj['datae'],
+                'sqluser'  => $et_zj['sqluser'],
+                'btid'     => $et_zj['btid'],
+                'created_at' => $et_zj['data'],
+            ],
+            'quota' => [
+                'web_size_max'  => (int)($hxa_arr['max'] ?? 0),
+                'web_size_used' => (int)($hxa_arr['dq'] ?? 0),
+                'sql_size_max'  => (int)($hxb_arr['max'] ?? 0),
+                'sql_size_used' => (int)($hxb_arr['dq'] ?? 0),
+                'flow_max'      => (int)($ll_arr['max'] ?? 0),
+                'flow_used'     => (int)($ll_arr['dq'] ?? 0),
+                'unit'          => 'MB',
+            ],
+            'node' => ['btip' => $cert['btip'], 'ptl' => $cert['ptl']],
+        ],
+    ]);
 }else{
     api_json_exit(100, '此功能不存在！请仔细核对开发文档！');
 }

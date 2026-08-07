@@ -1,0 +1,96 @@
+<style>
+.docker-console { padding: 0; }
+.docker-console .info-row { display: flex; align-items: center; padding: 15px 0; border-bottom: 1px solid #f0f0f0; gap: 12px; }
+.docker-console .info-row:last-child { border-bottom: none; }
+.docker-console .info-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+.docker-console .info-icon.url  { background: #e6f4ff; color: #1677ff; }
+.docker-console .info-icon.user { background: #f6ffed; color: #52c41a; }
+.docker-console .info-icon.pwd  { background: #fff7e6; color: #fa8c16; }
+.docker-console .info-icon.stat { background: #f0f0f0; color: #666; }
+.docker-console .info-icon.stat.on      { background: #f6ffed; color: #52c41a; }
+.docker-console .info-icon.stat.off     { background: #fff7e6; color: #fa8c16; }
+.docker-console .info-icon.stat.waiting { background: #e6f4ff; color: #1677ff; }
+.docker-console .info-icon.stat.suspend { background: #fff2f0; color: #ff4d4f; }
+.docker-console .info-body { flex: 1; min-width: 0; }
+.docker-console .info-label { color: #999; font-size: 12px; margin-bottom: 2px; }
+.docker-console .info-value { font-size: 14px; word-break: break-all; color: #333; }
+.docker-console .info-value code { background: #f5f5f5; padding: 2px 8px; border-radius: 4px; font-size: 13px; color: #d4380d; }
+.docker-console .copy-btn { flex-shrink: 0; width: 28px; height: 28px; border: 1px solid #d9d9d9; border-radius: 6px; background: #fff; color: #999; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; transition: all .2s; }
+.docker-console .copy-btn:hover { border-color: #1677ff; color: #1677ff; }
+.docker-console .copy-btn.copied { border-color: #52c41a; color: #52c41a; background: #f6ffed; }
+.docker-console .status-text { font-size: 14px; color: #333; }
+.docker-console .btn-area { margin-top: 16px; }
+</style>
+
+<div class="card">
+    <div class="card-body docker-console">
+
+        <div class="info-row">
+            <div class="info-icon url">🌐</div>
+            <div class="info-body">
+                <div class="info-label">控制台地址</div>
+                <div class="info-value">
+                    {if condition="!empty($console_url)"}
+                    <a href="{$console_url}" target="_blank">{$console_url}</a>
+                    {else /}
+                    <span style="color:#999">未配置</span>
+                    {/if}
+                </div>
+            </div>
+            {if condition="!empty($console_url)"}
+            <button class="copy-btn" onclick="dockerCopy(this,'{$console_url}')" title="复制">📋</button>
+            {/if}
+        </div>
+
+        <div class="info-row">
+            <div class="info-icon user">👤</div>
+            <div class="info-body">
+                <div class="info-label">登录账号</div>
+                <div class="info-value"><code>{$username|default='—'}</code></div>
+            </div>
+            {if condition="!empty($username)"}
+            <button class="copy-btn" onclick="dockerCopy(this,'{$username}')" title="复制">📋</button>
+            {/if}
+        </div>
+
+        <div class="info-row">
+            <div class="info-icon pwd">🔑</div>
+            <div class="info-body">
+                <div class="info-label">登录密码</div>
+                <div class="info-value"><code>{$password|default='—'}</code></div>
+            </div>
+            {if condition="!empty($password)"}
+            <button class="copy-btn" onclick="dockerCopy(this,'{$password}')" title="复制">📋</button>
+            {/if}
+        </div>
+
+        <div class="info-row">
+            <div class="info-icon stat {$status_class}">📊</div>
+            <div class="info-body">
+                <div class="info-label">容器状态</div>
+                <div class="status-text">{$status_text}</div>
+            </div>
+        </div>
+
+        {if condition="!empty($console_url)"}
+        <div class="btn-area">
+            <a href="{$console_url}" target="_blank" class="btn btn-primary btn-sm">前往控制台</a>
+        </div>
+        {/if}
+
+    </div>
+</div>
+
+<script>
+function dockerCopy(btn, text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed'; ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select(); document.execCommand('copy');
+    document.body.removeChild(ta);
+    btn.classList.add('copied');
+    btn.innerHTML = '✓';
+    setTimeout(function(){ btn.classList.remove('copied'); btn.innerHTML = '📋'; }, 1500);
+}
+</script>
