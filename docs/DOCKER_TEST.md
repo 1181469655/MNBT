@@ -339,3 +339,98 @@ A: `my` 参数必须等于后台「系统设置 → API」的密钥，与 `jk_mo
 4. PHP 报错（若有，开 `display_errors` 或看 `runtime/logs/`）
 
 我会据此定位并修正。
+
+---
+
+## 11. 魔方财务联调测试
+
+> 本测试在完成 M1（MNBT API 扩展）与 M2（魔方模块部署）后进行。
+
+### 11.1 部署模块
+
+1. 将 `mf_modules/servers/mnbtdocker/` 复制到魔方财务 `/modules/servers/mnbtdocker/`
+2. 清魔方缓存
+3. 后台「产品 → 服务器」→ 模块下拉确认出现 **MNBT Docker**
+
+### 11.2 配置服务器接口
+
+后台「产品 → 服务器」添加服务器：
+
+| 字段 | 值 |
+|------|-----|
+| 服务器 IP | MNBT 域名 |
+| 端口 | MNBT 站点端口 |
+| 用户名 | `MN_docker_node.id`（节点编号） |
+| 密码 | `md5(节点ktmy . 节点qmk)` |
+| Access Hash | 系统 API 密钥（`$conf['api']`） |
+| SSL | 按站点是否 HTTPS |
+
+### 11.3 创建产品并下单开通
+
+1. 后台「产品 → 添加产品」→ 类型「服务器产品」→ 模块 **MNBT Docker**
+2. 可配置选项添加"套餐 ID"字段，key 填 `plan_id`（可选）
+3. 上架后前台下单 → 支付 → 自动开通
+
+**验收**：
+- MNBT 后台「Docker 管理 → Docker 用户」出现该账号
+- `MN_docker_user` 表 `qk=active`，`container_status=none`
+
+### 11.4 后台管理操作验证
+
+在魔方后台该产品上依次执行：
+
+| 操作 | 预期 | 验证方式 |
+|------|------|----------|
+| 暂停 | 成功 | MNBT `qk=paused`；容器被停 |
+| 恢复 | 成功 | MNBT `qk=active` |
+| 续费 | 成功 | MNBT `datae` 更新 |
+| 升降级 | 成功 | MNBT `plan_id` 更新 |
+| 改密 | 成功 | MNBT `password_hash` 变化；旧 `docker_token` 失效 |
+| 删除 | 成功 | MNBT 用户行消失；节点容器删除 |
+
+### 11.5 前台功能验证
+
+1. 用户前台「产品详情 → 容器控制台」标签页 → 显示账号与容器状态
+2. 「前往容器控制台」按钮 → 新窗口打开 MNBT Docker 登录页
+3. 前台点「开机/关机/重启」→ 容器状态同步变化
+4. 状态映射正确（`running→运行中` / `stopped→已停止` / `none→未创建容器`）
+
+### 11.6 curl 全量 API 验证（可选，兜底排查）
+
+连接参数（替换为实际值）：
+
+```bash
+NODE_ID=1
+API_KEY=your_system_api_key
+CALL_KEY=$(echo -n "节点ktmy节点qmk" | md5sum | cut -d' ' -f1)
+API_URL="https://mnbt.example.com/api/docker.php"
+USER="testuser"
+```
+
+```bash
+# 连接验证
+curl -X POST "$API_URL?gn=cfif" -d "mn_bh=$NODE_ID&mn_key=$API_KEY&mn_keye=$CALL_KEY&mn_vs=15&username=$USER"
+
+# 开通
+curl -X POST "$API_URL?gn=kt" -d "mn_bh=$NODE_ID&mn_key=$API_KEY&mn_keye=$CALL_KEY&mn_vs=15&username=$USER&password=test123&dqtime=0"
+
+# 状态
+curl -X POST "$API_URL?gn=ztcx" -d "mn_bh=$NODE_ID&mn_key=$API_KEY&mn_keye=$CALL_KEY&mn_vs=15&username=$USER"
+
+# 暂停
+curl -X POST "$API_URL?gn=zt" -d "mn_bh=$NODE_ID&mn_key=$API_KEY&mn_keye=$CALL_KEY&mn_vs=15&username=$USER"
+
+# 恢复
+curl -X POST "$API_URL?gn=jc" -d "mn_bh=$NODE_ID&mn_key=$API_KEY&mn_keye=$CALL_KEY&mn_vs=15&username=$USER"
+
+# 续费
+curl -X POST "$API_URL?gn=xf" -d "mn_bh=$NODE_ID&mn_key=$API_KEY&mn_keye=$CALL_KEY&mn_vs=15&username=$USER&setdate=2027-12-31"
+
+# 改密
+curl -X POST "$API_URL?gn=czmm" -d "mn_bh=$NODE_ID&mn_key=$API_KEY&mn_keye=$CALL_KEY&mn_vs=15&username=$USER&password=newpass123"
+
+# 删除
+curl -X POST "$API_URL?gn=tj" -d "mn_bh=$NODE_ID&mn_key=$API_KEY&mn_keye=$CALL_KEY&mn_vs=15&username=$USER"
+```
+
+全部返回 `success:true, code:200` 即通过。
