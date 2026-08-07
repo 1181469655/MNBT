@@ -1,0 +1,9 @@
+{
+  "id": "auto_deploy",
+  "name": "高级自动部署",
+  "version": "1.0.0",
+  "author": "MNBT",
+  "description": "基于宝塔面板一键部署 API 的高级自动部署插件：软件包浏览、网站选择、一键部署、自定义包管理、环境检测、进度监控、部署历史记录。",
+  "requires_mnbt": "1.81",
+  "type": ["business"]
+}

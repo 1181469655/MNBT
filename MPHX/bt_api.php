@@ -1072,6 +1072,143 @@ class bt_api
         return json_decode($this->HttpPostCookie($url, $p_data), true);
     }
 
+    /**
+     * 获取可部署的软件包列表
+     * @return array
+     */
+    public function deployment_get_list()
+    {
+        $url = $this->BT_PANEL . '/deployment?action=GetList';
+        $p_data = $this->GetKeyData();
+        $p_data['type'] = 0;
+        return json_decode($this->HttpPostCookie($url, $p_data), true);
+    }
+
+    /**
+     * 获取可用于一键部署的网站和框架列表
+     * @return array
+     */
+    public function deployment_get_site_list()
+    {
+        $url = $this->BT_PANEL . '/deployment?action=GetSiteList';
+        $p_data = $this->GetKeyData();
+        return json_decode($this->HttpPostCookie($url, $p_data), true);
+    }
+
+    /**
+     * 部署软件包到指定网站
+     * @param string $dname 软件包名称
+     * @param string $site_name 目标网站域名
+     * @param string $project_type 项目类型（php/java），默认 php
+     * @return array
+     */
+    public function deployment_setup_package($dname, $site_name, $project_type = 'php')
+    {
+        $url = $this->BT_PANEL . '/deployment?action=SetupPackage';
+        $p_data = $this->GetKeyData();
+        $p_data['dname'] = $dname;
+        $p_data['site_name'] = $site_name;
+        if ($project_type !== 'php') {
+            $p_data['project_type'] = $project_type;
+        }
+        return json_decode($this->HttpPostCookie($url, $p_data), true);
+    }
+
+    /**
+     * 检测服务器环境
+     * @return array
+     */
+    public function deployment_check_project_env()
+    {
+        $url = $this->BT_PANEL . '/deployment?action=check_project_env';
+        $p_data = $this->GetKeyData();
+        return json_decode($this->HttpPostCookie($url, $p_data), true);
+    }
+
+    /**
+     * 获取部署进度
+     * @return array|null
+     */
+    public function deployment_get_speed()
+    {
+        $url = $this->BT_PANEL . '/deployment?action=GetSpeed';
+        $p_data = $this->GetKeyData();
+        return json_decode($this->HttpPostCookie($url, $p_data), true);
+    }
+
+    /**
+     * 获取部署日志
+     * @return array
+     */
+    public function deployment_get_in_log()
+    {
+        $url = $this->BT_PANEL . '/deployment?action=GetInLog';
+        $p_data = $this->GetKeyData();
+        return json_decode($this->HttpPostCookie($url, $p_data), true);
+    }
+
+    /**
+     * 添加自定义软件包（PHP 项目）
+     * @param string $name 英文名称
+     * @param string $title 显示标题
+     * @param string $version 版本号
+     * @param string $php PHP 版本，如 '74'
+     * @param string $enable_functions 需要解禁的 PHP 函数
+     * @param string $project_type 项目类型（php/java），默认 php
+     * @param string $java_version JDK 版本（仅 Java）
+     * @param string $mysql_version MySQL 版本（仅 Java）
+     * @return array
+     */
+    public function deployment_add_package($name, $title, $version, $php = '', $enable_functions = '', $project_type = 'php', $java_version = '', $mysql_version = '')
+    {
+        $url = $this->BT_PANEL . '/deployment?action=AddPackage';
+        $p_data = $this->GetKeyData();
+        $p_data['name'] = $name;
+        $p_data['title'] = $title;
+        $p_data['version'] = $version;
+        $p_data['project_type'] = $project_type;
+        if ($project_type === 'java') {
+            $p_data['java_version'] = $java_version;
+            $p_data['mysql_version'] = $mysql_version;
+        } else {
+            if ($php !== '') {
+                $p_data['php'] = $php;
+            }
+            if ($enable_functions !== '') {
+                $p_data['enable_functions'] = $enable_functions;
+            }
+        }
+        return json_decode($this->HttpPostCookie($url, $p_data), true);
+    }
+
+    /**
+     * 获取自定义软件包详情
+     * @param string $p_name 软件包英文名称
+     * @return array
+     */
+    public function deployment_get_package_other($p_name)
+    {
+        $url = $this->BT_PANEL . '/deployment?action=GetPackageOther';
+        $p_data = $this->GetKeyData();
+        $p_data['p_name'] = $p_name;
+        return json_decode($this->HttpPostCookie($url, $p_data), true);
+    }
+
+    /**
+     * 删除通过一键部署安装的项目
+     * @param string $dname 部署名称
+     * @param string $site_name 网站名称
+     * @return array
+     */
+    public function deployment_del_package($dname, $site_name)
+    {
+        $url = $this->BT_PANEL . '/deployment?action=DelPackage';
+        $p_data = $this->GetKeyData();
+        $p_data['dname'] = $dname;
+        $p_data['site_name'] = $site_name;
+        return json_decode($this->HttpPostCookie($url, $p_data), true);
+    }
+
     // ========================================================================
     //  统计/列表
     // ========================================================================
