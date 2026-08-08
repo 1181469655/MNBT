@@ -30,6 +30,7 @@ $boot = [
 	'version'   => '0.3.0',
 	'entry'     => $td_entry ?? 'console',
 	'hash'      => $td_hash ?? '',
+	'captchaBase' => mnbt_theme_url('dist/captcha-images/', 'docker'),
 	'dockerUser' => $dkUser ? array_merge($dkUser, [
 		'password_hash' => null,
 		'plan_name'     => $dkPlan['name'] ?? '',

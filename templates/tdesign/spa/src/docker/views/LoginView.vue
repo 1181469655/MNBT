@@ -55,15 +55,55 @@
           </t-input>
 
           <t-button
+            theme="default"
+            variant="outline"
+            block
+            size="large"
+            :disabled="captchaOk"
+            @click="showCaptcha = true"
+          >
+            <template v-if="captchaOk">
+              <i class="mdi mdi-check-circle" style="color:#2ba471"></i> 验证通过
+            </template>
+            <template v-else>
+              <i class="mdi mdi-shield-check-outline"></i> 点击进行人机验证
+            </template>
+          </t-button>
+
+          <t-button
             theme="primary"
             block
             size="large"
             :loading="loading"
+            :disabled="!captchaOk"
             @click="onSubmit"
           >
             登 录
           </t-button>
         </div>
+
+        <!-- 滑块验证码弹窗 -->
+        <Teleport to="body">
+          <Transition name="captcha-modal">
+            <div v-if="showCaptcha" class="captcha-overlay" @click.self="onCloseCaptcha">
+              <div class="captcha-dialog">
+                <div class="captcha-dialog__head">
+                  <h3>安全验证</h3>
+                  <button class="captcha-dialog__close" @click="onCloseCaptcha" title="关闭">
+                    <i class="mdi mdi-close"></i>
+                  </button>
+                </div>
+                <div class="captcha-dialog__body">
+                  <SliderCaptcha
+                    ref="captchaRef"
+                    @success="onCaptchaSuccess"
+                    @reset="onCaptchaReset"
+                  />
+                </div>
+              </div>
+            </div>
+          </Transition>
+        </Teleport>
 
         <p v-if="footer" class="footer-note" v-html="footer"></p>
       </div>
@@ -75,6 +115,7 @@
 import { reactive, ref } from 'vue'
 import { MessagePlugin } from 'tdesign-vue-next'
 import { dockerLogin } from '@/docker/api/docker'
+import SliderCaptcha from '@/docker/components/SliderCaptcha.vue'
 import logoImg from '@/shared/assets/docker.svg'
 import bgImg from '@/shared/assets/login-bg.webp'
 
@@ -84,17 +125,44 @@ const footer = boot.footer || ''
 
 const loading = ref(false)
 const showPwd = ref(false)
+const showCaptcha = ref(false)
+const captchaOk = ref(false)
+const captchaRef = ref(null)
 const form = reactive({ username: '', password: '' })
+
+function onCaptchaSuccess() {
+  captchaOk.value = true
+  // 短暂展示成功状态后关闭弹窗
+  setTimeout(() => {
+    showCaptcha.value = false
+  }, 800)
+}
+
+function onCaptchaReset() {
+  captchaOk.value = false
+}
+
+function onCloseCaptcha() {
+  showCaptcha.value = false
+}
 
 async function onSubmit() {
   if (!form.username || !form.password) {
     MessagePlugin.warning('请输入账号和密码')
     return
   }
+  if (!captchaOk.value) {
+    MessagePlugin.warning('请完成滑块验证')
+    return
+  }
   loading.value = true
   const r = await dockerLogin(form.username.trim(), form.password)
   loading.value = false
-  if (r.ok) {
+  if (!r.ok) {
+    // 登录失败后刷新验证码状态
+    captchaOk.value = false
+    showCaptcha.value = false
+  } else {
     MessagePlugin.success(r.message || '登录成功')
     setTimeout(() => {
       window.location.href = './console.php'
@@ -236,6 +304,72 @@ async function onSubmit() {
 .pwd-toggle:hover {
   color: var(--td-text-color-primary, #1f2937);
 }
+
+/* ---- 验证码弹窗 ---- */
+.captcha-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  display: grid;
+  place-items: center;
+  z-index: 9999;
+  padding: 24px;
+}
+.captcha-dialog {
+  width: min(420px, 100%);
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  animation: captcha-dialog-in 0.25s ease-out;
+}
+@keyframes captcha-dialog-in {
+  from { opacity: 0; transform: scale(0.92) translateY(12px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.captcha-dialog__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 0;
+}
+.captcha-dialog__head h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+}
+.captcha-dialog__close {
+  border: none;
+  background: none;
+  padding: 4px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #999;
+  font-size: 18px;
+  transition: color 0.15s, background 0.15s;
+}
+.captcha-dialog__close:hover {
+  color: #333;
+  background: #f3f4f6;
+}
+.captcha-dialog__body {
+  padding: 16px 20px 20px;
+}
+
+/* 弹窗过渡动画 */
+.captcha-modal-enter-active {
+  transition: opacity 0.2s ease;
+}
+.captcha-modal-leave-active {
+  transition: opacity 0.15s ease;
+}
+.captcha-modal-enter-from,
+.captcha-modal-leave-to {
+  opacity: 0;
+}
+
 .footer-note {
   margin: 24px 0 0;
   text-align: center;
