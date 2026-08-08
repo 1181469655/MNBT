@@ -411,4 +411,20 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer) })
 .td-link:hover { text-decoration: underline; }
 .td-port-meta { color: var(--td-text-color-secondary); font-size: 12px; }
 .td-text-danger { color: var(--td-error-color, #d54941); }
+
+/* ========== 移动端 ========== */
+@media (max-width: 768px) {
+  .td-hero { flex-direction: column; align-items: flex-start; padding: 16px; gap: 10px; }
+  .td-hero-left { flex-wrap: wrap; }
+  .td-hero-left h2 { font-size: 17px; }
+  .td-gauge-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .td-gauge-card { padding: 14px; }
+  .td-gauge-val { font-size: 22px; }
+  .td-info-grid { grid-template-columns: 1fr; }
+  .td-actions { gap: 8px; }
+  .td-actions .t-button { flex: 1; min-width: 0; }
+  .td-actions .t-button :deep(.t-button__text) { font-size: 12px; }
+  .td-empty-page { padding: 48px 16px; }
+  .td-empty-big { font-size: 48px; }
+}
 </style>

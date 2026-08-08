@@ -135,4 +135,10 @@ onMounted(load)
   margin: 0;
   font-size: 13px;
 }
+
+/* ========== 移动端 ========== */
+@media (max-width: 768px) {
+  .dk-card-hd { flex-direction: column; gap: 10px; align-items: flex-start; }
+  .dk-compose :deep(.t-table) { font-size: 12px; }
+}
 </style>
