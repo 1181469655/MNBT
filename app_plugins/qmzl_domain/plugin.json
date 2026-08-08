@@ -1,0 +1,10 @@
+{
+  "id": "qmzl_domain",
+  "name": "启明智联域名注册",
+  "version": "1.0.0",
+  "author": "启明智联",
+  "description": "对接启明智联平台域名注册 API：域名可用性查询、价格查询、信息模板管理、下单支付（跳转上游支付）、已购域名列表。用户使用自己的启明智联账号登录后即可注册域名。",
+  "requires_mnbt": "1.81",
+  "type": ["business"],
+  "requires_plugins": ["user_info"]
+}
