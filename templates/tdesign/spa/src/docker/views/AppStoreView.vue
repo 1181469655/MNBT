@@ -532,4 +532,22 @@ onMounted(() => {
 .dk-quota-item { flex: 1; text-align: center; }
 .dk-quota-label { display: block; font-size: 12px; color: var(--td-text-color-secondary, #6b7280); margin-bottom: 4px; }
 .dk-quota-val { font-size: 15px; font-weight: 600; color: var(--td-brand-color, #0052d9); }
+
+/* ========== 移动端 ========== */
+@media (max-width: 768px) {
+  .dk-card-hd { flex-direction: column; gap: 10px; align-items: flex-start; }
+  .dk-card-hd :deep(.t-input) { width: 100% !important; }
+  .dk-grid { grid-template-columns: 1fr; gap: 10px; }
+  .dk-app-card { padding: 16px; }
+  .dk-pager { margin-top: 14px; }
+  .dk-quota-bar { flex-wrap: wrap; gap: 8px 6px; }
+  .dk-quota-item { flex: 1 1 40%; }
+  .dk-quota-val { font-size: 13px; }
+  .dk-form-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .dk-quota-bar { flex-direction: column; gap: 4px; align-items: flex-start; padding: 10px 12px; }
+  .dk-quota-item { display: flex; gap: 8px; align-items: baseline; }
+  .dk-quota-label { margin-bottom: 0; min-width: 48px; }
+}
 </style>

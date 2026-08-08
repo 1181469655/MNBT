@@ -249,4 +249,16 @@ onMounted(() => {
 .dk-add-port-row { display: flex; gap: 8px; align-items: flex-start; }
 .dk-add-hint { font-size: 12px; color: var(--td-text-color-placeholder, #999); }
 .dk-add-foot { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--td-border-level-1-color, #e7e7e7); }
+
+/* ========== 移动端 ========== */
+@media (max-width: 768px) {
+  .dk-card-hd { flex-direction: column; gap: 10px; align-items: flex-start; }
+  .dk-add-port-row { flex-wrap: wrap; }
+  .dk-add-port-row :deep(.t-select) { flex: 1 1 30%; min-width: 0; }
+}
+@media (max-width: 600px) {
+  .dk-proxy-table :deep(.t-table) { font-size: 12px; }
+  .dk-add-port-row { flex-direction: column; gap: 8px; }
+  .dk-add-port-row :deep(.t-select) { width: 100% !important; }
+}
 </style>

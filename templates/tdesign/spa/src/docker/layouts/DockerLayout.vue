@@ -1,7 +1,10 @@
 <template>
-  <div class="dk-app">
+  <div class="dk-app" :class="{ 'dk-menu-open': menuOpen }">
+    <!-- 移动端遮罩 -->
+    <div v-if="menuOpen" class="dk-overlay" @click="menuOpen = false"></div>
+
     <!-- 侧边栏 -->
-    <aside class="dk-sidebar">
+    <aside class="dk-sidebar" :class="{ open: menuOpen }">
       <!-- 品牌区 -->
       <div class="dk-sidebar-brand">
         <img :src="logoImg" alt="Docker" class="dk-logo" />
@@ -9,6 +12,9 @@
           <strong>{{ siteName }}</strong>
           <span>Docker 控制台</span>
         </div>
+        <button class="dk-mclose" @click="menuOpen = false">
+          <i class="mdi mdi-close"></i>
+        </button>
       </div>
 
       <!-- 导航 -->
@@ -21,7 +27,7 @@
           custom
           v-slot="{ navigate, isActive }"
         >
-          <a href="javascript:;" :class="{ active: isActive }" @click="navigate">
+          <a href="javascript:;" :class="{ active: isActive }" @click="onNav(navigate)">
             <i class="mdi" :class="item.icon"></i>
             <span>{{ item.title }}</span>
           </a>
@@ -47,6 +53,9 @@
     <!-- 主区 -->
     <main class="dk-main">
       <header class="dk-topbar">
+        <button class="dk-hamburger" @click="menuOpen = !menuOpen">
+          <i class="mdi" :class="menuOpen ? 'mdi-close' : 'mdi-menu'"></i>
+        </button>
         <h2>{{ currentTitle }}</h2>
         <div class="dk-topbar-badges" v-if="planLabel">
           <t-tag variant="light" theme="default">{{ planLabel }}</t-tag>
@@ -60,7 +69,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { MessagePlugin } from 'tdesign-vue-next'
 import { dockerLogout } from '@/docker/api/docker'
@@ -70,6 +79,7 @@ const route = useRoute()
 const boot = window.__TD_BOOT__ || {}
 const siteName = boot.siteName || 'MNBT'
 const user = boot.dockerUser || {}
+const menuOpen = ref(false)
 
 const menus = [
   { path: '/console', title: '我的容器', icon: 'mdi-view-dashboard-outline' },
@@ -91,6 +101,11 @@ const planLabel = computed(() => {
   if (user.proxy_max && user.proxy_max !== '0') parts.push(`${user.proxy_max}代理`)
   return parts.length > 1 ? parts.join(' · ') : ''
 })
+
+function onNav(navigate) {
+  navigate()
+  menuOpen.value = false
+}
 
 async function onLogout() {
   await dockerLogout()
@@ -278,5 +293,71 @@ async function onLogout() {
 .dk-content {
   padding: 24px 28px 48px;
   flex: 1;
+}
+
+/* ========== 移动端适配 ========== */
+.dk-hamburger {
+  display: none;
+  border: none;
+  background: none;
+  padding: 6px;
+  border-radius: 8px;
+  color: #555;
+  font-size: 22px;
+  cursor: pointer;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+.dk-hamburger:hover { background: #f3f4f6; }
+.dk-mclose {
+  display: none;
+  border: none;
+  background: none;
+  padding: 4px;
+  border-radius: 6px;
+  color: #999;
+  font-size: 20px;
+  cursor: pointer;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.dk-mclose:hover { color: #333; background: #f3f4f6; }
+.dk-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 99;
+}
+
+@media (max-width: 768px) {
+  .dk-hamburger { display: block; }
+  .dk-mclose { display: block; }
+  .dk-overlay { display: block; }
+
+  .dk-sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 100;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    box-shadow: 4px 0 20px rgba(0,0,0,0.12);
+  }
+  .dk-sidebar.open {
+    transform: translateX(0);
+  }
+
+  .dk-topbar {
+    padding: 12px 16px;
+    gap: 10px;
+    display: flex;
+    align-items: center;
+  }
+  .dk-topbar h2 { font-size: 16px; flex: 1; }
+  .dk-topbar-badges { margin-left: 0; }
+
+  .dk-content { padding: 16px 12px 32px; }
 }
 </style>

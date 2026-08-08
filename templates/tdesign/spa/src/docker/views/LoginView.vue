@@ -426,4 +426,16 @@ async function onSubmit() {
     padding: 20px 16px;
   }
 }
+
+/* 验证码弹窗移动端 */
+@media (max-width: 600px) {
+  .captcha-dialog {
+    width: calc(100vw - 32px);
+    margin: 0 16px;
+  }
+  .captcha-dialog__body {
+    padding: 12px 14px 16px;
+  }
+  .captcha-dialog__head { padding: 14px 16px 0; }
+}
 </style>
