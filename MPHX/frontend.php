@@ -218,3 +218,48 @@ function mnbt_home_dispatch(): bool
 	mnbt_home_render();
 	return true;
 }
+
+/* ============================================================
+ *  V1.84 主题注册自定义设置
+ * ============================================================
+ * 主页主题可在 templates/{theme}/theme.php 中通过以下钩子注册自定义设置项：
+ *
+ * mnbt_add_filter('home.settings.fields', function($html) {
+ *     // $html 是已有通用设置项 HTML，返回追加后的 HTML
+ *     return $html . '<div class="mn-set-field">...自定义字段...</div>';
+ * });
+ *
+ * mnbt_add_action('home.settings.save', function() {
+ *     // 处理自定义字段的 POST 数据并持久化（如 mnbt_plugin_option_set）
+ * });
+ */
+
+/** 加载当前主页主题的 theme.php（若存在），确保 home.settings.* 钩子已注册 */
+function mnbt_home_ensure_theme_loaded(): void
+{
+	static $done = false;
+	if ($done) return;
+	$done = true;
+	if (function_exists('mnbt_theme_ensure_loaded')) {
+		mnbt_theme_ensure_loaded('home');
+	}
+}
+
+/** 渲染主页主题注册的自定义设置项 HTML，注入到「主页内容」表单中 */
+function mnbt_home_settings_fields_html(): string
+{
+	mnbt_home_ensure_theme_loaded();
+	if (function_exists('mnbt_apply_filters')) {
+		return (string) mnbt_apply_filters('home.settings.fields', '');
+	}
+	return '';
+}
+
+/** 触发主页设置保存后的自定义处理（主题专用字段持久化） */
+function mnbt_home_settings_save(): void
+{
+	mnbt_home_ensure_theme_loaded();
+	if (function_exists('mnbt_do_action')) {
+		mnbt_do_action('home.settings.save');
+	}
+}

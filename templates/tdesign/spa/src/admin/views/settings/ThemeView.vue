@@ -247,6 +247,11 @@
               <t-switch v-model="homeForm.home_show_plans" />
             </div>
 
+            <div v-if="homeThemeSettingsHtml" class="td-form-note" style="margin-bottom:8px;">
+              <b>主题自定义设置</b>（当前主页主题注册的扩展项）
+            </div>
+            <div v-if="homeThemeSettingsHtml" v-html="homeThemeSettingsHtml"></div>
+
             <div class="td-form-actions">
               <t-button theme="primary" :loading="homeLoading" @click="saveHome">
                 <i class="mdi mdi-content-save-outline"></i> 保存主页内容
@@ -324,6 +329,7 @@ async function save() {
 /* ===== 主页内容（V1.84 独立主页系统） ===== */
 const conf = boot.conf || {}
 const homeLoading = ref(false)
+const homeThemeSettingsHtml = boot.homeThemeSettingsHtml || ''
 const logoInput = ref(null)
 const faviconInput = ref(null)
 

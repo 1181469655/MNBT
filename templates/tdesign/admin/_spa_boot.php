@@ -39,6 +39,7 @@ $boot = [
 	'curAdminTheme'=> function_exists('mnbt_theme_name') ? mnbt_theme_name('admin') : '',
 	'curDockerTheme'=> function_exists('mnbt_theme_name') ? mnbt_theme_name('docker') : '',
 	'curHomeTheme' => function_exists('mnbt_theme_name') ? mnbt_theme_name('home') : '',
+	'homeThemeSettingsHtml' => function_exists('mnbt_home_settings_fields_html') ? mnbt_home_settings_fields_html() : '',
 	// 支付插件信息(给支付设置页使用)
 	// mnbt_get_payment_plugins 返回关联数组,json_encode 后变成对象;SPA 需要数组,并补充 plugin_id 字段
 	'paymentPlugins'  => function_exists('mnbt_get_payment_plugins') ? array_values(array_map(function ($config, $pluginId) {

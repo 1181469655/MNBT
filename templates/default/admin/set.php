@@ -562,6 +562,13 @@ if ($set == 'wz') {
         </div>
       </div>
     </div>
+    <?php
+    $homeThemeFields = function_exists('mnbt_home_settings_fields_html') ? mnbt_home_settings_fields_html() : '';
+    if ($homeThemeFields !== '') {
+        echo '<div class="mn-set-field"><div class="mn-set-note" style="margin-bottom:8px;"><b>主题自定义设置</b>（当前主页主题注册的扩展项）</div></div>';
+        echo $homeThemeFields;
+    }
+    ?>
     <div class="mn-set-actions">
       <button class="btn btn-primary btn-block" type="button" onclick="saveHome()"><i class="mdi mdi-content-save-outline"></i> 保存主页内容</button>
     </div>

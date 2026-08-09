@@ -150,7 +150,15 @@ if($egn == 'save_home_settings')
 	$params[] = $siteid;
 	$sql = "UPDATE `MN_config` SET " . implode(',', $parts) . " WHERE id = ?";
 	logjl($user, '主页设置', '修改了主页设置', '修改成功', $DB);
-	if ($DB->query_prepare($sql, $params)) json_exit('修改成功'); else json_exit('修改失败' . $DB->error());
+	if ($DB->query_prepare($sql, $params)) {
+		// V1.84: 允许主页主题通过动作钩子处理自定义设置项
+		if (function_exists('mnbt_home_settings_save')) {
+			mnbt_home_settings_save();
+		}
+		json_exit('修改成功');
+	} else {
+		json_exit('修改失败' . $DB->error());
+	}
 	return;
 }
 if($egn == 'home_upload_icon')
