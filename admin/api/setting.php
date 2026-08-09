@@ -132,11 +132,66 @@ if($egn == "jkscsz")
     }
 		return;
 }
+if($egn == 'save_home_settings')
+{
+	// V1.84 独立主页系统设置：home_enable / home_title / home_hero / home_primary
+	// home_logo / home_favicon / home_footer / home_show_notice / home_show_plans
+	$fields = ['home_enable','home_title','home_hero','home_primary','home_logo','home_favicon','home_footer','home_show_notice','home_show_plans'];
+	$parts = [];
+	$params = [];
+	foreach ($fields as $f) {
+		$v = daddslashes(trim((string)($_POST[$f] ?? '')));
+		if ($f === 'home_primary' && $v !== '' && !preg_match('/^#[0-9a-fA-F]{6}$/', $v)) {
+			$v = '';
+		}
+		$parts[] = "`$f` = ?";
+		$params[] = $v;
+	}
+	$params[] = $siteid;
+	$sql = "UPDATE `MN_config` SET " . implode(',', $parts) . " WHERE id = ?";
+	logjl($user, '主页设置', '修改了主页设置', '修改成功', $DB);
+	if ($DB->query_prepare($sql, $params)) json_exit('修改成功'); else json_exit('修改失败' . $DB->error());
+	return;
+}
+if($egn == 'home_upload_icon')
+{
+	// 上传主页 Logo / Favicon，保存到 imsetes/upload_logo/，并将相对路径写入 MN_config
+	$target = ($_POST['target'] ?? '') === 'favicon' ? 'favicon' : 'logo';
+	$field = $target === 'logo' ? 'home_logo' : 'home_favicon';
+	if (empty($_FILES['icon']) || !is_array($_FILES['icon']) || (int)($_FILES['icon']['error'] ?? 1) !== 0) {
+		json_exit('未收到文件或上传失败');
+	}
+	$file = $_FILES['icon'];
+	$name = (string)($file['name'] ?? '');
+	$ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+	if (!in_array($ext, ['png', 'jpg', 'jpeg', 'gif', 'ico'])) {
+		json_exit('仅支持 png / jpg / gif / ico 格式');
+	}
+	$tmp = (string)($file['tmp_name'] ?? '');
+	if ($tmp === '' || !is_uploaded_file($tmp)) {
+		json_exit('文件上传异常');
+	}
+	$dir = ROOT . 'imsetes/upload_logo/';
+	if (!is_dir($dir) && !@mkdir($dir, 0755, true)) {
+		json_exit('上传目录不可写');
+	}
+	$filename = 'home_' . $target . '.' . ($ext === 'ico' ? 'ico' : 'png');
+	if (!move_uploaded_file($tmp, $dir . $filename)) {
+		json_exit('保存文件失败，请检查 imsetes/upload_logo 目录权限');
+	}
+	$url = 'imsetes/upload_logo/' . $filename;
+	if (!$DB->query_prepare("UPDATE `MN_config` SET `$field` = ? WHERE id = ?", [$url, $siteid])) {
+		json_exit('保存配置失败');
+	}
+	json_exit('上传成功');
+	return;
+}
 if($egn == 'settheme')
 {
 	$usertheme = mnbt_theme_sanitize($_POST['usertheme'] ?? '');
 	$admintheme = mnbt_theme_sanitize($_POST['admintheme'] ?? '');
 	$dockertheme = mnbt_theme_sanitize($_POST['dockertheme'] ?? '');
+	$hometheme = mnbt_theme_sanitize($_POST['hometheme'] ?? '');
 	if ($usertheme === '' || $admintheme === '') {
 		json_exit('请选择用户端和管理端主题');
 	}
@@ -154,7 +209,13 @@ if($egn == 'settheme')
 			json_exit($msgDocker);
 		}
 	}
-	logjl($user, '主题设置', '用户端=' . $usertheme . ' 管理端=' . $admintheme . ' Docker端=' . ($dockertheme ?: '默认'), '修改成功', $DB);
+	if ($hometheme !== '') {
+		list($okHome, $msgHome) = mnbt_theme_set_active('home', $hometheme);
+		if (!$okHome) {
+			json_exit($msgHome);
+		}
+	}
+	logjl($user, '主题设置', '用户端=' . $usertheme . ' 管理端=' . $admintheme . ' Docker端=' . ($dockertheme ?: '默认') . ' 主页=' . ($hometheme ?: '默认'), '修改成功', $DB);
 	json_exit('修改成功');
 	return;
 }

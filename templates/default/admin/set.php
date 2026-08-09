@@ -366,6 +366,13 @@ if ($set == 'wz') {
   $curUserTheme = mnbt_theme_name('user');
   $curAdminTheme = mnbt_theme_name('admin');
   $curDockerTheme = mnbt_theme_name('docker');
+  $homeThemes = mnbt_theme_list('home');
+  $curHomeTheme = mnbt_theme_name('home');
+  // 主页内容配置（V1.84 独立主页系统，主页模板跟随用户端主题）
+  $hp = function ($key, $def = '') use ($conf) {
+    return isset($conf[$key]) && $conf[$key] !== '' ? $conf[$key] : $def;
+  };
+  $homePrimary = preg_match('/^#[0-9a-fA-F]{6}$/', (string)$hp('home_primary')) ? $hp('home_primary') : '#4f46e5';
 ?>
 <div class="mn-set-card">
   <div class="mn-set-card-hd">
@@ -412,6 +419,19 @@ if ($set == 'wz') {
       <small>当前：<?=htmlspecialchars($curDockerTheme)?> · Docker 控制台（/docker/）皮肤</small>
     </div>
     <div class="mn-set-field">
+      <label for="hometheme">主页主题</label>
+      <select class="form-control" id="hometheme" name="hometheme">
+        <?php if (empty($homeThemes)): ?>
+        <option value="">（暂无可用主页主题）</option>
+        <?php else: foreach ($homeThemes as $t): ?>
+        <option value="<?=htmlspecialchars($t['name'])?>" <?=$curHomeTheme === $t['name'] ? 'selected' : ''?>>
+          <?=htmlspecialchars($t['title'])?><?=$t['version'] ? ' v'.htmlspecialchars($t['version']) : ''?> (<?=htmlspecialchars($t['name'])?>)
+        </option>
+        <?php endforeach; endif; ?>
+      </select>
+      <small>当前：<?=htmlspecialchars($curHomeTheme)?> · 站点根路径 / 的落地页皮肤（templates/主题/home/）</small>
+    </div>
+    <div class="mn-set-field">
       <label>已安装主题</label>
       <div class="table-responsive">
         <table class="table table-hover mn-set-table">
@@ -423,6 +443,7 @@ if ($set == 'wz') {
               <th>用户端</th>
               <th>管理端</th>
               <th>Docker端</th>
+              <th>主页</th>
               <th>说明</th>
             </tr>
           </thead>
@@ -430,7 +451,7 @@ if ($set == 'wz') {
           <?php
           $all = mnbt_theme_list(null);
           if (empty($all)): ?>
-            <tr><td colspan="7" class="text-center text-muted">未发现主题</td></tr>
+            <tr><td colspan="8" class="text-center text-muted">未发现主题</td></tr>
           <?php else: foreach ($all as $t): ?>
             <tr>
               <td><code><?=htmlspecialchars($t['name'])?></code></td>
@@ -439,6 +460,7 @@ if ($set == 'wz') {
               <td><?=!empty($t['has_user']) ? '<span class="text-success">支持</span>' : '<span class="text-muted">—</span>'?></td>
               <td><?=!empty($t['has_admin']) ? '<span class="text-success">支持</span>' : '<span class="text-muted">—</span>'?></td>
               <td><?=!empty($t['has_docker']) ? '<span class="text-success">支持</span>' : '<span class="text-muted">—</span>'?></td>
+              <td><?=!empty($t['has_home']) ? '<span class="text-success">支持</span>' : '<span class="text-muted">—</span>'?></td>
               <td><?=htmlspecialchars($t['description'] ?: '-')?></td>
             </tr>
           <?php endforeach; endif; ?>
@@ -454,6 +476,161 @@ if ($set == 'wz') {
     </div>
   </div>
 </div>
+
+<div class="mn-set-card">
+  <div class="mn-set-card-hd">
+    <div class="mn-set-icon"><i class="mdi mdi-home-city-outline"></i></div>
+    <div>
+      <h4>主页内容</h4>
+      <p>内置主页落地页配置，模板跟随上方所选主页主题（templates/主题/home/）</p>
+    </div>
+  </div>
+  <div class="mn-set-card-bd">
+    <div class="mn-set-field">
+      <div class="mn-set-switch">
+        <div class="mn-set-switch-txt">
+          <strong>启用内置主页</strong>
+          <span>关闭后恢复旧行为：插件接管或跳转用户面板</span>
+        </div>
+        <div class="custom-control custom-switch">
+          <input type="checkbox" class="custom-control-input" id="home_enable" <?php if ($hp('home_enable', 'true') == 'true') echo 'checked'; ?>>
+          <label class="custom-control-label" for="home_enable"></label>
+        </div>
+      </div>
+    </div>
+    <div class="mn-set-field">
+      <label for="home_title">站点标题</label>
+      <input type="text" name="home_title" id="home_title" value="<?php echo htmlspecialchars($hp('home_title')); ?>" class="form-control" placeholder="留空使用系统名称"/>
+    </div>
+    <div class="mn-set-field">
+      <label for="home_hero">Hero 标语</label>
+      <input type="text" name="home_hero" id="home_hero" value="<?php echo htmlspecialchars($hp('home_hero')); ?>" class="form-control" placeholder="高性能虚拟主机，即买即用"/>
+      <small>主页首屏大标题</small>
+    </div>
+    <div class="mn-set-field">
+      <label for="home_primary">主色调</label>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <input type="color" id="home_primary" value="<?php echo htmlspecialchars($homePrimary); ?>" style="width:46px;height:34px;padding:2px;border:1px solid #ced4da;border-radius:4px;background:#fff;cursor:pointer;">
+        <input type="text" class="form-control" id="home_primary_hex" value="<?php echo htmlspecialchars($homePrimary); ?>" style="max-width:140px;" placeholder="#4f46e5"/>
+      </div>
+      <small>十六进制色值（#rrggbb），应用到主页按钮与强调元素</small>
+    </div>
+    <div class="mn-set-field">
+      <label for="home_logo">站点 Logo</label>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px;">
+        <img id="logo_preview" src="<?php echo htmlspecialchars(mnbt_asset_url($hp('home_logo', 'upload_logo/logo.index.png'))); ?>" alt="logo" style="width:36px;height:36px;object-fit:contain;border:1px solid #e5e7eb;border-radius:8px;background:#fff;">
+        <input type="file" id="logo_file" accept=".png,.jpg,.jpeg,.gif,.ico" style="display:none;">
+        <button type="button" class="btn btn-outline-secondary" onclick="pickHomeIcon('logo')"><i class="mdi mdi-upload"></i> 上传</button>
+        <button type="button" class="btn btn-outline-secondary" onclick="$('#home_logo').val('');$('#logo_preview').attr('src','../imsetes/upload_logo/logo.index.png')">恢复默认</button>
+      </div>
+      <input type="text" name="home_logo" id="home_logo" value="<?php echo htmlspecialchars($hp('home_logo')); ?>" class="form-control" placeholder="上传后自动填入，或手动填写 URL"/>
+      <small>留空使用系统控制面板 Logo（imsetes/upload_logo/logo.index.png）</small>
+    </div>
+    <div class="mn-set-field">
+      <label for="home_favicon">Favicon</label>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px;">
+        <input type="file" id="favicon_file" accept=".png,.jpg,.jpeg,.gif,.ico" style="display:none;">
+        <button type="button" class="btn btn-outline-secondary" onclick="pickHomeIcon('favicon')"><i class="mdi mdi-upload"></i> 上传</button>
+        <button type="button" class="btn btn-outline-secondary" onclick="$('#home_favicon').val('')">清除</button>
+      </div>
+      <input type="text" name="home_favicon" id="home_favicon" value="<?php echo htmlspecialchars($hp('home_favicon')); ?>" class="form-control" placeholder="上传后自动填入，或手动填写 URL"/>
+      <small>留空使用系统默认图标</small>
+    </div>
+    <div class="mn-set-field">
+      <label for="home_footer">底部版权</label>
+      <input type="text" name="home_footer" id="home_footer" value="<?php echo htmlspecialchars($hp('home_footer')); ?>" class="form-control" placeholder="留空使用系统版权（hxp）"/>
+    </div>
+    <div class="mn-set-field">
+      <div class="mn-set-switch">
+        <div class="mn-set-switch-txt">
+          <strong>显示公告区</strong>
+          <span>展示系统网站公告（MN_config.gg）</span>
+        </div>
+        <div class="custom-control custom-switch">
+          <input type="checkbox" class="custom-control-input" id="home_show_notice" <?php if ($hp('home_show_notice', 'true') == 'true') echo 'checked'; ?>>
+          <label class="custom-control-label" for="home_show_notice"></label>
+        </div>
+      </div>
+      <div class="mn-set-switch">
+        <div class="mn-set-switch-txt">
+          <strong>显示套餐区</strong>
+          <span>hosting_shop 启用且存在有效套餐时展示</span>
+        </div>
+        <div class="custom-control custom-switch">
+          <input type="checkbox" class="custom-control-input" id="home_show_plans" <?php if ($hp('home_show_plans', 'true') == 'true') echo 'checked'; ?>>
+          <label class="custom-control-label" for="home_show_plans"></label>
+        </div>
+      </div>
+    </div>
+    <div class="mn-set-actions">
+      <button class="btn btn-primary btn-block" type="button" onclick="saveHome()"><i class="mdi mdi-content-save-outline"></i> 保存主页内容</button>
+    </div>
+    <div class="mn-set-note">
+      <b>提示：</b>主页模板位于 <code>templates/当前主页主题/home/index.php</code>，缺页回退
+      <code>templates/default/home/index.php</code>。插件可通过 <code>home.blocks</code> 过滤器注入扩展区块；
+      启用 shop_frontend 等插件时，插件主页优先接管。
+    </div>
+  </div>
+</div>
+<script>
+document.getElementById('home_primary').addEventListener('input', function () {
+  document.getElementById('home_primary_hex').value = this.value;
+});
+function saveHome() {
+  var data = {
+    gn: 'save_home_settings',
+    home_enable: $('#home_enable').is(':checked') ? 'true' : 'false',
+    home_title: $('#home_title').val() || '',
+    home_hero: $('#home_hero').val() || '',
+    home_primary: $('#home_primary_hex').val() || '',
+    home_logo: $('#home_logo').val() || '',
+    home_favicon: $('#home_favicon').val() || '',
+    home_footer: $('#home_footer').val() || '',
+    home_show_notice: $('#home_show_notice').is(':checked') ? 'true' : 'false',
+    home_show_plans: $('#home_show_plans').is(':checked') ? 'true' : 'false',
+  };
+  $.post('./ajax.php', data, function (r) {
+    var j = JSON.parse(r);
+    msalert(j.code === '修改成功' ? 1 : 4, j.code || '保存失败', 2000);
+  });
+}
+function pickHomeIcon(target) {
+  document.getElementById(target + '_file').click();
+}
+function bindHomeIcon(target) {
+  var input = document.getElementById(target + '_file');
+  input.addEventListener('change', function () {
+    if (!input.files || !input.files.length) return;
+    var fd = new FormData();
+    fd.append('gn', 'home_upload_icon');
+    fd.append('target', target);
+    fd.append('icon', input.files[0]);
+    $.ajax({
+      url: './ajax.php',
+      type: 'POST',
+      data: fd,
+      processData: false,
+      contentType: false,
+      success: function (r) {
+        var j;
+        try { j = typeof r === 'string' ? JSON.parse(r) : r; } catch (e) { j = { code: '响应解析失败' }; }
+        if (j.code === '上传成功') {
+          var rel = 'imsetes/upload_logo/home_' + target + (target === 'favicon' ? '.ico' : '.png');
+          $('#' + target + '_value').val(rel);
+          if (target === 'logo') { $('#logo_preview').attr('src', '../' + rel).show(); }
+          msalert(1, '上传成功，请点击保存', 2000);
+        } else {
+          msalert(4, j.code || '上传失败', 2000);
+        }
+      },
+      error: function () { msalert(4, '网络错误，请重试', 2000); }
+    });
+  });
+}
+bindHomeIcon('logo');
+bindHomeIcon('favicon');
+</script>
+
 <?php } else { ?>
 <div class="mn-set-card">
   <div class="mn-set-card-bd text-center text-muted py-5">

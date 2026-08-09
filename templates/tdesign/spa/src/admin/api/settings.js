@@ -1,4 +1,5 @@
-import { apiGn } from '@/shared/api/http'
+import { apiGn, parseResult, default as http } from '@/shared/api/http'
+import { MessagePlugin } from 'tdesign-vue-next'
 
 /** 网站设置: gg / qq / yzm / zjyxbd */
 export function setWebsite(data) {
@@ -30,9 +31,9 @@ export function setMonitor(data) {
   return apiGn('jkscsz', data)
 }
 
-/** 主题切换: usertheme / admintheme / dockertheme */
-export function setTheme(usertheme, admintheme, dockertheme = '') {
-  return apiGn('settheme', { usertheme, admintheme, dockertheme })
+/** 主题切换: usertheme / admintheme / dockertheme / hometheme */
+export function setTheme(usertheme, admintheme, dockertheme = '', hometheme = '') {
+  return apiGn('settheme', { usertheme, admintheme, dockertheme, hometheme })
 }
 
 /** 支付方式列表(走 panel API,如启用支付插件) */
@@ -43,4 +44,23 @@ export function listPaymentMethods() {
 /** 保存支付方式 */
 export function savePaymentMethods(methods) {
   return apiGn('setpaymethods', { methods })
+}
+
+/** 主页设置: home_enable / home_title / home_hero / home_primary / home_logo / home_favicon / home_footer / home_show_notice / home_show_plans */
+export function setHome(data) {
+  return apiGn('save_home_settings', data)
+}
+
+/** 上传主页 Logo/Favicon: target=logo|favicon */
+export async function uploadHomeIcon(target, file) {
+  const boot = window.__TD_BOOT__ || {}
+  const url = boot.ajaxBase || './ajax.php'
+  const fd = new FormData()
+  fd.append('gn', 'home_upload_icon')
+  fd.append('target', target)
+  fd.append('icon', file)
+  const res = await http.post(url, fd)
+  const r = parseResult(res.data)
+  if (!r.ok) MessagePlugin.error(r.message || '上传失败')
+  return r
 }

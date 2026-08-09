@@ -27,6 +27,16 @@ CREATE TABLE `MN_config` (
   `hxs` text NOT NULL,     -- 后续....
   `hxd` text NOT NULL,     -- 后续....
   `pay_methods` text NOT NULL,  -- V1.81 P3: 已启用的付款方式配置（JSON）
+  `home_enable` varchar(10) NOT NULL DEFAULT 'true',   -- V1.84: 启用内置主页
+  `home_theme` varchar(50) NOT NULL DEFAULT '',        -- V1.84: 主页主题（空则跟随默认，回退 default）
+  `home_title` text NOT NULL,                          -- V1.84: 主页站点标题（空则回退系统名称）
+  `home_hero` text NOT NULL,                           -- V1.84: 主页 Hero 标语
+  `home_primary` varchar(10) NOT NULL DEFAULT '#4f46e5', -- V1.84: 主页主色调
+  `home_logo` text NOT NULL,                           -- V1.84: 主页 Logo（URL 或相对路径）
+  `home_favicon` text NOT NULL,                        -- V1.84: 主页 Favicon
+  `home_footer` text NOT NULL,                         -- V1.84: 主页底部版权（空则回退系统版权）
+  `home_show_notice` varchar(10) NOT NULL DEFAULT 'true', -- V1.84: 显示公告区
+  `home_show_plans` varchar(10) NOT NULL DEFAULT 'true',  -- V1.84: 显示套餐区
   PRIMARY KEY (`id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 INSERT INTO `MN_config`(`id`, `user`, `pwd`, `gg`, `name`, `yzm`,`yzme`,`wzqk`,`auther`,`kzmbqk`, `apiqk`,`api`,`qqh`,`date`,`hxw`, `hxe`, `hxr`, `hxt`, `hxy`, `hxu`,`hxi`,`hxo`,`hxp`,`hxa`, `hxs`,`hxd`, `pay_methods`) VALUES
