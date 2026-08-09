@@ -220,21 +220,100 @@ function mnbt_home_dispatch(): bool
 }
 
 /* ============================================================
- *  V1.84 主题注册自定义设置
+ *  V1.84 主题注册自定义设置（结构化字段声明）
  * ============================================================
- * 主页主题可在 templates/{theme}/theme.php 中通过以下钩子注册自定义设置项：
  *
- * mnbt_add_filter('home.settings.fields', function($html) {
- *     // $html 是已有通用设置项 HTML，返回追加后的 HTML
- *     return $html . '<div class="mn-set-field">...自定义字段...</div>';
- * });
+ * 主页主题可在 templates/{theme}/theme.php 中声明自定义设置字段：
  *
- * mnbt_add_action('home.settings.save', function() {
- *     // 处理自定义字段的 POST 数据并持久化（如 mnbt_plugin_option_set）
- * });
+ *   mnbt_register_home_setting([
+ *       'key'         => 'bg_color',
+ *       'label'       => '背景颜色',
+ *       'type'        => 'color',          // text | color | select | switch | textarea | number
+ *       'default'     => '#f0f4ff',
+ *       'placeholder' => '#f0f4ff',
+ *       'hint'        => '可选提示文本',
+ *       'options'     => [['value'=>'a','label'=>'A'], ...],  // select 专用
+ *   ]);
+ *
+ * 字段统一持久化到 MN_config.home_theme_settings（JSON），模板端通过
+ * mnbt_home_theme_setting($key, $default) 读取当前值。
+ *
+ * 渲染由当前 Admin 主题负责（default 用原生 HTML，tdesign 用 TDesign 组件），
+ * 主题只需声明字段结构，不需要关心样式。
  */
 
-/** 加载当前主页主题的 theme.php（若存在），确保 home.settings.* 钩子已注册 */
+$GLOBALS['mnbt_home_settings_fields'] = [];
+
+/** 注册主页自定义设置字段（由主题 theme.php 调用） */
+function mnbt_register_home_setting(array $config): bool
+{
+	$key = trim((string)($config['key'] ?? ''));
+	if ($key === '' || !preg_match('/^[a-zA-Z_][a-zA-Z0-9_]{0,63}$/', $key)) {
+		return false;
+	}
+	$type = (string)($config['type'] ?? 'text');
+	if (!in_array($type, ['text', 'color', 'select', 'switch', 'textarea', 'number'], true)) {
+		$type = 'text';
+	}
+	if (isset($GLOBALS['mnbt_home_settings_fields'][$key])) {
+		return false; // 重复 key
+	}
+	$GLOBALS['mnbt_home_settings_fields'][$key] = [
+		'key'         => $key,
+		'label'       => (string)($config['label'] ?? $key),
+		'type'        => $type,
+		'default'     => $config['default'] ?? ($type === 'switch' ? false : ''),
+		'placeholder' => (string)($config['placeholder'] ?? ''),
+		'hint'        => (string)($config['hint'] ?? ''),
+		'options'     => ($type === 'select' && isset($config['options']) && is_array($config['options'])) ? $config['options'] : [],
+	];
+	return true;
+}
+
+/** 读取当前主页主题所有已保存的自定义设置值 */
+function mnbt_home_theme_settings_all(): array
+{
+	global $conf;
+	if (is_array($conf) && !empty($conf['home_theme_settings'])) {
+		$v = $conf['home_theme_settings'];
+		if (is_string($v) && $v !== '') {
+			$decoded = json_decode($v, true);
+			if (is_array($decoded)) return $decoded;
+		}
+	}
+	return [];
+}
+
+/** 读取单个主题自定义设置值（供模板使用） */
+function mnbt_home_theme_setting(string $key, $default = null)
+{
+	$all = mnbt_home_theme_settings_all();
+	return $all[$key] ?? $default;
+}
+
+/** 获取已注册字段列表（确保 theme.php 已加载） */
+function mnbt_home_get_settings_fields(): array
+{
+	mnbt_home_ensure_theme_loaded();
+	return $GLOBALS['mnbt_home_settings_fields'] ?? [];
+}
+
+/** 合并字段定义 + 已存值 → 渲染用数据 */
+function mnbt_home_settings_view_data(): array
+{
+	$fields = mnbt_home_get_settings_fields();
+	$values = mnbt_home_theme_settings_all();
+	$result = [];
+	foreach ($fields as $f) {
+		$key = $f['key'];
+		$item = $f;
+		$item['value'] = $values[$key] ?? $f['default'];
+		$result[] = $item;
+	}
+	return $result;
+}
+
+/** 加载当前主页主题的 theme.php（若存在），确保字段已注册 */
 function mnbt_home_ensure_theme_loaded(): void
 {
 	static $done = false;
@@ -245,21 +324,103 @@ function mnbt_home_ensure_theme_loaded(): void
 	}
 }
 
-/** 渲染主页主题注册的自定义设置项 HTML，注入到「主页内容」表单中 */
-function mnbt_home_settings_fields_html(): string
-{
-	mnbt_home_ensure_theme_loaded();
-	if (function_exists('mnbt_apply_filters')) {
-		return (string) mnbt_apply_filters('home.settings.fields', '');
-	}
-	return '';
-}
-
-/** 触发主页设置保存后的自定义处理（主题专用字段持久化） */
+/** 保存主题自定义设置（从 POST 收集注册字段的值，合并 JSON 写入 MN_config） */
 function mnbt_home_settings_save(): void
 {
 	mnbt_home_ensure_theme_loaded();
-	if (function_exists('mnbt_do_action')) {
-		mnbt_do_action('home.settings.save');
+	$fields = $GLOBALS['mnbt_home_settings_fields'] ?? [];
+	if (empty($fields)) return;
+	global $DB, $siteid;
+	$existing = mnbt_home_theme_settings_all();
+	foreach ($fields as $f) {
+		$k = $f['key'];
+		if ($f['type'] === 'switch') {
+			$existing[$k] = (isset($_POST['home_ts_' . $k]) && $_POST['home_ts_' . $k] === 'true');
+		} else {
+			$existing[$k] = trim((string)($_POST['home_ts_' . $k] ?? ''));
+		}
 	}
+	$json = json_encode($existing, JSON_UNESCAPED_UNICODE);
+	if ($json === false) $json = '{}';
+	$sid = isset($siteid) ? $siteid : 1;
+	@$DB->query_prepare("UPDATE `MN_config` SET `home_theme_settings` = ? WHERE `id` = ?", [$json, $sid]);
+}
+
+/* ============================================================
+ *  默认 Admin 主题渲染器
+ * ============================================================ */
+
+/** 在 default 主题后台渲染主页自定义设置字段 HTML */
+function mnbt_home_render_settings_fields_default(): string
+{
+	$items = mnbt_home_settings_view_data();
+	if (empty($items)) return '';
+	$html = '';
+	foreach ($items as $f) {
+		$label = htmlspecialchars($f['label']);
+		$key   = 'home_ts_' . $f['key'];
+		$hint  = $f['hint'] !== '' ? '<small>' . htmlspecialchars($f['hint']) . '</small>' : '';
+		$val   = htmlspecialchars((string)$f['value']);
+		$ph    = htmlspecialchars($f['placeholder']);
+		switch ($f['type']) {
+			case 'color':
+				$html .= '<div class="mn-set-field"><label>' . $label . '</label>'
+					. '<div style="display:flex;align-items:center;gap:10px;">'
+					. '<input type="color" value="' . $val . '" style="width:46px;height:34px;padding:2px;border:1px solid #ced4da;border-radius:4px;background:#fff;cursor:pointer;"'
+					. ' oninput="document.getElementById(\'hts_' . $f['key'] . '_hex\').value=this.value">'
+					. '<input type="text" class="form-control" id="hts_' . $f['key'] . '_hex" name="' . $key . '" value="' . $val . '" style="max-width:140px;" placeholder="' . $ph . '"/>'
+					. '</div>' . $hint . '</div>';
+				break;
+			case 'switch':
+				$checked = $f['value'] ? 'checked' : '';
+				$html .= '<div class="mn-set-field"><div class="mn-set-switch">'
+					. '<div class="mn-set-switch-txt"><strong>' . $label . '</strong>'
+					. ($f['hint'] !== '' ? '<span>' . htmlspecialchars($f['hint']) . '</span>' : '')
+					. '</div>'
+					. '<div class="custom-control custom-switch">'
+					. '<input type="checkbox" class="custom-control-input" id="hts_' . $f['key'] . '" ' . $checked . '>'
+					. '<label class="custom-control-label" for="hts_' . $f['key'] . '"></label>'
+					. '<input type="hidden" name="' . $key . '" value="false" data-switch="hts_' . $f['key'] . '">'
+					. '</div></div></div>';
+				break;
+			case 'select':
+				$html .= '<div class="mn-set-field"><label>' . $label . '</label>'
+					. '<select class="form-control" name="' . $key . '">';
+				if (!empty($f['options'])) {
+					foreach ($f['options'] as $opt) {
+						$ov = htmlspecialchars((string)($opt['value'] ?? ''));
+						$ol = htmlspecialchars((string)($opt['label'] ?? $ov));
+						$sel = ($ov === (string)$f['value']) ? ' selected' : '';
+						$html .= '<option value="' . $ov . '"' . $sel . '>' . $ol . '</option>';
+					}
+				}
+				$html .= '</select>' . $hint . '</div>';
+				break;
+			case 'textarea':
+				$html .= '<div class="mn-set-field"><label>' . $label . '</label>'
+					. '<textarea class="form-control" name="' . $key . '" rows="4" placeholder="' . $ph . '">' . $val . '</textarea>'
+					. $hint . '</div>';
+				break;
+			case 'number':
+				$html .= '<div class="mn-set-field"><label>' . $label . '</label>'
+					. '<input type="number" class="form-control" name="' . $key . '" value="' . $val . '" placeholder="' . $ph . '"/>'
+					. $hint . '</div>';
+				break;
+			default: // text
+				$html .= '<div class="mn-set-field"><label>' . $label . '</label>'
+					. '<input type="text" class="form-control" name="' . $key . '" value="' . $val . '" placeholder="' . $ph . '"/>'
+					. $hint . '</div>';
+				break;
+		}
+	}
+	// switch 值同步脚本
+	$html .= '<script>(function(){'
+		. 'document.querySelectorAll(\'input[data-switch]\').forEach(function(el){'
+		. 'var cbId=el.getAttribute(\'data-switch\');'
+		. 'var cb=document.getElementById(cbId);'
+		. 'if(!cb)return;'
+		. 'el.value=cb.checked?"true":"false";'
+		. 'cb.addEventListener("change",function(){el.value=cb.checked?"true":"false"})'
+		. '})})()</script>';
+	return $html;
 }

@@ -19,6 +19,7 @@ END$$
 DELIMITER ;
 
 CALL mnbt_add_col('MN_config', 'home_theme',       "varchar(50) NOT NULL DEFAULT ''");
+CALL mnbt_add_col('MN_config', 'home_theme_settings', 'text NOT NULL');
 CALL mnbt_add_col('MN_config', 'home_enable',      "varchar(10) NOT NULL DEFAULT 'true'");
 CALL mnbt_add_col('MN_config', 'home_title',       'text NOT NULL');
 CALL mnbt_add_col('MN_config', 'home_hero',        'text NOT NULL');

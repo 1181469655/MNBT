@@ -563,9 +563,9 @@ if ($set == 'wz') {
       </div>
     </div>
     <?php
-    $homeThemeFields = function_exists('mnbt_home_settings_fields_html') ? mnbt_home_settings_fields_html() : '';
+    $homeThemeFields = function_exists('mnbt_home_render_settings_fields_default') ? mnbt_home_render_settings_fields_default() : '';
     if ($homeThemeFields !== '') {
-        echo '<div class="mn-set-field"><div class="mn-set-note" style="margin-bottom:8px;"><b>主题自定义设置</b>（当前主页主题注册的扩展项）</div></div>';
+        echo '<div class="mn-set-field" style="padding-top:8px;border-top:1px solid #e5e7eb;"><div class="mn-set-note" style="margin-bottom:8px;"><b>主题自定义设置</b>（当前主页主题注册的扩展项）</div></div>';
         echo $homeThemeFields;
     }
     ?>

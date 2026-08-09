@@ -19,6 +19,7 @@
 - [12. 常见问题](#12-常见问题)
 - [13. 相关文件索引](#13-相关文件索引)
 - [14. 版本与兼容](#14-版本与兼容)
+- [15. 主页主题开发（V1.84）](#15-主页主题开发v184)
 
 ---
 
@@ -208,7 +209,44 @@ Docker 控制台是独立于用户端/管理端的第三套视图体系，有独
 
 **主题 scope 注册**：`docker` scope 在 `MPHX/theme.php` 中注册，与 `user`/`admin` 独立。`theme.json` 可声明 `"scope": ["user", "admin", "docker"]`。
 
-### 3.4 不走主题的路径（一般不要动）
+### 3.5 主页 `templates/{theme}/home/` <small>（V1.84 新增）</small>
+
+独立主页系统是 V1.84 新增的第四个 scope，拥有独立的主题切换（与用户端/管理端分开选）。
+
+| 视图文件 | 说明 | 建议 |
+|----------|------|------|
+| `home/index.php` | 主页落地页（站点根路径 `/` 的渲染模板） | 必选 |
+
+**模板可用变量**（由 `MPHX/frontend.php` 注入，详见该文件 `mnbt_home_data()`）：
+
+| 变量 | 说明 |
+|------|------|
+| `$site_title` | 站点标题 |
+| `$site_logo` | Logo URL |
+| `$site_primary` | 主色调（`#4f46e5`） |
+| `$site_hero` | Hero 标语 |
+| `$site_footer` | 底部版权 |
+| `$favicon` | Favicon URL |
+| `$notice` | 网站公告内容 |
+| `$show_notice` | 是否显示公告区 |
+| `$show_plans` | 是否显示套餐区 |
+| `$logged_in` | 当前访问者是否已登录 |
+| `$has_shop` | hosting_shop 插件是否启用 |
+| `$has_user` | user_info 插件是否启用 |
+| `$plans` | 套餐列表（`[['id','name','desc','price','feats'], ...]`） |
+| `$blocks` | 插件扩展区块（`[['id','title','html','order'], ...]`） |
+| `$url($path)` | 生成插件路由 URL（`index.php?_r=/shop`） |
+| `$coreUrl($path)` | 生成核心物理文件 URL（`user/login.php`） |
+
+**读取主题自定义设置**（由 `theme.php` 注册的字段）：
+
+```php
+<?= htmlspecialchars(mnbt_home_theme_setting('bg_color', '#fff')) ?>
+```
+
+**静态资源**：放 `templates/{theme}/home/assets/`，用 `mnbt_theme_asset('bg.webp', 'home')` 引用。
+
+### 3.6 不走主题的路径（一般不要动）
 
 | 路径 | 原因 |
 |------|------|
@@ -700,6 +738,8 @@ my_theme.zip
 | `MPHX/bt_proxy.php` | 反向代理 API 封装（站点创建/删除/列表） |
 | `templates/default/docker/` | Docker 控制台默认视图（V1.83+） |
 | `docker/` | Docker 控制台控制器（V1.83+） |
+| `MPHX/frontend.php` | 主页引擎（V1.84+） |
+| `templates/default/home/` | 内置默认主页模板（V1.84+） |
 
 ---
 
@@ -711,5 +751,178 @@ my_theme.zip
 - 资源 API：`mnbt_theme_url` 会对主题私有文件做 default 回退；`mnbt_asset_url` 始终指向 `imsetes/`
 - `layui` 主题自 v1.81 起提供，作为混合栈示例
 - `docker` scope 自 v1.83 起支持，提供独立的 Docker 控制台视图体系
+- `home` scope 自 v1.84 起支持，提供独立的站点主页视图体系（内置默认主页 + 主题化切换 + 自定义设置字段声明）
 
 如有疑问，可在项目 Issue 中反馈并附上主题目录结构与报错截图。
+
+---
+
+## 15. 主页主题开发（V1.84）
+
+### 15.1 概述
+
+独立主页系统是 V1.84 引入的核心功能，使主页（站点根路径 `/`）脱离插件依赖，成为可独立切换的第四主题 scope（`home`）。
+
+**核心机制**：
+- 主页模板：`templates/{主题}/home/index.php`（缺页回退 `default`）
+- 主题切换：后台「前端模板」→ 主页主题下拉（与用户端/管理端独立）
+- 内容配置：后台「前端模板」→ 主页内容（标题、Hero、主色、Logo 等通用设置）
+- 自定义设置：主题通过 `theme.php` 声明字段，后台自动渲染并持久化
+
+### 15.2 新建主页主题
+
+**目录结构**：
+
+```text
+templates/
+└── my_home/
+    ├── theme.json          # 主题元信息（可选）
+    ├── theme.php           # 注册自定义设置字段声明
+    └── home/
+        ├── index.php       # 主页落地页模板（必选）
+        └── assets/         # 静态资源（可选）
+            └── style.css
+```
+
+**最小配置**：只需 `home/index.php` 即可被识别为主页主题，在后台「前端模板 → 主页主题」下拉中显示。
+
+### 15.3 注册自定义设置（theme.php）
+
+主题通过 `mnbt_register_home_setting()` 声明设置字段，**不需要写 HTML**——渲染由当前 Admin 主题负责。
+
+```php
+<?php
+// templates/my_home/theme.php
+if (!defined('IN_CRONLITE')) exit;
+
+mnbt_register_home_setting([
+    'key'         => 'bg_color',
+    'label'       => '背景颜色',
+    'type'        => 'color',
+    'default'     => '#f0f4ff',
+    'placeholder' => '#f0f4ff',
+    'hint'        => '主页 body 背景色',
+]);
+
+mnbt_register_home_setting([
+    'key'     => 'hero_style',
+    'label'   => '标题风格',
+    'type'    => 'select',
+    'default' => 'large',
+    'options' => [
+        ['value' => 'small',  'label' => '小号'],
+        ['value' => 'medium', 'label' => '中号'],
+        ['value' => 'large',  'label' => '大号'],
+    ],
+    'hint'    => 'Hero 标题字号',
+]);
+
+mnbt_register_home_setting([
+    'key'     => 'show_badge',
+    'label'   => '显示徽章',
+    'type'    => 'switch',
+    'default' => true,
+]);
+
+mnbt_register_home_setting([
+    'key'         => 'footer_msg',
+    'label'       => '页脚消息',
+    'type'        => 'textarea',
+    'placeholder' => '可选自定义内容',
+]);
+```
+
+**支持的字段类型**：
+
+| type | 渲染组件 | default 后台 | tdesign 后台 |
+|------|----------|-------------|-------------|
+| `text` | 文本输入框 | `<input class="form-control">` | `<t-input>` |
+| `color` | 色盘 + 文本输入 | `<input type="color">` + `<input>` | `<input type="color">` + `<t-input>` |
+| `select` | 下拉选择 | `<select class="form-control">` | `<t-select>` |
+| `switch` | 开关 | Bootstrap `.custom-switch` | `<t-switch>` |
+| `textarea` | 多行文本 | `<textarea class="form-control">` | `<t-textarea>` |
+| `number` | 数字输入 | `<input type="number">` | `<t-input type="number">` |
+
+**字段参数**：
+
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `key` | 是 | 唯一标识符，`/^[a-zA-Z_][a-zA-Z0-9_]+$/`，用于模板读取和持久化 |
+| `label` | 是 | 显示标签 |
+| `type` | 否 | 组件类型，默认 `text` |
+| `default` | 否 | 默认值（switch 默认 `false`） |
+| `placeholder` | 否 | 占位文本 |
+| `hint` | 否 | 字段下方的提示说明 |
+| `options` | select 专用 | `[['value'=>'', 'label'=>''], ...]` |
+
+### 15.4 模板中读取设置值
+
+使用 `mnbt_home_theme_setting($key, $default)` 读取已保存的主题自定义设置：
+
+```php
+<?php
+// templates/my_home/home/index.php
+$bgColor   = function_exists('mnbt_home_theme_setting') ? mnbt_home_theme_setting('bg_color', '#fff') : '#fff';
+$heroStyle = function_exists('mnbt_home_theme_setting') ? mnbt_home_theme_setting('hero_style', 'large') : 'large';
+$showBadge = function_exists('mnbt_home_theme_setting') ? mnbt_home_theme_setting('show_badge', true) : true;
+$footerMsg = function_exists('mnbt_home_theme_setting') ? mnbt_home_theme_setting('footer_msg', '') : '';
+?>
+<!DOCTYPE html>
+<html>
+<head>
+  <title><?= htmlspecialchars($site_title) ?></title>
+  <style>
+    body { background: <?= htmlspecialchars($bgColor) ?>; }
+    h1 { font-size: <?= $heroStyle === 'small' ? '1.4rem' : ($heroStyle === 'medium' ? '2rem' : '2.8rem') ?>; }
+  </style>
+</head>
+<body>
+  <h1><?= htmlspecialchars($site_hero) ?></h1>
+  <?php if ($showBadge): ?><div class="badge">推荐</div><?php endif; ?>
+  <?php if ($footerMsg): ?><footer><?= htmlspecialchars($footerMsg) ?></footer><?php endif; ?>
+</body>
+</html>
+```
+
+### 15.5 持久化
+
+所有自定义字段统一保存在 `MN_config.home_theme_settings`（JSON 列），切换主题后设置保留。主题重新切回来时值仍在。
+
+### 15.6 扩展区块
+
+主页模板可通过 `$blocks` 变量渲染插件注入的扩展区块：
+
+```php
+<?php foreach ($blocks as $block): ?>
+<section class="sec">
+  <?php if (!empty($block['title'])): ?>
+    <h2><?= htmlspecialchars($block['title']) ?></h2>
+  <?php endif; ?>
+  <?= $block['html'] ?>
+</section>
+<?php endforeach; ?>
+```
+
+插件通过 `mnbt_add_filter('home.blocks', callback)` 注入区块。
+
+### 15.7 启用
+
+1. 将主题文件夹放入 `templates/`
+2. 后台 → 系统设置 → 前端模板 → 主页主题下拉 → 选择 `my_home` → 保存
+3. 主页内容区域的通用设置和主题自定义字段均可在此面板中配置
+4. 访问站点 `/` 即可看到效果
+
+### 15.8 相关文件索引
+
+| 文件 | 职责 |
+|------|------|
+| `MPHX/frontend.php` | 主页引擎（分发、数据组装、字段注册 API、default 渲染器） |
+| `MPHX/theme.php` | `home` scope 注册（`mnbt_theme_name/list/set_active`） |
+| `index.php` | 请求分发入口（`mnbt_home_dispatch` 调用点） |
+| `templates/default/home/index.php` | 内置默认主页模板 |
+| `templates/default/admin/set.php` | default 后台渲染器（`gn=theme`） |
+| `templates/tdesign/spa/src/admin/views/settings/ThemeView.vue` | tdesign 后台渲染器 |
+| `templates/tdesign/admin/_spa_boot.php` | tdesign boot 数据注入 |
+| `admin/api/setting.php` | `save_home_settings` / `home_upload_icon` / `settheme(hometheme)` 接口 |
+| `install/install.sql` | `MN_config.home_*` 字段定义 |
+| `update/update_v184_home.sql` | 增量升级 SQL |

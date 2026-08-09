@@ -247,10 +247,48 @@
               <t-switch v-model="homeForm.home_show_plans" />
             </div>
 
-            <div v-if="homeThemeSettingsHtml" class="td-form-note" style="margin-bottom:8px;">
+            <div v-if="themeFields.length" class="td-form-note" style="padding-top:8px;border-top:1px solid #e5e7eb;margin-bottom:8px;">
               <b>主题自定义设置</b>（当前主页主题注册的扩展项）
             </div>
-            <div v-if="homeThemeSettingsHtml" v-html="homeThemeSettingsHtml"></div>
+            <template v-for="f in themeFields" :key="f.key">
+              <!-- text / number -->
+              <div v-if="f.type === 'text' || f.type === 'number'" class="td-form-row">
+                <label>{{ f.label }}</label>
+                <t-input v-model="themeValues[f.key]" :type="f.type" :placeholder="f.placeholder || ''" clearable />
+                <div v-if="f.hint" class="td-form-hint">{{ f.hint }}</div>
+              </div>
+              <!-- color -->
+              <div v-else-if="f.type === 'color'" class="td-form-row">
+                <label>{{ f.label }}</label>
+                <div class="home-color-row">
+                  <input type="color" class="home-color-picker" v-model="themeValues[f.key]" />
+                  <t-input v-model="themeValues[f.key]" style="max-width: 140px" :placeholder="f.placeholder || ''" />
+                </div>
+                <div v-if="f.hint" class="td-form-hint">{{ f.hint }}</div>
+              </div>
+              <!-- switch -->
+              <div v-else-if="f.type === 'switch'" class="td-form-switch">
+                <div class="td-form-switch-txt">
+                  <strong>{{ f.label }}</strong>
+                  <span v-if="f.hint">{{ f.hint }}</span>
+                </div>
+                <t-switch v-model="themeValues[f.key]" />
+              </div>
+              <!-- select -->
+              <div v-else-if="f.type === 'select'" class="td-form-row">
+                <label>{{ f.label }}</label>
+                <t-select v-model="themeValues[f.key]" :placeholder="f.placeholder || ''" clearable>
+                  <t-option v-for="opt in (f.options || [])" :key="opt.value" :value="opt.value" :label="opt.label" />
+                </t-select>
+                <div v-if="f.hint" class="td-form-hint">{{ f.hint }}</div>
+              </div>
+              <!-- textarea -->
+              <div v-else-if="f.type === 'textarea'" class="td-form-row">
+                <label>{{ f.label }}</label>
+                <t-textarea v-model="themeValues[f.key]" :autosize="{ minRows: 3, maxRows: 8 }" :placeholder="f.placeholder || ''" />
+                <div v-if="f.hint" class="td-form-hint">{{ f.hint }}</div>
+              </div>
+            </template>
 
             <div class="td-form-actions">
               <t-button theme="primary" :loading="homeLoading" @click="saveHome">
@@ -329,7 +367,20 @@ async function save() {
 /* ===== 主页内容（V1.84 独立主页系统） ===== */
 const conf = boot.conf || {}
 const homeLoading = ref(false)
-const homeThemeSettingsHtml = boot.homeThemeSettingsHtml || ''
+
+// 主题注册字段定义
+const themeFields = (boot.homeThemeSettingsFields && Array.isArray(boot.homeThemeSettingsFields))
+  ? boot.homeThemeSettingsFields
+  : []
+
+// 响应式值映射
+const themeValues = reactive(
+  themeFields.reduce((acc, f) => {
+    acc[f.key] = f.value !== undefined ? f.value : f.default
+    return acc
+  }, {})
+)
+
 const logoInput = ref(null)
 const faviconInput = ref(null)
 
@@ -379,7 +430,7 @@ async function saveHome() {
     return
   }
   homeLoading.value = true
-  const r = await setHome({
+  const data = {
     home_enable: homeForm.home_enable ? 'true' : 'false',
     home_title: homeForm.home_title,
     home_hero: homeForm.home_hero,
@@ -389,7 +440,12 @@ async function saveHome() {
     home_footer: homeForm.home_footer,
     home_show_notice: homeForm.home_show_notice ? 'true' : 'false',
     home_show_plans: homeForm.home_show_plans ? 'true' : 'false',
+  }
+  // 主题自定义字段
+  themeFields.forEach(f => {
+    data['home_ts_' + f.key] = f.type === 'switch' ? (themeValues[f.key] ? 'true' : 'false') : String(themeValues[f.key] || '')
   })
+  const r = await setHome(data)
   homeLoading.value = false
   if (r.ok) MessagePlugin.success('保存成功，刷新前台页面查看效果')
 }

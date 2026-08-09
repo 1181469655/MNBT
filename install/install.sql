@@ -29,6 +29,7 @@ CREATE TABLE `MN_config` (
   `pay_methods` text NOT NULL,  -- V1.81 P3: 已启用的付款方式配置（JSON）
   `home_enable` varchar(10) NOT NULL DEFAULT 'true',   -- V1.84: 启用内置主页
   `home_theme` varchar(50) NOT NULL DEFAULT '',        -- V1.84: 主页主题（空则跟随默认，回退 default）
+  `home_theme_settings` text NOT NULL,                 -- V1.84: 主页主题自定义设置（JSON）
   `home_title` text NOT NULL,                          -- V1.84: 主页站点标题（空则回退系统名称）
   `home_hero` text NOT NULL,                           -- V1.84: 主页 Hero 标语
   `home_primary` varchar(10) NOT NULL DEFAULT '#4f46e5', -- V1.84: 主页主色调
