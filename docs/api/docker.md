@@ -152,13 +152,13 @@ curl -X POST "http://your-domain/api/docker.php?gn=kt" \
 
 ### 2.4 续费
 
-通过系统后台订单系统续费，或直接更新 `MN_docker_user.datae`（到期时间）与 `qk='active'`；第三方平台也可直接调用外部运维 API 的 `gn=xf` 接口续费（见 [外部运维 API](#6-外部运维-apimagic-square-finance-对接)）。
+通过系统后台订单系统续费，或直接更新 `MN_docker_user.datae`（到期时间）与 `qk='active'`；第三方平台也可直接调用外部运维 API 的 `gn=xf` 接口续费（见 [外部运维 API](#6-外部运维-api魔方财务对接)）。
 
 到期后的自动软删处理由 cron 任务 `docker_cron.php` 执行，详见 [容器生命周期](#5-容器生命周期)。
 
 ### 2.5 删除
 
-通过管理后台 `admin/api/docker.php` 删除用户，或直接 DELETE `MN_docker_user`；第三方平台可调用外部运维 API 的 `gn=tj` 接口删除（见 [外部运维 API](#6-外部运维-apimagic-square-finance-对接)）。
+通过管理后台 `admin/api/docker.php` 删除用户，或直接 DELETE `MN_docker_user`；第三方平台可调用外部运维 API 的 `gn=tj` 接口删除（见 [外部运维 API](#6-外部运维-api魔方财务对接)）。
 
 ---
 

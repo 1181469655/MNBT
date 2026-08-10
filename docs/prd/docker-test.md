@@ -347,4 +347,4 @@ A: `my` 参数必须等于后台「系统设置 → API」的密钥，与 `jk_mo
 
 ---
 
-> 魔方财务联调测试（§11）见 [docker-test-mofang.md](./docker-test-mofang.md)。
+> 魔方财务联调测试见 [Docker × 魔方财务对接 PRD](./docker-idcsmart.md) 及 [Docker 魔方财务 API](../api/docker-mofang.md)。
