@@ -4,7 +4,7 @@ export default defineConfig({
   title: 'MNBT 文档',
   description: '梦奈宝塔主机系统 — 虚拟主机分销、Docker 容器托管、插件与主题生态',
   lang: 'zh-CN',
-  base: '/MNBT/',
+  base: '/',
 
   themeConfig: {
     logo: '/logo.png',
