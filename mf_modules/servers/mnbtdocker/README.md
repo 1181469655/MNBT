@@ -22,9 +22,9 @@
 
 | 字段 | 填写 |
 |------|------|
-| 服务器 IP/域名 | MNBT 站点域名 |
-| 端口 | MNBT 站点端口（80/443） |
-| 用户名 | 节点编号（`MN_docker_node.id`） |
+| 服务器 IP/域名 | MNBT IP地址 |
+| 端口 | MNBT 端口 |
+| 用户名 | 节点ID（自增ID）（`MN_docker_node.id`） |
 | 密码 | 调用密钥 md5（`md5(ktmy.qmk)`） |
 | Access Hash | 系统 API 密钥（`$conf['api']`） |
 | SSL | 按站点是否 HTTPS 勾选 |
