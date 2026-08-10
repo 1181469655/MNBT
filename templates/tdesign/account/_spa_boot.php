@@ -40,11 +40,13 @@ $boot = [
 	] : null,
 	// 路由 API 入口（user_info 插件通过 P2 通用路由暴露 /account/api/*）
 	'routeBase'   => $td_base . '/index.php?_r=',
+	'realnameOcrBase' => $td_base . '/app_plugins/realname/assets/ocr/',
 	// 插件能力标志（account SPA 依据此决定是否展示余额/商城功能）
 	'plugins'     => [
 		'balance'      => function_exists('mnbt_plugin_enabled') ? mnbt_plugin_enabled('balance') : false,
 		'hosting_shop' => function_exists('mnbt_plugin_enabled') ? mnbt_plugin_enabled('hosting_shop') : false,
 		'docker_shop'  => function_exists('mnbt_plugin_enabled') ? mnbt_plugin_enabled('docker_shop') : false,
+		'realname'     => function_exists('mnbt_plugin_enabled') ? mnbt_plugin_enabled('realname') : false,
 	],
 	// 主机管理面板入口（核心 user scope）
 	'panelUrl'    => $td_base . '/user/',

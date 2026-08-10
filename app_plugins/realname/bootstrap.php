@@ -140,9 +140,10 @@ mnbt_register_route('POST', '/realname/api/submit', function ($params, $ctx) {
 		'rejected' => '认证未通过：' . $result['note'],
 		'pending'  => '已提交，等待人工复核：' . $result['note'],
 	];
-	realname_json($tips[$result['status']] ?? '已提交', [
-		'status' => $result['status'],
-		'note'   => $result['note'],
+	realname_json('ok', [
+		'message' => $tips[$result['status']] ?? '已提交',
+		'status'  => $result['status'],
+		'note'    => $result['note'],
 	]);
 }, 10, $realname_user_auth);
 

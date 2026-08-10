@@ -341,8 +341,14 @@ function realname_pay_guard($value, $type, $order_context)
 		return null; // 已实名 → 放行
 	}
 
-	$applyUrl = realname_url('realname/apply');
-	$statusUrl = realname_url('realname/status');
+	$isTdesign = function_exists('mnbt_theme_name') && mnbt_theme_name('user') === 'tdesign';
+	if ($isTdesign && function_exists('user_info_url')) {
+		$applyUrl = user_info_url('account') . '#/realname';
+		$statusUrl = $applyUrl;
+	} else {
+		$applyUrl = realname_url('realname/apply');
+		$statusUrl = realname_url('realname/status');
+	}
 	$tip = '尚未完成实名认证';
 	if ($auth) {
 		if ($auth['status'] === 'pending') {

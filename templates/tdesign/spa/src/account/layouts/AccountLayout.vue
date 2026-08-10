@@ -249,6 +249,7 @@ const userMenuOptions = computed(() => {
     { content: '个人信息', value: 'profile' },
     { content: '修改密码', value: 'password' },
   ]
+  if (hasRealname) list.push({ content: '实名认证', value: 'realname' })
   if (hasBalance) list.push({ content: '余额中心', value: 'balance' })
   if (hasShop) list.push({ content: '主机商城', value: 'shop' })
   if (hasDocker) list.push({ content: 'Docker 商城', value: 'docker-shop' })
@@ -300,6 +301,7 @@ function onUserMenuClick(item) {
     dashboard: '/dashboard',
     profile: '/profile',
     password: '/password',
+    realname: '/realname',
     balance: '/balance',
     shop: '/shop',
     'docker-shop': '/docker-shop',

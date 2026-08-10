@@ -1514,11 +1514,7 @@ function mnbt_pay_dispatch_gateway($type, $order_context)
 	// V1.84: 支付分发前统一钩子，供实名认证等插件在支付发起前拦截（无插件注册时返回 null 直接放行）
 	$guard = mnbt_apply_filters('pay.dispatch.before', null, $type, $order_context);
 	if (is_string($guard) && $guard !== '') {
-		if (!headers_sent()) {
-			header('Content-Type: text/html; charset=UTF-8');
-		}
-		echo $guard;
-		exit;
+		return $guard;
 	}
 	$parsed = mnbt_pay_parse_type($type);
 	if (!$parsed) {

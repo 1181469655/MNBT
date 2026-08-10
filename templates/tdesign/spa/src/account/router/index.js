@@ -42,6 +42,12 @@ const routes = [
         meta: { title: '修改密码', requiresAuth: true },
       },
       {
+        path: 'realname',
+        name: 'realname',
+        component: () => import('@/account/views/RealnameView.vue'),
+        meta: { title: '实名认证', requiresAuth: true },
+      },
+      {
         path: 'balance',
         name: 'balance',
         component: () => import('@/account/views/BalanceView.vue'),
