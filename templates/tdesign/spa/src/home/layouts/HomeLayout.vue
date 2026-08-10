@@ -20,7 +20,10 @@
           </ul>
           <div class="hd-nav-actions">
             <template v-if="authState.loggedIn">
-              <span class="hd-user-name">{{ authState.user?.username }}</span>
+              <a v-if="boot.hasUser" :href="accountUrl" class="hd-account-link" title="进入用户中心">
+                <i class="mdi mdi-account-circle-outline"></i><span>{{ authState.user?.username }}</span>
+              </a>
+              <span v-else class="hd-user-name">{{ authState.user?.username }}</span>
               <t-button theme="default" variant="outline" @click="onLogout">退出</t-button>
             </template>
             <template v-else-if="boot.hasUser">
@@ -119,6 +122,9 @@ function onLogout() {
   window.location.href = (boot.routeBase || '/index.php?_r=') + 'account/logout'
   MessagePlugin.success('已退出登录')
 }
+
+// 用户中心（user_info 插件独立后台）
+const accountUrl = (boot.routeBase || '/index.php?_r=') + 'account'
 
 function scrollToTop() {
   window.scrollTo({ top: 0, behavior: 'smooth' })

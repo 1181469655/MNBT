@@ -41,7 +41,7 @@ ob_start();
     fetch('<?= user_info_url('account/api/login') ?>', { method: 'POST', headers: {'Content-Type':'application/x-www-form-urlencoded'}, body: body.toString() })
       .then(function (r) { return r.json(); })
       .then(function (res) {
-        if (res.redirect) { showMsg(res.code || '登录成功', 'success'); setTimeout(function(){window.location.href=res.redirect;},300); }
+        if (res.code === 'ok') { showMsg(res.message || '登录成功', 'success'); setTimeout(function(){window.location.href=res.redirect;},300); }
         else { showMsg(res.code || '登录失败', 'error'); btn.disabled = false; btn.textContent = '登录'; }
       })
       .catch(function () { showMsg('网络错误，请重试', 'error'); btn.disabled = false; btn.textContent = '登录'; });

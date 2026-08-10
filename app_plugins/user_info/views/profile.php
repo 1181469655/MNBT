@@ -45,7 +45,7 @@ ob_start();
     fetch('<?= user_info_url('account/api/update_profile') ?>', { method: 'POST', headers: {'Content-Type':'application/x-www-form-urlencoded'}, body: body.toString() })
       .then(function (r) { return r.json(); })
       .then(function (res) {
-        showMsg(res.code || '操作失败', res.code === '保存成功' ? 'success' : 'error');
+        showMsg(res.code === 'ok' ? (res.message || '保存成功') : (res.code || '操作失败'), res.code === 'ok' ? 'success' : 'error');
         btn.disabled = false; btn.textContent = '保存';
       })
       .catch(function () { showMsg('网络错误，请重试', 'error'); btn.disabled = false; btn.textContent = '保存'; });

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TDesign 用户中心 · 开发模式</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script>
+      // 开发模式注入最小 boot,真实字段由 PHP 入口注入
+      window.__TD_BOOT__ = {
+        siteName: 'MNBT(开发)',
+        footer: '',
+        loggedIn: true,
+        accountUser: {
+          id: 1,
+          username: 'testuser',
+          email: 'test@example.com',
+          qq: '123456789',
+          created_at: '2026-08-10 00:00:00',
+        },
+        routeBase: '/index.php?_r=',
+        plugins: { balance: true, hosting_shop: true },
+        theme: 'tdesign',
+        version: '0.3.0',
+        entry: 'dashboard',
+        hash: '#/dashboard',
+      }
+    </script>
+    <script type="module" src="/src/main-account.js"></script>
+  </body>
+</html>

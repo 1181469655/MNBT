@@ -22,11 +22,16 @@ mnbt_plugin_register('user_info', [
  *  页面路由
  * ============================================================ */
 
+// 控制面板（要求登录）
+mnbt_register_route('GET', '/account', function ($params, $ctx) {
+	user_info_render('dashboard', ['page_title' => '控制面板']);
+}, 10, function () { return (bool)user_info_auth_current(); });
+
 // 登录页
 mnbt_register_route('GET', '/account/login', function ($params, $ctx) {
 	$user = user_info_auth_current();
 	if ($user) {
-		header('Location: ' . user_info_url('account/profile'));
+		header('Location: ' . user_info_url('account'));
 		exit;
 	}
 	user_info_render('login', ['page_title' => '登录']);
@@ -36,7 +41,7 @@ mnbt_register_route('GET', '/account/login', function ($params, $ctx) {
 mnbt_register_route('GET', '/account/register', function ($params, $ctx) {
 	$user = user_info_auth_current();
 	if ($user) {
-		header('Location: ' . user_info_url('account/profile'));
+		header('Location: ' . user_info_url('account'));
 		exit;
 	}
 	user_info_render('register', ['page_title' => '注册']);
@@ -108,7 +113,7 @@ mnbt_register_route('POST', '/account/api/login', function ($params, $ctx) {
 	}
 
 	user_info_auth_login($user['id'], $user['password_hash']);
-	user_info_json('登录成功', ['redirect' => user_info_url('account/profile')]);
+	user_info_json('ok', ['message' => '登录成功', 'redirect' => user_info_url('account')]);
 });
 
 // 注册 API
@@ -163,7 +168,7 @@ mnbt_register_route('POST', '/account/api/register', function ($params, $ctx) {
 	$new_row = $DB->get_row_prepare("SELECT id FROM MN_plugin_user WHERE username=? LIMIT 1", [$username]);
 	$new_id = $new_row ? (int)$new_row['id'] : 0;
 	user_info_auth_login($new_id, $hash);
-	user_info_json('注册成功', ['redirect' => user_info_url('account/profile')]);
+	user_info_json('ok', ['message' => '注册成功', 'redirect' => user_info_url('account')]);
 });
 
 // 更新个人信息 API
@@ -191,7 +196,7 @@ mnbt_register_route('POST', '/account/api/update_profile', function ($params, $c
 	if (!$ok) {
 		user_info_json('保存失败');
 	}
-	user_info_json('保存成功');
+	user_info_json('ok', ['message' => '保存成功']);
 }, 10, function () { return (bool)user_info_auth_current(); });
 
 // 修改密码 API
@@ -226,7 +231,7 @@ mnbt_register_route('POST', '/account/api/change_password', function ($params, $
 	}
 
 	user_info_auth_login($user['id'], $hash);
-	user_info_json('修改成功');
+	user_info_json('ok', ['message' => '修改成功']);
 }, 10, function () { return (bool)user_info_auth_current(); });
 
 /* ============================================================

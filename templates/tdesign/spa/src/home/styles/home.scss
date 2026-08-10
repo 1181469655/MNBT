@@ -176,6 +176,27 @@
   margin-right: 2px;
 }
 
+/* 用户中心入口（user_info 独立后台） */
+.hd-account-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: #1f7a4d;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  text-decoration: none;
+  transition: background var(--td-dur, 0.2s) ease, color var(--td-dur, 0.2s) ease;
+}
+.hd-account-link:hover {
+  background: rgba(31, 122, 77, 0.08);
+  text-decoration: none;
+}
+.hd-account-link i {
+  font-size: 16px;
+}
+
 .hd-menu-toggle {
   display: none;
   flex-direction: column;

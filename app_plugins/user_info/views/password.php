@@ -46,8 +46,8 @@ ob_start();
     fetch('<?= user_info_url('account/api/change_password') ?>', { method: 'POST', headers: {'Content-Type':'application/x-www-form-urlencoded'}, body: body.toString() })
       .then(function (r) { return r.json(); })
       .then(function (res) {
-        showMsg(res.code || '操作失败', res.code === '修改成功' ? 'success' : 'error');
-        if (res.code === '修改成功') form.reset();
+        showMsg(res.code === 'ok' ? (res.message || '修改成功') : (res.code || '操作失败'), res.code === 'ok' ? 'success' : 'error');
+        if (res.code === 'ok') form.reset();
         btn.disabled = false; btn.textContent = '确认修改';
       })
       .catch(function () { showMsg('网络错误，请重试', 'error'); btn.disabled = false; btn.textContent = '确认修改'; });
