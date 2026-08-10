@@ -1,0 +1,10 @@
+{
+  "id": "realname",
+  "name": "实名认证",
+  "version": "1.0.0",
+  "author": "MNBT",
+  "description": "三要素实名认证：姓名/手机号/身份证号 + 身份证正反面与手持照片上传，tesseract.js 本地 OCR 识别身份证正面，自动审核；未实名用户无法发起支付购买。依赖 user_info 插件。",
+  "requires_mnbt": "1.84",
+  "requires_plugins": ["user_info"],
+  "type": ["business", "lifecycle"]
+}
