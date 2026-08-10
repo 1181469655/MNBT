@@ -151,7 +151,7 @@
         </div>
         <div class="td-side-user-info">
           <strong>{{ userName }}</strong>
-          <span>v{{ boot.version || '0.2.0' }}</span>
+          <span>v{{ boot.version || '0.3.0' }}</span>
         </div>
         <button class="td-side-user-logout" title="退出登录" @click="onLogout">
           <i class="mdi mdi-logout-variant"></i>

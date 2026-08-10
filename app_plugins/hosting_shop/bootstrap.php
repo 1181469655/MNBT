@@ -126,6 +126,102 @@ mnbt_register_route('GET', '/shop/orders', function ($params, $ctx) {
  *  用户端 API 路由
  * ============================================================ */
 
+// 上架套餐列表（SPA 数据接口）
+mnbt_register_route('GET', '/shop/api/plans', function ($params, $ctx) {
+	if (!function_exists('hosting_plan_list_active')) {
+		hosting_json('ok', ['plans' => []]);
+		return;
+	}
+	$rows = hosting_plan_list_active();
+	$plans = [];
+	foreach ($rows as $p) {
+		$plans[] = [
+			'id'          => (int)$p['id'],
+			'name'        => (string)$p['name'],
+			'description' => (string)($p['description'] ?? ''),
+			'category'    => (string)($p['category'] ?? ''),
+			'node'        => (string)($p['node'] ?? ''),
+			'spec_web'    => (int)($p['spec_web'] ?? 0),
+			'spec_sql'    => (int)($p['spec_sql'] ?? 0),
+			'spec_flow'   => (int)($p['spec_flow'] ?? 0),
+			'spec_domain' => (int)($p['spec_domain'] ?? 0),
+			'periods'     => hosting_plan_enabled_periods($p),
+			'prices'      => [
+				'month'      => (int)($p['price_month_cents'] ?? 0),
+				'quarter'    => (int)($p['price_quarter_cents'] ?? 0),
+				'half_year'  => (int)($p['price_half_year_cents'] ?? 0),
+				'year'       => (int)($p['price_year_cents'] ?? 0),
+				'two_year'   => (int)($p['price_two_year_cents'] ?? 0),
+				'three_year' => (int)($p['price_three_year_cents'] ?? 0),
+			],
+		];
+	}
+	hosting_json('ok', ['plans' => $plans]);
+});
+
+// 套餐详情（SPA 下单页数据接口）
+mnbt_register_route('GET', '/shop/api/plan/{plan_id}', function ($params, $ctx) {
+	$plan_id = (int)($params['plan_id'] ?? 0);
+	$plan = hosting_plan_get($plan_id);
+	if (!$plan || $plan['status'] !== 'active') {
+		hosting_json('套餐不存在或已下架');
+		return;
+	}
+	$methods = function_exists('mnbt_get_enabled_payment_methods') ? mnbt_get_enabled_payment_methods() : [];
+	hosting_json('ok', [
+		'plan' => [
+			'id'          => (int)$plan['id'],
+			'name'        => (string)$plan['name'],
+			'description' => (string)($plan['description'] ?? ''),
+			'node'        => (string)($plan['node'] ?? ''),
+			'spec_web'    => (int)($plan['spec_web'] ?? 0),
+			'spec_sql'    => (int)($plan['spec_sql'] ?? 0),
+			'spec_flow'   => (int)($plan['spec_flow'] ?? 0),
+			'spec_domain' => (int)($plan['spec_domain'] ?? 0),
+			'periods'     => hosting_plan_enabled_periods($plan),
+			'prices'      => [
+				'month'      => (int)($plan['price_month_cents'] ?? 0),
+				'quarter'    => (int)($plan['price_quarter_cents'] ?? 0),
+				'half_year'  => (int)($plan['price_half_year_cents'] ?? 0),
+				'year'       => (int)($plan['price_year_cents'] ?? 0),
+				'two_year'   => (int)($plan['price_two_year_cents'] ?? 0),
+				'three_year' => (int)($plan['price_three_year_cents'] ?? 0),
+			],
+		],
+		'methods' => $methods,
+	]);
+});
+
+// 我的资产（SPA 数据接口）
+mnbt_register_route('GET', '/shop/api/assets', function ($params, $ctx) {
+	$user = function_exists('user_info_auth_current') ? user_info_auth_current() : null;
+	if (!$user) {
+		hosting_json('not_login', ['logged_in' => false]);
+		return;
+	}
+	$assets = hosting_asset_list_by_user((int)$user['id']);
+	hosting_json('ok', ['logged_in' => true, 'assets' => $assets]);
+});
+
+// 我的订单（SPA 数据接口，分页）
+mnbt_register_route('GET', '/shop/api/orders', function ($params, $ctx) {
+	$user = function_exists('user_info_auth_current') ? user_info_auth_current() : null;
+	if (!$user) {
+		hosting_json('not_login', ['logged_in' => false]);
+		return;
+	}
+	$page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+	$per = isset($_GET['per_page']) ? max(1, min(100, (int)$_GET['per_page'])) : 15;
+	$orders = hosting_order_list_by_user((int)$user['id'], $page, $per);
+	hosting_json('ok', ['logged_in' => true, 'orders' => $orders]);
+});
+
+// 可用支付方式（SPA 下单页数据接口）
+mnbt_register_route('GET', '/shop/api/methods', function ($params, $ctx) {
+	$methods = function_exists('mnbt_get_enabled_payment_methods') ? mnbt_get_enabled_payment_methods() : [];
+	hosting_json('ok', ['methods' => $methods]);
+});
+
 // 创建购买订单 → 调用支付插件
 mnbt_register_route('POST', '/shop/api/create_order', function ($params, $ctx) {
 	global $DB, $date, $siteurl;

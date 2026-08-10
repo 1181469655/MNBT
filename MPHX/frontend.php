@@ -112,7 +112,9 @@ function mnbt_home_data(): array
 		// 登录态与能力探测（不强依赖插件）
 		'logged_in'     => isset($_COOKIE['user_token']) && $_COOKIE['user_token'] !== '',
 		'has_shop'      => function_exists('mnbt_plugin_enabled') && mnbt_plugin_enabled('hosting_shop'),
+		'has_balance'   => function_exists('mnbt_plugin_enabled') && mnbt_plugin_enabled('balance'),
 		'has_user'      => function_exists('mnbt_plugin_enabled') && mnbt_plugin_enabled('user_info'),
+		'has_site'      => function_exists('mnbt_plugin_enabled') && mnbt_plugin_enabled('official_site'),
 		// 业务数据
 		'plans'         => [],
 		'blocks'        => [],

@@ -1,6 +1,6 @@
 {
   "name": "mnbt-tdesign",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,7 +10,8 @@
     "build:admin": "vite build --config vite.admin.config.js",
     "build:user": "vite build --config vite.user.config.js",
     "build:docker": "vite build --config vite.docker.config.js",
-    "build": "npm run build:admin && npm run build:user && npm run build:docker",
+    "build:home": "vite build --config vite.home.config.js",
+    "build": "npm run build:admin && npm run build:user && npm run build:docker && npm run build:home",
     "preview": "vite preview"
   },
   "dependencies": {

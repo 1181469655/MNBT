@@ -1,11 +1,11 @@
 ---
 title: 与 PHP 的对接
-description: tdesign 主题与 PHP 的对接:双端入口映射、__TD_BOOT__ 启动数据、AJAX gn 列表与插件菜单
+description: tdesign 主题与 PHP 的对接:三端入口映射、__TD_BOOT__ 启动数据、AJAX gn 列表、插件菜单与主页 API 路由
 ---
 
 # 与 PHP 的对接(tdesign)
 
-本文是 [TDesign 双端主题](./tdesign.md) 的对接细节:管理端 / 用户端入口映射、`window.__TD_BOOT__` 启动数据、AJAX 调用与插件菜单渲染。
+本文是 [TDesign 三端主题](./tdesign.md) 的对接细节:管理端 / 用户端 / 主页入口映射、`window.__TD_BOOT__` 启动数据、AJAX 调用与插件菜单渲染。
 
 ## 管理端入口映射
 
@@ -63,6 +63,53 @@ description: tdesign 主题与 PHP 的对接:双端入口映射、__TD_BOOT__ �
 | `/user/ftp.php` | `#/ftp`(iframe 嵌入默认主题) |
 | `/user/plugin.php?p=xxx&page=yyy` | `#/plugin?p=xxx&page=yyy`(iframe 在 layout 内加载) |
 
+## 主页入口映射(home scope)
+
+主页由 `MPHX/frontend.php` 的 `mnbt_home_dispatch()` 分发,站点根路径 `/` 渲染 `templates/tdesign/home/index.php`。  
+该文件加载 home SPA 构建产物,全部页面走 Hash 路由,数据由插件 API 路由(`/index.php?_r=...`)提供:
+
+| 访问 | SPA 路由 | 说明 |
+|------|----------|------|
+| `/` | `#/` | 落地页(Hero + 公告 + 套餐卡 + 特性) |
+| `/index.php?_r=/account/login` | `#/login` | 登录 |
+| `/index.php?_r=/account/register` | `#/register` | 注册 |
+| `/`(SPA 内跳转) | `#/profile` | 个人信息 |
+| `/`(SPA 内跳转) | `#/password` | 修改密码 |
+| `/`(SPA 内跳转) | `#/shop` | 主机套餐 |
+| `/`(SPA 内跳转) | `#/shop/order/:planId` | 购买套餐 |
+| `/`(SPA 内跳转) | `#/shop/assets` | 我的主机 |
+| `/`(SPA 内跳转) | `#/shop/orders` | 我的订单 |
+| `/`(SPA 内跳转) | `#/balance` | 我的余额 |
+| `/`(SPA 内跳转) | `#/balance/recharge` | 余额充值 |
+
+### 主页插件 API 路由
+
+SPA 的 `home/api/http.js` 以 `routeRequest` 封装请求 `{routeBase} + path`,  
+`routeBase` = `mnbt_home_base() . '/index.php?_r='`,由 `home/index.php` 注入 `__TD_BOOT__.routeBase`。  
+请求自动附带 CSRF token(`X-CSRF-Token` 头 + `MNBT_CSRF_TOKEN` cookie),解析 `{code: 'ok', ...}` 格式。
+
+依赖三个插件(未启用时 `__TD_BOOT__.hasShop` / `hasUser` 为 false,菜单隐藏):
+
+| 插件 | API 路由 | 说明 |
+|------|----------|------|
+| user_info | `GET /account/api/me` | 当前用户信息(未登录返回 `code: 'not_login'`) |
+| user_info | `POST /account/api/login` | 登录(用户名/密码/验证码) |
+| user_info | `POST /account/api/register` | 注册 |
+| user_info | `POST /account/api/update_profile` | 更新个人信息 |
+| user_info | `POST /account/api/change_password` | 修改密码 |
+| balance | `GET /balance/api/info` | 余额 + 流水分页(`balance_cents` / `balance_yuan` / `logs`) |
+| balance | `GET /balance/api/methods` | 可用支付方式(排除 balance 自身) |
+| balance | `POST /balance/api/create_recharge` | 创建充值订单,返回支付 HTML |
+| hosting_shop | `GET /shop/api/plans` | 上架套餐列表(含 `periods` / `prices`) |
+| hosting_shop | `GET /shop/api/plan/{plan_id}` | 套餐详情 + 支付方式 |
+| hosting_shop | `GET /shop/api/assets` | 用户资产列表 |
+| hosting_shop | `GET /shop/api/orders` | 用户订单分页 |
+| hosting_shop | `GET /shop/api/methods` | 支付方式列表 |
+| hosting_shop | `POST /shop/api/create_order` | 创建购买订单,返回支付 HTML |
+
+支付流程:下单/充值 → 创建 `MN_dd` 订单 → `mnbt_pay_dispatch_gateway()` 返回支付 HTML,  
+前端用 `document.open() / document.write() / document.close()` 整页跳转支付网关,回跳由支付插件负责。
+
 ## 启动数据 `window.__TD_BOOT__`
 
 由 `_spa_boot.php` 注入,字段如下:
@@ -72,7 +119,7 @@ description: tdesign 主题与 PHP 的对接:双端入口映射、__TD_BOOT__ �
   siteName, footer, user, adminUser, loggedIn, needCaptcha,
   ajaxBase: './ajax.php', codeUrl: './code.php',
   logo, logoHead, logoIndex, auther,
-  theme: 'tdesign', version: '0.2.0',
+  theme: 'tdesign', version: '0.3.0',
   entry, hash,                  // 当前 SPA 入口与目标 hash
   pluginMenuHtml,               // 主题渲染器输出的插件菜单 HTML
   conf,                         // 站点配置(全部 $conf)
@@ -84,6 +131,26 @@ description: tdesign 主题与 PHP 的对接:双端入口映射、__TD_BOOT__ �
 ```
 
 视图可在 `include '_spa_boot.php'` 前设置 `$td_inject` 数组,把页面级数据合并进 boot。
+
+### 主页 boot(home scope)
+
+由 `home/index.php` 直接注入(不走 `_spa_boot.php`),字段:
+
+```js
+{
+  siteTitle, siteLogo, sitePrimary, siteHero, siteFooter, favicon,
+  notice, showNotice, showPlans,
+  loggedIn, hasShop, hasUser,       // 插件启用探测(frontend.php 注入)
+  plans, blocks,                    // 落地页套餐卡与插件扩展区块
+  base, conf,                       // 站点基址与配置
+  theme: 'tdesign', version: '0.3.0', entry: 'landing',
+  routeBase,                        // API 请求基址 = base + '/index.php?_r='
+  coreBase                          // 核心文件入口(user/、admin/ 等)
+}
+```
+
+`loggedIn` / `hasShop` / `hasUser` 来自 `MPHX/frontend.php` 的 `mnbt_home_data()`,  
+仅作菜单显隐的初始值,真实登录态由 SPA 启动时 `GET /account/api/me` 重新探测。
 
 ## AJAX
 

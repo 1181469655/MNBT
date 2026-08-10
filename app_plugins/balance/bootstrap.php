@@ -97,6 +97,43 @@ mnbt_register_route('GET', '/balance/recharge', function ($params, $ctx) {
  *  API 路由
  * ============================================================ */
 
+// 余额信息 + 流水分页（SPA 数据接口）
+mnbt_register_route('GET', '/balance/api/info', function ($params, $ctx) {
+	$user = function_exists('user_info_auth_current') ? user_info_auth_current() : null;
+	if (!$user) {
+		balance_json('not_login', ['logged_in' => false]);
+		return;
+	}
+	$user_id = (int)$user['id'];
+	$page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+	$per = isset($_GET['per_page']) ? max(1, min(100, (int)$_GET['per_page'])) : 15;
+	$logs = balance_logs($user_id, $page, $per);
+	balance_json('ok', [
+		'logged_in' => true,
+		'balance_cents' => balance_get($user_id),
+		'balance_yuan'  => balance_format(balance_get($user_id)),
+		'logs' => $logs,
+	]);
+});
+
+// 可用支付方式（SPA 充值页数据接口，排除余额自身）
+mnbt_register_route('GET', '/balance/api/methods', function ($params, $ctx) {
+	if (!function_exists('user_info_auth_current') || !user_info_auth_current()) {
+		balance_json('not_login', ['logged_in' => false]);
+		return;
+	}
+	$methods = [];
+	if (function_exists('mnbt_get_enabled_payment_methods')) {
+		foreach (mnbt_get_enabled_payment_methods() as $m) {
+			if (($m['plugin'] ?? '') === 'balance') {
+				continue;
+			}
+			$methods[] = $m;
+		}
+	}
+	balance_json('ok', ['methods' => $methods]);
+});
+
 // 创建充值订单 → 调用支付插件
 mnbt_register_route('POST', '/balance/api/create_recharge', function ($params, $ctx) {
 	global $DB, $date, $siteurl;

@@ -19,3 +19,25 @@ if (function_exists('mnbt_register_theme_menu_renderer')) {
 		return '';
 	});
 }
+
+// 主页自定义设置字段（后台「前端模板 → 主页内容」自动渲染）
+// 底部备案信息：显示在主页页脚,自动链接到工信部/公安备案查询
+if (function_exists('mnbt_register_home_setting')) {
+	mnbt_register_home_setting([
+		'key'         => 'beian_info',
+		'label'       => 'ICP 备案信息',
+		'type'        => 'text',
+		'default'     => '',
+		'placeholder' => '如：京ICP备12345678号',
+		'hint'        => '显示在主页页脚,自动添加工信部备案查询链接',
+	]);
+
+	mnbt_register_home_setting([
+		'key'         => 'ps_beian',
+		'label'       => '公安备案信息',
+		'type'        => 'text',
+		'default'     => '',
+		'placeholder' => '如：京公网安备11010802020266号',
+		'hint'        => '显示在主页页脚（可选）,自动添加全国公安网站备案查询链接',
+	]);
+}

@@ -1,0 +1,10 @@
+{
+  "id": "official_site",
+  "name": "官网内容",
+  "version": "1.0.0",
+  "author": "MNBT",
+  "description": "企业官网内容管理：产品展示、新闻资讯、联系留言。配套 tdesign home 主题「关于/产品/新闻/联系」页面与官网风格落地页。",
+  "requires_mnbt": "1.84",
+  "requires_plugins": [],
+  "type": ["business"]
+}

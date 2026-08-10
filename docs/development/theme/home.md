@@ -15,6 +15,11 @@ description: "主页主题(scope: home)开发说明：新建主题、自定义�
 - 内容配置:后台「前端模板」→ 主页内容(标题、Hero、主色、Logo 等通用设置)
 - 自定义设置:主题通过 `theme.php` 声明字段,后台自动渲染并持久化
 
+> **tdesign 主题已支持 home scope**(v0.3.0):其主页为独立 SPA 售卖前端,  
+> 通过插件 API 路由(`/index.php?_r=/shop/api/*` 等)驱动 `user_info` / `balance` / `hosting_shop` 页面,  
+> 另含官网内容页面(关于我们/产品/新闻/联系我们,由 `official_site` 插件 `GET /site/api/*` 驱动,  
+> `boot.hasSite` 能力字段控制导航与路由可见性),详见 [TDesign 三端主题](./tdesign.md) 与 [与 PHP 的对接](./tdesign-php.md#主页入口映射home-scope)。
+
 ## 15.2 新建主页主题
 
 **目录结构**:
@@ -166,6 +171,8 @@ $footerMsg = function_exists('mnbt_home_theme_setting') ? mnbt_home_theme_settin
 | `MPHX/theme.php` | `home` scope 注册(`mnbt_theme_name/list/set_active`) |
 | `index.php` | 请求分发入口(`mnbt_home_dispatch` 调用点) |
 | `templates/default/home/index.php` | 内置默认主页模板 |
+| `templates/tdesign/home/index.php` | tdesign 主页入口(加载 home SPA,注入 `__TD_BOOT__`) |
+| `templates/tdesign/spa/src/home/` | tdesign home SPA 源码(路由/API/视图/样式) |
 | `templates/default/admin/set.php` | default 后台渲染器(`gn=theme`) |
 | `templates/tdesign/spa/src/admin/views/settings/ThemeView.vue` | tdesign 后台渲染器 |
 | `templates/tdesign/admin/_spa_boot.php` | tdesign boot 数据注入 |

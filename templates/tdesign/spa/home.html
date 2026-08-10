@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MNBT · 开发模式</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script>
+      // 开发模式注入最小 boot,真实字段由 PHP 入口注入
+      window.__TD_BOOT__ = {
+        siteTitle: 'MNBT(开发)',
+        sitePrimary: '#4f46e5',
+        siteHero: '高性能虚拟主机，即买即用',
+        siteFooter: '',
+        hasShop: true,
+        hasBalance: true,
+        hasUser: true,
+        hasSite: true,
+        loggedIn: false,
+        theme: 'tdesign',
+        version: '0.3.0',
+        entry: 'landing',
+        routeBase: '/index.php?_r=',
+        coreBase: '/',
+        plans: [],
+      }
+    </script>
+    <script type="module" src="/src/main-home.js"></script>
+  </body>
+</html>

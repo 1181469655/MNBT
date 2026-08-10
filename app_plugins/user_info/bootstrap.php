@@ -63,6 +63,26 @@ mnbt_register_route('GET', '/account/password', function ($params, $ctx) {
  *  API 路由
  * ============================================================ */
 
+// 获取当前用户信息（登录态探测 + 资料展示）
+mnbt_register_route('GET', '/account/api/me', function ($params, $ctx) {
+	$user = user_info_auth_current();
+	if (!$user) {
+		user_info_json('not_login', ['logged_in' => false]);
+		return;
+	}
+	user_info_json('ok', [
+		'logged_in' => true,
+		'user' => [
+			'id'         => (int)$user['id'],
+			'username'   => (string)$user['username'],
+			'email'      => (string)($user['email'] ?? ''),
+			'qq'         => (string)($user['qq'] ?? ''),
+			'status'     => (int)($user['status'] ?? 1),
+			'created_at' => (string)($user['created_at'] ?? ''),
+		],
+	]);
+});
+
 // 登录 API
 mnbt_register_route('POST', '/account/api/login', function ($params, $ctx) {
 	global $DB;

@@ -1,11 +1,11 @@
 ---
-title: TDesign 双端主题
+title: TDesign 三端主题
 description: tdesign 主题说明:特性、目录结构、编译、启用、设计规范、开发约定、已知限制与版本
 ---
 
-# TDesign 双端主题(tdesign)v0.2.0
+# TDesign 三端主题(tdesign)v0.3.0
 
-现代化 **双端** 主题:基于 TDesign 品牌蓝,覆盖**用户端 + 管理端**全部页面。卡片化布局、侧栏 + 顶栏、echarts 数据可视化、左侧背景图登录页。
+现代化 **三端** 主题:基于 TDesign 品牌蓝,覆盖**用户端 + 管理端 + 主页售卖**全部页面。卡片化布局、侧栏 + 顶栏、echarts 数据可视化、左侧背景图登录页、独立主页售卖前端。
 
 技术栈:**Vue 3 + Vue Router (Hash) + TDesign Vue Next + Vite + ECharts**。
 
@@ -50,13 +50,26 @@ description: tdesign 主题说明:特性、目录结构、编译、启用、设�
 | 插件页面 | 通过 SPA 路由 + iframe 在 layout 内加载 |
 | 路由 | Hash 模式,不改 PHP 控制器 URL |
 
+### 主页(home scope)
+
+完整售卖系统前端,通过**插件 API 路由**(`index.php?_r=/xxx/api/xxx`)驱动,不依赖 iframe。依赖 `user_info`(认证)、`balance`(余额)、`hosting_shop`(商店)插件;`official_site`(官网内容)插件可选,启用后展示官网页面。
+
+| 模块 | 说明 |
+|------|------|
+| 落地页 | Hero + 公告 + 套餐卡 + 特性区块(数据来自 `mnbt_home_data()` 注入的 `$plans` / `$blocks`) + 轮播 hero + 新闻预览 + 客户评价(绿色风格) |
+| 账户 | 登录 / 注册 / 个人信息 / 修改密码(`user_info` 插件 `GET /account/api/*`) |
+| 商店 | 套餐列表 / 下单(选周期 + 支付方式,支付 HTML 用 `document.write` 跳转) / 我的主机 / 我的订单(`hosting_shop` 插件 `GET /shop/api/*`) |
+| 余额 | 余额卡 + 流水表格 / 充值(`balance` 插件 `GET /balance/api/*`) |
+| 官网内容 | 关于我们 / 产品中心(列表+详情) / 新闻资讯(列表+详情) / 联系我们(留言表单)(`official_site` 插件 `GET /site/api/*`、`POST /site/api/contact`,`meta.cap: 'site'` 能力守卫) |
+| 登录态 | `auth.js` store 启动时探测 `/account/api/me`,路由守卫统一拦截,未登录访问受保护页自动跳登录 |
+
 ---
 
 ## 目录结构
 
 ```
 templates/tdesign/
-├── theme.json                 # 主题元信息(scope: ["user", "admin"])
+├── theme.json                 # 主题元信息(scope: ["user", "admin", "home"])
 ├── theme.php                  # 注册双端菜单渲染器(插件菜单 → 侧栏 HTML)
 ├── README.md                  # 本说明(已迁移至 docs/development/theme/tdesign.md)
 ├── PLAN_USER_SCOPE.md         # 双端改造计划文档(已迁移至 ../plan/tdesign-user-scope.md)
@@ -98,18 +111,35 @@ templates/tdesign/
 │           ├── index.css
 │           └── login-bg.webp
 │
+├── home/                      # 主页 PHP 主题入口(home scope)
+│   ├── index.php              # 落地页入口,注入 __TD_BOOT__ + 加载 dist(未构建时给出提示)
+│   └── dist/                  # ★ Vite 构建产物(需提交,勿 gitignore)
+│       ├── home.html
+│       └── assets/
+│           ├── index.js
+│           └── index.css
+│
 └── spa/                       # SPA 源码(开发用,按端分层)
-    ├── package.json           # 双入口构建脚本(build:admin / build:user)
+    ├── package.json           # 构建脚本(build:admin / build:user / build:docker / build:home)
     ├── vite.admin.config.js   # 管理端 Vite 配置
     ├── vite.user.config.js    # 用户端 Vite 配置
+    ├── vite.docker.config.js  # Docker 控制台 Vite 配置
+    ├── vite.home.config.js    # 主页 Vite 配置
     ├── admin.html             # 管理端 HTML 模板
     ├── user.html              # 用户端 HTML 模板
+    ├── docker.html            # Docker 控制台 HTML 模板
+    ├── home.html              # 主页 HTML 模板
+    ├── public/                # 静态资源(验证码图等,构建时复制进 dist)
     ├── .gitignore             # 仅忽略 node_modules 等,不忽略 dist
     └── src/
         ├── App-admin.vue      # 管理端根组件
         ├── App-user.vue       # 用户端根组件
+        ├── App-docker.vue     # Docker 控制台根组件
+        ├── App-home.vue       # 主页根组件
         ├── main-admin.js      # 管理端入口
         ├── main-user.js       # 用户端入口
+        ├── main-docker.js     # Docker 控制台入口
+        ├── main-home.js       # 主页入口
         │
         ├── admin/             # 管理端代码(全部集中于此)
         │   ├── api/           # 13 个 API 文件(auth/baota/dashboard/host/...)
@@ -117,6 +147,7 @@ templates/tdesign/
         │   ├── router/index.js
         │   └── views/         # 按业务模块分目录
         │       ├── baota/     # 宝塔(List/Add)
+        │       ├── docker/    # Docker(节点/套餐/用户)
         │       ├── host/      # 主机(List/Add)
         │       ├── node/      # 节点(List/Scan)
         │       ├── program/   # 程序(List/Add/Import)
@@ -142,7 +173,27 @@ templates/tdesign/
         │       ├── deploy/    # 一键部署
         │       └── *.vue      # 顶层 view(Login/Notice/Plugin)
         │
-        └── shared/            # 双端共用代码
+        ├── docker/            # Docker 控制台代码
+        │   ├── api/docker.js  # Docker API 封装(CSRF + 登录态自动跳转)
+        │   ├── components/    # SliderCaptcha 滑块验证码
+        │   ├── layouts/DockerLayout.vue
+        │   ├── router/index.js
+        │   └── views/         # Console/Login/AppStore/Image/Volume/Compose/Proxy
+        │
+        ├── home/              # 主页售卖端代码(home scope)
+        │   ├── api/           # http.js(routeRequest+CSRF) / account / balance / shop
+        │   ├── layouts/HomeLayout.vue
+        │   ├── router/index.js # 路由 + 登录态守卫(initAuth 探测 /account/api/me)
+        │   ├── store/auth.js   # 响应式登录态 store
+        │   ├── styles/home.scss
+        │   ├── utils/format.js # periodLabels/centsToYuan/orderStatusMap/...
+        │   └── views/         # 按业务模块分目录
+        │       ├── auth/      # 登录/注册/个人信息/修改密码
+        │       ├── shop/      # 套餐列表/下单/我的主机/我的订单
+        │       ├── balance/   # 余额/充值
+        │       └── LandingView.vue # 落地页
+        │
+        └── shared/            # 各端共用代码
             ├── api/http.js    # apiGn/postGn/parseResult 统一请求封装
             ├── utils/echarts.js # echarts 按需引入(Gauge/Bar/Line + 组件)
             ├── assets/login-bg.webp  # 登录页背景图
@@ -173,9 +224,15 @@ npm run dev:admin
 
 # 用户端开发服务器
 npm run dev:user
+
+# Docker 控制台开发服务器
+npm run dev:docker
+
+# 主页开发服务器(端口 5177)
+npm run dev:home
 ```
 
-开发配置见 `vite.admin.config.js` / `vite.user.config.js` 的 `server.proxy`。  
+开发配置见各 `vite.*.config.js` 的 `server.proxy`。  
 开发模式 HTML 内置最小 `window.__TD_BOOT__`,可在无 PHP 环境下预览 UI。
 
 ### 生产构建
@@ -186,8 +243,10 @@ cd templates/tdesign/spa
 # 单独构建
 npm run build:admin    # 输出到 ../admin/dist/
 npm run build:user     # 输出到 ../user/dist/
+npm run build:docker   # 输出到 ../docker/dist/
+npm run build:home     # 输出到 ../home/dist/
 
-# 双端一起构建
+# 四端一起构建
 npm run build
 ```
 
@@ -197,11 +256,13 @@ npm run build
 |----|----------|------|---------|
 | 管理端 | `templates/tdesign/admin/dist/` | `admin.html` | `assets/index.js` |
 | 用户端 | `templates/tdesign/user/dist/` | `user.html` | `assets/index.js` |
+| Docker 控制台 | `templates/tdesign/docker/dist/` | `docker.html` | `assets/index.js` |
+| 主页 | `templates/tdesign/home/dist/` | `home.html` | `assets/index.js` |
 
 PHP 入口通过 `mnbt_theme_url('dist/assets/index.js')` 加载。  
-**请将 `admin/dist` 和 `user/dist` 一并提交/部署**,服务器无需安装 Node 即可运行主题。
+**请将各端 `dist` 一并提交/部署**,服务器无需安装 Node 即可运行主题。
 
-构建配置要点(双端一致):
+构建配置要点(各端一致):
 
 - `base: './'` —— 相对路径,适配 PHP 子目录部署
 - `inlineDynamicImports: true` —— 打成单 JS 包,避免动态 chunk 相对路径错位
@@ -211,23 +272,24 @@ PHP 入口通过 `mnbt_theme_url('dist/assets/index.js')` 加载。
 
 ### 未构建时
 
-打开管理后台/用户端会显示「TDesign 主题尚未构建」提示与编译命令。
+打开管理后台/用户端/主页会显示「TDesign 主题尚未构建」提示与编译命令。
 
 ---
 
 ## 启用主题
 
-1. 确保已 `npm run build` 且存在 `admin/dist/assets/index.js` 和 `user/dist/assets/index.js`
+1. 确保已 `npm run build` 且存在各端 `dist/assets/index.js`(`admin` / `user` / `home`)
 2. 管理后台 → **系统管理** → **前端模板**
-3. **管理端主题** 选择 **TDesign 双端主题** → 保存
-4. **用户端主题** 选择 **TDesign 双端主题** → 保存  
-   或写入文件:`templates/active_admin_theme` 和 `templates/active_user_theme` 内容均为 `tdesign`
+3. **管理端主题** 选择 **TDesign 三端主题** → 保存
+4. **用户端主题** 选择 **TDesign 三端主题** → 保存
+5. **主页主题** 选择 **TDesign 三端主题** → 保存  
+   或写入文件:`templates/active_admin_theme` / `templates/active_user_theme` / `templates/active_home_theme` 内容均为 `tdesign`
 
 ---
 
 ## 与 PHP 的对接
 
-管理端 / 用户端入口映射、`__TD_BOOT__` 启动数据、AJAX gn 列表、插件菜单对接等,见 [与 PHP 的对接(tdesign-php.md)](./tdesign-php.md)。
+管理端 / 用户端入口映射、`__TD_BOOT__` 启动数据、AJAX gn 列表、插件菜单对接、主页 API 路由等,见 [与 PHP 的对接(tdesign-php.md)](./tdesign-php.md)。
 
 ---
 
@@ -271,21 +333,23 @@ CSS 变量定义在 `spa/src/shared/styles/theme.scss` 顶部 `:root`,修改后�
 
 ## 开发约定
 
-1. **不要改** `admin/*.php` / `user/*.php` 控制器与 `ajax.php` 接口路径
+1. **不要改** `admin/*.php` / `user/*.php` / `home/*.php` 控制器与 `ajax.php` 接口路径
 2. 新增纯前端页面:
    - 管理端:`src/admin/views/` 添加 `.vue` + `src/admin/router/index.js` 注册路由
    - 用户端:`src/user/views/` 添加 `.vue` + `src/user/router/index.js` 注册路由
+   - 主页:`src/home/views/` 添加 `.vue` + `src/home/router/index.js` 注册路由(需登录页加 `meta.auth`、访客页加 `meta.guest`)
 3. import 路径统一使用 `@` alias:
    - 管理端:`@/admin/api/xxx`、`@/admin/views/xxx`
    - 用户端:`@/user/api/xxx`、`@/user/views/xxx`
+   - 主页:`@/home/api/xxx`、`@/home/views/xxx`、`@/home/store/auth`
    - 共用:`@/shared/api/http`、`@/shared/utils/echarts`、`@/shared/styles/theme.scss`
 4. 列表页统一服务端分页,前端只做查询条件与渲染
 5. 表单/表格统一使用 `.td-form` / `.td-table-wrap` / `.td-toolbar` 等通用类,避免重复样式
 6. 表格工具条 `.td-toolbar` 使用 `padding: 12px 16px` 确保与边框间距
 7. `t-dialog` 组件必须使用 `v-model:visible` 而非 `v-model`(避免 Vue modelValue 错误)
-8. `spa/.gitignore` 忽略 `node_modules`,**不忽略** `admin/dist` 和 `user/dist`
+8. `spa/.gitignore` 忽略 `node_modules`,**不忽略** 各端 `dist`
 9. 版本号同步:`theme.json` 与 `spa/package.json`
-10. 修改源码后必须 `npm run build:admin` / `npm run build:user`,否则线上不会生效
+10. 修改源码后必须重新构建对应端(`npm run build:admin` / `build:user` / `build:docker` / `build:home`),否则线上不会生效
 
 ---
 
@@ -293,11 +357,13 @@ CSS 变量定义在 `spa/src/shared/styles/theme.scss` 顶部 `:root`,修改后�
 
 - 文件管理页面(ftp)采用 iframe 嵌入默认主题 ftp.php(复用成熟的文件管理 UI,避免重写复杂组件)
 - 插件自带页面仍由插件自行渲染,主题仅提供菜单入口与 iframe 容器
+- 主页售卖端依赖 `user_info` / `balance` / `hosting_shop` 三个插件;官网页面依赖 `official_site` 插件(`boot.hasSite` 为 false 时导航与页面自动隐藏)
 - 部分旧接口字段因版本差异可能需在 `parseResult` 或视图层做兼容调整
 
 ---
 
 ## 版本
 
+- **0.3.0** 主页售卖端:新增 home scope(落地页/登录注册/个人信息/商店/下单/我的主机/订单/余额/充值),插件 API 路由(`index.php?_r=`)驱动 + 独立 Vite 入口(`build:home`),登录态由 `auth.js` store 统一探测
 - **0.2.0** 双端主题:用户端全部页面原生化(仪表盘/设置/文件管理/SQL备份/监控/统计/部署/插件) + 按端分层目录重构(admin/user/shared) + 左侧背景图登录页 + echarts gauge 仪表盘 + 快捷操作平铺按钮 + 插件页面 iframe 内嵌
 - **0.1.0** 首版:SPA 壳 + 登录 + 全部后台页面原生化(仪表盘 / 设置 / 主机 / 宝塔 / 节点 / 程序 / 订单 / 日志 / 插件 / 支付 / 主题切换 / 教程 / 更新 / 修复)
