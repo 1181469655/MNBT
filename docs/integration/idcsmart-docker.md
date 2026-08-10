@@ -38,14 +38,12 @@ MN_docker_node（节点）/ MN_docker_user（账号）/ MN_docker_plan（套餐�
 
 | 魔方字段 | 填写 |
 |----------|------|
-| 服务器 IP | MNBT 域名 |
-| 端口 | 80/443 |
-| 用户名 | 节点ID（`MN_docker_node.id`） |
+| 服务器 IP | MNBT IP地址 |
+| 端口 | MNBT 端口 |
+| 用户名 | 节点ID（自增ID）（`MN_docker_node.id`） |
 | 密码 | 调用密钥（可留空）（`md5(ktmy.qmk)`） |
 | Access Hash | 系统 API 密钥 |
 | SSL | 按站点 |
-
-![魔方财务对接Docker配置信息示例](/魔方财务对接Docker配置信息示例.png)
 
 ### 方式二：产品配置选项（精确）
 
