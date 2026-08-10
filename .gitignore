@@ -50,3 +50,4 @@ docs/.vitepress/dist/
 # 文档备份
 admin/mnbt/*.docx
 admin/mnbt/*.zip
+/docs/docs/.vitepress/dist
