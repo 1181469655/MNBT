@@ -186,6 +186,51 @@ function realname_save_photo($user_id, $file_key)
 	return $name;
 }
 
+/**
+ * 处理 base64 编码的照片（前端 canvas 压缩后传来），解码后落盘。
+ * @param int    $user_id
+ * @param string $prefix  文件名前缀（front/back/hand）
+ * @param string $b64     完整的 data URL（data:image/jpeg;base64,...）
+ * @return string  随机文件名，失败返回 ''
+ */
+function realname_save_photo_base64($user_id, $prefix, $b64)
+{
+	if ($b64 === '' || strlen($b64) > 2 * 1024 * 1024) {
+		return ''; // base64 字符串超过 2MB 说明原图太大
+	}
+	// 解析 data:image/xxx;base64,...
+	if (!preg_match('#^data:image/(jpe?g|png);base64,(.+)$#i', $b64, $m)) {
+		return '';
+	}
+	$mimeType = strtolower($m[1]) === 'png' ? 'image/png' : 'image/jpeg';
+	$raw = base64_decode($m[2], true);
+	if ($raw === false || strlen($raw) > 8 * 1024 * 1024) {
+		return '';
+	}
+	// 验证解码后是有效图片
+	$tmp = tempnam(sys_get_temp_dir(), 'rn');
+	if ($tmp === false || file_put_contents($tmp, $raw) === false) {
+		return '';
+	}
+	$info = @getimagesize($tmp);
+	if ($info === false) {
+		@unlink($tmp);
+		return '';
+	}
+	if (!in_array($info[2], [IMAGETYPE_JPEG, IMAGETYPE_PNG], true)) {
+		@unlink($tmp);
+		return '';
+	}
+	$ext = $info[2] === IMAGETYPE_PNG ? 'png' : 'jpg';
+	$name = $prefix . '_' . bin2hex(random_bytes(12)) . '.' . $ext;
+	$dir = realname_user_data_dir($user_id);
+	if (!rename($tmp, $dir . '/' . $name)) {
+		@unlink($tmp);
+		return '';
+	}
+	return $name;
+}
+
 /** 根据相对文件名返回照片绝对路径。 */
 function realname_photo_path($user_id, $filename)
 {
@@ -226,6 +271,39 @@ function realname_save_auth($user, $data)
 	$user_id = (int)$user['id'];
 	$now = realname_now();
 
+	// 确保表存在
+	static $tableReady = false;
+	if (!$tableReady) {
+		$tableReady = true;
+		$ok = $DB->query(
+			"CREATE TABLE IF NOT EXISTS `plg_realname_auth` ("
+			. "`id` int(11) NOT NULL AUTO_INCREMENT,"
+			. "`user_id` int(11) NOT NULL,"
+			. "`username` varchar(64) NOT NULL DEFAULT '',"
+			. "`real_name` varchar(64) NOT NULL DEFAULT '',"
+			. "`phone` varchar(20) NOT NULL DEFAULT '',"
+			. "`id_card` varchar(255) NOT NULL DEFAULT '',"
+			. "`front_img` varchar(255) NOT NULL DEFAULT '',"
+			. "`back_img` varchar(255) NOT NULL DEFAULT '',"
+			. "`hand_img` varchar(255) NOT NULL DEFAULT '',"
+			. "`ocr_name` varchar(64) NOT NULL DEFAULT '',"
+			. "`ocr_id_card` varchar(255) NOT NULL DEFAULT '',"
+			. "`status` varchar(16) NOT NULL DEFAULT 'pending',"
+			. "`audit_note` varchar(255) NOT NULL DEFAULT '',"
+			. "`created_at` varchar(50) NOT NULL DEFAULT '',"
+			. "`updated_at` varchar(50) NOT NULL DEFAULT '',"
+			. "`audited_at` varchar(50) NOT NULL DEFAULT '',"
+			. "PRIMARY KEY (`id`),"
+			. "UNIQUE KEY `uk_user` (`user_id`),"
+			. "KEY `idx_status` (`status`)"
+			. ") ENGINE=MyISAM DEFAULT CHARSET=utf8"
+		);
+		if (!$ok) {
+			$msg = method_exists($DB, 'error') ? $DB->error() : 'unknown';
+			return ['ok' => false, 'id' => 0, 'status' => 'error', 'note' => '建表失败: ' . $msg];
+		}
+	}
+
 	$existing = realname_get_by_user($user_id);
 	$id_card_enc = realname_encrypt($data['id_card']);
 	$ocr_id_enc  = realname_encrypt($data['ocr_id_card']);
@@ -235,23 +313,46 @@ function realname_save_auth($user, $data)
 	$status = $audit['status'];
 	$note = $audit['note'];
 
+	$e = function ($v) use ($DB) { return "'" . $DB->escape((string)$v) . "'"; };
 	if ($existing) {
-		$ok = $DB->query_prepare(
-			"UPDATE plg_realname_auth SET real_name=?, phone=?, id_card=?, front_img=?, back_img=?, hand_img=?, ocr_name=?, ocr_id_card=?, status=?, audit_note=?, updated_at=?, audited_at=? WHERE user_id=?",
-			[$data['real_name'], $data['phone'], $id_card_enc, $data['front_img'], $data['back_img'], $data['hand_img'], $data['ocr_name'], $ocr_id_enc, $status, $note, $now, ($status !== 'pending' ? $now : $existing['audited_at']), $user_id]
-		);
+		$audited_at = ($status !== 'pending' ? $now : $existing['audited_at']);
+		$sql = "UPDATE plg_realname_auth SET "
+			. "real_name=" . $e($data['real_name'])
+			. ", phone=" . $e($data['phone'])
+			. ", id_card=" . $e($id_card_enc)
+			. ", front_img=" . $e($data['front_img'])
+			. ", back_img=" . $e($data['back_img'])
+			. ", hand_img=" . $e($data['hand_img'])
+			. ", ocr_name=" . $e($data['ocr_name'])
+			. ", ocr_id_card=" . $e($ocr_id_enc)
+			. ", status=" . $e($status)
+			. ", audit_note=" . $e($note)
+			. ", updated_at=" . $e($now)
+			. ", audited_at=" . $e($audited_at)
+			. " WHERE user_id=" . (int)$user_id;
+		$ok = (bool)$DB->query($sql);
 		$id = (int)$existing['id'];
 	} else {
-		$ok = $DB->query_prepare(
-			"INSERT INTO plg_realname_auth (user_id, username, real_name, phone, id_card, front_img, back_img, hand_img, ocr_name, ocr_id_card, status, audit_note, created_at, updated_at, audited_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-			[$user_id, (string)$user['username'], $data['real_name'], $data['phone'], $id_card_enc, $data['front_img'], $data['back_img'], $data['hand_img'], $data['ocr_name'], $ocr_id_enc, $status, $note, $now, $now, ($status !== 'pending' ? $now : '')]
-		);
-		$row = $DB->get_row_prepare("SELECT id FROM plg_realname_auth WHERE user_id=? LIMIT 1", [$user_id]);
-		$id = $row ? (int)$row['id'] : 0;
+		$audited_at = ($status !== 'pending' ? $now : '');
+		$sql = "INSERT INTO plg_realname_auth "
+			. "(user_id, username, real_name, phone, id_card, front_img, back_img, hand_img, ocr_name, ocr_id_card, status, audit_note, created_at, updated_at, audited_at) VALUES ("
+			. (int)$user_id . ", " . $e($user['username']) . ", " . $e($data['real_name']) . ", " . $e($data['phone']) . ", "
+			. $e($id_card_enc) . ", " . $e($data['front_img']) . ", " . $e($data['back_img']) . ", " . $e($data['hand_img']) . ", "
+			. $e($data['ocr_name']) . ", " . $e($ocr_id_enc) . ", " . $e($status) . ", " . $e($note) . ", "
+			. $e($now) . ", " . $e($now) . ", " . $e($audited_at) . ")";
+		$ok = (bool)$DB->query($sql);
+		if ($ok) {
+			$row = $DB->get_row("SELECT id FROM plg_realname_auth WHERE user_id=" . (int)$user_id . " LIMIT 1");
+			$id = $row ? (int)$row['id'] : 0;
+		} else {
+			$id = 0;
+		}
 	}
 
 	if (!$ok) {
-		return ['ok' => false, 'id' => 0, 'status' => 'error', 'note' => '保存失败，请稍后重试'];
+		$err = method_exists($DB, 'error') ? $DB->error() : 'unknown';
+		$short = strlen($sql) > 300 ? (substr($sql, 0, 300) . '...') : $sql;
+		return ['ok' => false, 'id' => 0, 'status' => 'error', 'note' => '写入失败: ' . $err . ' | SQL前段: ' . $short];
 	}
 	return ['ok' => true, 'id' => $id, 'status' => $status, 'note' => $note];
 }

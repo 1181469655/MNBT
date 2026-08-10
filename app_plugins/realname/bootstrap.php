@@ -112,11 +112,11 @@ mnbt_register_route('POST', '/realname/api/submit', function ($params, $ctx) {
 	$idChk = realname_idcard_validate($id_card);
 	if (!$idChk['ok']) realname_json($idChk['msg']);
 
-	// 照片上传（身份证正面必传，反面与手持按配置）
+	// 照片上传（base64 格式，前端 canvas 压缩后传来）
 	$require_hand = (bool)realname_opt('require_hand_photo', true);
-	$front = realname_save_photo((int)$user['id'], 'front_img');
-	$back  = realname_save_photo((int)$user['id'], 'back_img');
-	$hand  = realname_save_photo((int)$user['id'], 'hand_img');
+	$front = realname_save_photo_base64((int)$user['id'], 'front', $_POST['front_img'] ?? '');
+	$back  = realname_save_photo_base64((int)$user['id'], 'back',  $_POST['back_img'] ?? '');
+	$hand  = realname_save_photo_base64((int)$user['id'], 'hand',  $_POST['hand_img'] ?? '');
 	if ($front === '') realname_json('身份证正面照片上传失败（仅支持 jpg/png，≤8MB）');
 	if ($back === '') realname_json('身份证反面照片上传失败（仅支持 jpg/png，≤8MB）');
 	if ($require_hand && $hand === '') realname_json('手持身份证照片上传失败（仅支持 jpg/png，≤8MB）');

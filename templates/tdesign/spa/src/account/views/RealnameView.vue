@@ -97,7 +97,7 @@ const loading = ref(true)
 const submitting = ref(false)
 const auth = ref(null)
 const form = reactive({ real_name: '', phone: '', id_card: '' })
-const files = reactive({ front: null, back: null, hand: null })
+const base64Images = reactive({ front: '', back: '', hand: '' })
 const previews = reactive({ front: '', back: '', hand: '' })
 const ocrRunning = ref(false)
 const ocrTried = ref(false)
@@ -105,7 +105,7 @@ const ocrName = ref('')
 const ocrIdCard = ref('')
 
 const uploadItems = [
-  { key: 'front', title: '身份证正面', tip: '选择后自动识别', icon: 'mdi-card-account-details' },
+  { key: 'front', title: '身份证正面', tip: '选择后自动识别', icon: 'mdi-account-card-details' },
   { key: 'back', title: '身份证反面', tip: '国徽面，清晰完整', icon: 'mdi-card-bulleted' },
   { key: 'hand', title: '手持身份证', tip: '人物与证件均清晰', icon: 'mdi-account-box' },
 ]
@@ -140,10 +140,11 @@ function compressImage(file) {
   return new Promise((resolve, reject) => {
     const image = new Image()
     const url = URL.createObjectURL(file)
+    const reader = new FileReader()
     image.onload = () => {
       let width = image.width
       let height = image.height
-      const max = 1280
+      const max = 1024
       if (width > max || height > max) {
         const scale = max / Math.max(width, height)
         width = Math.round(width * scale)
@@ -155,8 +156,11 @@ function compressImage(file) {
       canvas.getContext('2d').drawImage(image, 0, 0, width, height)
       canvas.toBlob((blob) => {
         URL.revokeObjectURL(url)
-        blob ? resolve(blob) : reject(new Error('图片压缩失败'))
-      }, 'image/jpeg', 0.85)
+        if (!blob) return reject(new Error('图片压缩失败'))
+        reader.onload = () => resolve({ blob, base64: reader.result })
+        reader.onerror = () => reject(new Error('读取失败'))
+        reader.readAsDataURL(blob)
+      }, 'image/jpeg', 0.8)
     }
     image.onerror = () => {
       URL.revokeObjectURL(url)
@@ -176,8 +180,8 @@ async function onFileChange(event, key) {
     return
   }
   try {
-    const blob = await compressImage(file)
-    files[key] = blob
+    const { blob, base64 } = await compressImage(file)
+    base64Images[key] = base64
     if (previews[key]) URL.revokeObjectURL(previews[key])
     previews[key] = URL.createObjectURL(blob)
     if (key === 'front') await runOcr(blob)
@@ -200,11 +204,28 @@ function extractIdCard(text) {
 }
 
 function extractName(text) {
-  for (const line of (text || '').split('\n')) {
-    const value = line.replace(/\s+/g, '')
-    const match = value.match(/姓名[:：]?([\u4e00-\u9fa5·]{1,10})/)
-    if (match?.[1]) return match[1]
+  const raw = (text || '').replace(/\s+/g, '')
+  // 策略1: "姓名" + 冒号 + 中文名（最标准）
+  let m = raw.match(/姓名[：:]([\u4e00-\u9fa5·]{2,4})/)
+  if (m) return m[1]
+  // 策略2: "姓名" 后紧跟中文名（无冒号），排除后跟"性"（跳到"性别"）
+  m = raw.match(/姓名(?!性)([\u4e00-\u9fa5·]{2,4})/)
+  if (m) return m[1]
+  // 策略3: "姓"和"名"之间被 OCR 插入了空格/噪声，整体匹配附近中文
+  m = raw.match(/姓.*?名.*?([\u4e00-\u9fa5·]{2,4})/)
+  if (m) return m[1]
+  // 策略4: 逐行查找含"名"的行，从中提取 2-4 个连续中文字符
+  const lines = (text || '').split(/[\r\n]+/)
+  for (const line of lines) {
+    const clean = line.replace(/\s+/g, '')
+    if (clean.includes('名') && !clean.includes('民族')) {
+      const nameMatch = clean.match(/名.*?([\u4e00-\u9fa5·]{2,4})/)
+      if (nameMatch) return nameMatch[1]
+    }
   }
+  // 策略5: 全文搜索，在"姓名"后 50 个字符内找 2-4 个连续中文
+  m = raw.match(/姓名.{0,50}?([\u4e00-\u9fa5·]{2,4})/)
+  if (m) return m[1]
   return ''
 }
 
@@ -219,6 +240,43 @@ function loadOcrLib() {
   })
 }
 
+function preprocessForOcr(inputBlob) {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    const url = URL.createObjectURL(inputBlob)
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = img.width
+      canvas.height = img.height
+      const ctx = canvas.getContext('2d')
+      ctx.drawImage(img, 0, 0)
+      URL.revokeObjectURL(url)
+      // 灰度化 + 对比度拉伸
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+      const d = imageData.data
+      let min = 255, max = 0
+      for (let i = 0; i < d.length; i += 4) {
+        const gray = d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114
+        d[i] = d[i + 1] = d[i + 2] = gray
+        if (gray < min) min = gray
+        if (gray > max) max = gray
+      }
+      // 对比度拉伸：把 [min,max] 映射到 [0,255]
+      if (max > min) {
+        const range = max - min
+        for (let i = 0; i < d.length; i += 4) {
+          const v = ((d[i] - min) / range) * 255
+          d[i] = d[i + 1] = d[i + 2] = v
+        }
+      }
+      ctx.putImageData(imageData, 0, 0)
+      canvas.toBlob((b) => b ? resolve(b) : reject(new Error('预处理失败')), 'image/png')
+    }
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('加载失败')) }
+    img.src = url
+  })
+}
+
 async function runOcr(blob) {
   ocrRunning.value = true
   ocrTried.value = false
@@ -227,11 +285,15 @@ async function runOcr(blob) {
   try {
     const Tesseract = await loadOcrLib()
     const base = boot.realnameOcrBase
-    const result = await Tesseract.recognize(blob, 'chi_sim', {
+    // 预处理：灰度 + 对比度增强
+    const processed = await preprocessForOcr(blob)
+    const result = await Tesseract.recognize(processed, 'chi_sim', {
       workerPath: `${base}worker.min.js`,
       corePath: `${base}tesseract-core.wasm.js`,
       langPath: `${base}lang/`,
       logger: () => {},
+      preserve_interword_spaces: '1',
+      tessedit_pageseg_mode: '6', // PSM 6: 假设为统一文本块，适合身份证
     })
     const text = result?.data?.text || ''
     ocrName.value = extractName(text)
@@ -250,21 +312,21 @@ async function runOcr(blob) {
 
 async function onSubmit({ validateResult }) {
   if (validateResult !== true) return
-  if (!files.front || !files.back || !files.hand) {
+  if (!base64Images.front || !base64Images.back || !base64Images.hand) {
     MessagePlugin.warning('请上传身份证正面、反面和手持身份证照片')
     return
   }
   submitting.value = true
-  const data = new FormData()
-  data.append('real_name', form.real_name.trim())
-  data.append('phone', form.phone.trim())
-  data.append('id_card', form.id_card.trim().toUpperCase())
-  data.append('ocr_name', ocrName.value)
-  data.append('ocr_id_card', ocrIdCard.value)
-  data.append('front_img', files.front, 'front.jpg')
-  data.append('back_img', files.back, 'back.jpg')
-  data.append('hand_img', files.hand, 'hand.jpg')
-  const res = await submitRealname(data)
+  const res = await submitRealname({
+    real_name: form.real_name.trim(),
+    phone: form.phone.trim(),
+    id_card: form.id_card.trim().toUpperCase(),
+    ocr_name: ocrName.value,
+    ocr_id_card: ocrIdCard.value,
+    front_img: base64Images.front,
+    back_img: base64Images.back,
+    hand_img: base64Images.hand,
+  })
   submitting.value = false
   if (!res.ok) {
     MessagePlugin.error(res.message || '提交失败')

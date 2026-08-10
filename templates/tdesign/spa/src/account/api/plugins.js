@@ -73,18 +73,8 @@ export function getRealnameInfo() {
   return apiGet('/realname/api/me')
 }
 
-export async function submitRealname(formData) {
-  const token = getCsrfToken()
-  if (token && !formData.has('_csrf')) formData.append('_csrf', token)
-  try {
-    const res = await http.post(apiUrl('/realname/api/submit'), formData)
-    const raw = res.data || {}
-    if (raw.code === 'ok') return { ok: true, message: raw.message || '提交成功', data: raw }
-    return { ok: false, message: raw.code || '提交失败', data: raw }
-  } catch (e) {
-    const raw = e?.response?.data
-    return { ok: false, message: raw?.code || raw?.msg || e.message || '网络错误', data: raw }
-  }
+export async function submitRealname(data) {
+  return apiPost('/realname/api/submit', data)
 }
 
 /* ============================================================

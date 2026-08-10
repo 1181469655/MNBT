@@ -54,6 +54,13 @@
               </a>
             </router-link>
           </li>
+          <li v-if="hasRealname" class="td-side-item">
+            <router-link to="/realname" custom v-slot="{ navigate, isActive }">
+              <a href="javascript:;" :class="{ active: isActive }" @click="navigate">
+                <i class="mdi mdi-account-check"></i><span>实名认证</span>
+              </a>
+            </router-link>
+          </li>
         </ul>
 
         <!-- 余额 -->
@@ -234,6 +241,7 @@ const userName = boot.accountUser?.username || boot.user || 'user'
 const hasBalance = pluginEnabled('balance')
 const hasShop = pluginEnabled('hosting_shop')
 const hasDocker = pluginEnabled('docker_shop')
+const hasRealname = pluginEnabled('realname')
 
 const sidebarCollapsed = ref(false)
 const mobileOpen = ref(false)
