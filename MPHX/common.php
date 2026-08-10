@@ -73,6 +73,7 @@ include_once(SYSTEM_ROOT."function.php");
 include_once(SYSTEM_ROOT."member.php");
 include_once(SYSTEM_ROOT."theme.php");
 include_once(SYSTEM_ROOT."plugin.php");
+include_once(SYSTEM_ROOT."frontend.php");
 require_once(SYSTEM_ROOT."lib/pay.function.php");
 mnbt_plugins_boot();
 ?>

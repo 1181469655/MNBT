@@ -24,25 +24,26 @@ function mnbt_theme_sanitize($name)
 }
 
 /**
- * 规范化 scope：user | admin | docker（非法值回退 user）
+ * 规范化 scope：user | admin | docker | home（非法值回退 user）
  */
 function mnbt_theme_normalize_scope($scope)
 {
 	if ($scope === 'admin') return 'admin';
 	if ($scope === 'docker') return 'docker';
+	if ($scope === 'home') return 'home';
 	return 'user';
 }
 
 /**
  * 当前主题名
- * @param string $scope user|admin|docker
+ * @param string $scope user|admin|docker|home
  */
 function mnbt_theme_name($scope = 'user')
 {
 	global $conf;
 	$scope = mnbt_theme_normalize_scope($scope);
-	$confKeyMap = ['user' => 'usertheme', 'admin' => 'admintheme', 'docker' => 'docker_theme'];
-	$fileKeyMap = ['user' => 'active_user_theme', 'admin' => 'active_admin_theme', 'docker' => 'active_docker_theme'];
+	$confKeyMap = ['user' => 'usertheme', 'admin' => 'admintheme', 'docker' => 'docker_theme', 'home' => 'home_theme'];
+	$fileKeyMap = ['user' => 'active_user_theme', 'admin' => 'active_admin_theme', 'docker' => 'active_docker_theme', 'home' => 'active_home_theme'];
 	$confKey = $confKeyMap[$scope];
 	$fileKey = $fileKeyMap[$scope];
 
@@ -480,6 +481,7 @@ function mnbt_theme_list($scope = null)
 		$hasUser = is_dir($base . '/user');
 		$hasAdmin = is_dir($base . '/admin');
 		$hasDocker = is_dir($base . '/docker');
+		$hasHome = is_dir($base . '/home');
 		if ($scope === 'user' && !$hasUser) {
 			continue;
 		}
@@ -489,7 +491,10 @@ function mnbt_theme_list($scope = null)
 		if ($scope === 'docker' && !$hasDocker) {
 			continue;
 		}
-		if ($scope === null && !$hasUser && !$hasAdmin && !$hasDocker) {
+		if ($scope === 'home' && !$hasHome) {
+			continue;
+		}
+		if ($scope === null && !$hasUser && !$hasAdmin && !$hasDocker && !$hasHome) {
 			continue;
 		}
 		$meta = [
@@ -500,6 +505,7 @@ function mnbt_theme_list($scope = null)
 			'has_user' => $hasUser,
 			'has_admin' => $hasAdmin,
 			'has_docker' => $hasDocker,
+			'has_home' => $hasHome,
 		];
 		$json = $base . '/theme.json';
 		if (is_file($json)) {
@@ -527,8 +533,8 @@ function mnbt_theme_set_active($scope, $name)
 		return [false, '主题不存在或不支持该端：' . $name];
 	}
 
-	$fileKeyMap = ['user' => 'active_user_theme', 'admin' => 'active_admin_theme', 'docker' => 'active_docker_theme'];
-	$confKeyMap = ['user' => 'usertheme', 'admin' => 'admintheme', 'docker' => 'docker_theme'];
+	$fileKeyMap = ['user' => 'active_user_theme', 'admin' => 'active_admin_theme', 'docker' => 'active_docker_theme', 'home' => 'active_home_theme'];
+	$confKeyMap = ['user' => 'usertheme', 'admin' => 'admintheme', 'docker' => 'docker_theme', 'home' => 'home_theme'];
 	$file = MNBT_THEME_ROOT . $fileKeyMap[$scope];
 	if (@file_put_contents($file, $name) === false) {
 		return [false, '无法写入主题配置文件，请检查 templates 目录写权限'];

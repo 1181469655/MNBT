@@ -12,7 +12,12 @@ if (function_exists('mnbt_plugin_dispatch_home') && mnbt_plugin_dispatch_home())
 	exit;
 }
 
-// 3) 默认行为：跳转到用户面板
+// 3) 核心主页系统（V1.84）：无插件接管且后台启用时，渲染内置默认主页
+if (function_exists('mnbt_home_dispatch') && mnbt_home_dispatch()) {
+	exit;
+}
+
+// 4) 默认行为：跳转到用户面板
 header("Location:user");
 exit;
 ?>

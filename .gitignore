@@ -42,6 +42,11 @@ mail/vendor/composer/installed.json
 _run_test.php
 admin/_debug_*.php
 
+# 文档站点
+docs/node_modules/
+docs/.vitepress/cache/
+docs/.vitepress/dist/
+
 # 文档备份
 admin/mnbt/*.docx
 admin/mnbt/*.zip
