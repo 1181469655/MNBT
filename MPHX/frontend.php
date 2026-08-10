@@ -230,7 +230,7 @@ function mnbt_home_dispatch(): bool
  *   mnbt_register_home_setting([
  *       'key'         => 'bg_color',
  *       'label'       => '背景颜色',
- *       'type'        => 'color',          // text | color | select | switch | textarea | number
+ *       'type'        => 'color',          // text | color | select | switch | textarea | number | image
  *       'default'     => '#f0f4ff',
  *       'placeholder' => '#f0f4ff',
  *       'hint'        => '可选提示文本',
@@ -254,7 +254,7 @@ function mnbt_register_home_setting(array $config): bool
 		return false;
 	}
 	$type = (string)($config['type'] ?? 'text');
-	if (!in_array($type, ['text', 'color', 'select', 'switch', 'textarea', 'number'], true)) {
+	if (!in_array($type, ['text', 'color', 'select', 'switch', 'textarea', 'number', 'image'], true)) {
 		$type = 'text';
 	}
 	if (isset($GLOBALS['mnbt_home_settings_fields'][$key])) {
@@ -408,6 +408,19 @@ function mnbt_home_render_settings_fields_default(): string
 					. '<input type="number" class="form-control" name="' . $key . '" value="' . $val . '" placeholder="' . $ph . '"/>'
 					. $hint . '</div>';
 				break;
+			case 'image':
+				$prevStyle = $val !== '' ? '' : ' style="display:none"';
+				$html .= '<div class="mn-set-field"><label>' . $label . '</label>'
+					. '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">'
+					. '<img id="' . $key . '_preview" src="' . ($val !== '' ? '../' . htmlspecialchars($val, ENT_QUOTES, 'UTF-8') : '') . '"'
+					. ' alt="" style="width:120px;height:76px;object-fit:cover;border:1px solid #e5e7eb;border-radius:8px;background:#f8f9fa;"' . $prevStyle . '>'
+					. '<input type="file" id="' . $key . '_file" accept=".png,.jpg,.jpeg,.gif,.webp,.ico" style="display:none">'
+					. '<button type="button" class="btn btn-outline-secondary" onclick="document.getElementById(\'' . $key . '_file\').click()">上传图片</button>'
+					. '<button type="button" class="btn btn-outline-secondary" onclick="var i=document.getElementById(\'' . $key . '\');i.value=\'\';var p=document.getElementById(\'' . $key . '_preview\');p.style.display=\'none\';p.src=\'\';">清除</button>'
+					. '</div>'
+					. '<input type="text" class="form-control" id="' . $key . '" name="' . $key . '" data-home-image="' . $key . '" value="' . $val . '" placeholder="' . $ph . '"/>'
+					. $hint . '</div>';
+				break;
 			default: // text
 				$html .= '<div class="mn-set-field"><label>' . $label . '</label>'
 					. '<input type="text" class="form-control" name="' . $key . '" value="' . $val . '" placeholder="' . $ph . '"/>'
@@ -423,6 +436,29 @@ function mnbt_home_render_settings_fields_default(): string
 		. 'if(!cb)return;'
 		. 'el.value=cb.checked?"true":"false";'
 		. 'cb.addEventListener("change",function(){el.value=cb.checked?"true":"false"})'
+		. '})})()</script>';
+	// image 字段上传脚本（POST 到 ./ajax.php?gn=home_upload_image）
+	$html .= '<script>(function(){'
+		. 'document.querySelectorAll(\'input[data-home-image]\').forEach(function(input){'
+		. 'var k=input.getAttribute(\'data-home-image\');'
+		. 'var file=document.getElementById(k+\'_file\');'
+		. 'if(!file)return;'
+		. 'file.addEventListener(\'change\',function(){'
+		. 'if(!file.files||!file.files.length)return;'
+		. 'var fd=new FormData();'
+		. 'fd.append(\'gn\',\'home_upload_image\');'
+		. 'fd.append(\'key\',k.replace(\'home_ts_\',\'\'));'
+		. 'fd.append(\'image\',file.files[0]);'
+		. '$.ajax({url:\'./ajax.php\',type:\'POST\',data:fd,processData:false,contentType:false,'
+		. 'success:function(r){var j;try{j=typeof r===\'string\'?JSON.parse(r):r;}catch(e){j={code:\'响应解析失败\'};}'
+		. 'if(j.code===\'上传成功\'){var rel=\'imsetes/upload_logo/home_\'+k.replace(\'home_ts_\',\'\')+\'.png\';'
+		. 'input.value=rel;var p=document.getElementById(k+\'_preview\');'
+		. 'if(p){p.src=\'../\'+rel;p.style.display=\'\';}'
+		. 'if(typeof msalert===\'function\'){msalert(1,\'上传成功，请点击保存\',2000);}'
+		. '}else{if(typeof msalert===\'function\'){msalert(4,j.code||\'上传失败\',2000);}}'
+		. '},error:function(){if(typeof msalert===\'function\'){msalert(4,\'网络错误，请重试\',2000);}}'
+		. '});'
+		. '})'
 		. '})})()</script>';
 	return $html;
 }

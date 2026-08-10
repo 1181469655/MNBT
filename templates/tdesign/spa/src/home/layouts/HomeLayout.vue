@@ -21,14 +21,14 @@
           <div class="hd-nav-actions">
             <template v-if="authState.loggedIn">
               <span class="hd-user-name">{{ authState.user?.username }}</span>
-              <t-button size="small" variant="outline" theme="default" @click="onLogout">退出</t-button>
+              <t-button theme="default" variant="outline" @click="onLogout">退出</t-button>
             </template>
             <template v-else-if="boot.hasUser">
               <router-link to="/login">
-                <t-button size="small" variant="outline" theme="default">登录</t-button>
+                <t-button theme="default" variant="outline">登录</t-button>
               </router-link>
               <router-link to="/register">
-                <t-button size="small" theme="primary">免费注册</t-button>
+                <t-button theme="primary">免费注册</t-button>
               </router-link>
             </template>
           </div>
@@ -49,11 +49,11 @@
         <div class="hd-footer-content">
           <div class="hd-footer-section hd-company-info">
             <h3>{{ boot.siteTitle || 'MNBT' }}</h3>
-            <p>致力于为客户提供稳定、安全、高性能的虚拟主机与云计算服务。</p>
+            <p>{{ boot.footerAbout || '致力于为客户提供稳定、安全、高性能的虚拟主机与云计算服务。' }}</p>
             <div class="hd-social-links">
               <a href="#" class="hd-social-link" aria-label="QQ 群" @click.prevent><i class="mdi mdi-qqchat"></i></a>
               <a href="#" class="hd-social-link" aria-label="邮箱" @click.prevent><i class="mdi mdi-email-outline"></i></a>
-              <a href="#" class="hd-social-link" aria-label="GitHub" @click.prevent><i class="mdi mdi-github"></i></a>
+              <a href="#" class="hd-social-link" aria-label="GitHub" @click.prevent><i class="mdi mdi-github-circle"></i></a>
             </div>
           </div>
           <div class="hd-footer-section hd-quick-links">
@@ -70,15 +70,15 @@
             <h4>联系方式</h4>
             <div class="hd-contact-item">
               <span class="icon"><i class="mdi mdi-qqchat"></i></span>
-              <span class="info">官方 QQ 群：994752422</span>
+              <span class="info">官方 QQ 群：{{ boot.contactQq || '994752422' }}</span>
             </div>
             <div class="hd-contact-item">
               <span class="icon"><i class="mdi mdi-email-outline"></i></span>
-              <span class="info">1181469655@qq.com</span>
+              <span class="info">{{ boot.contactEmail || 'support@mnbt.example' }}</span>
             </div>
             <div class="hd-contact-item">
               <span class="icon"><i class="mdi mdi-map-marker-outline"></i></span>
-              <span class="info">MNBT 虚拟主机平台</span>
+              <span class="info">{{ boot.contactAddress || 'MNBT 虚拟主机平台' }}</span>
             </div>
           </div>
         </div>

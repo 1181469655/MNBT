@@ -26,6 +26,31 @@ $boot = [
 	'siteFooter'   => $site_footer ?? '',
 	'beianInfo'    => (function_exists('mnbt_home_theme_setting') ? (string)mnbt_home_theme_setting('beian_info', '') : ''),
 	'policeBeian'  => (function_exists('mnbt_home_theme_setting') ? (string)mnbt_home_theme_setting('ps_beian', '') : ''),
+	// 页脚/联系方式/关于/首页 banner 文字（主题自定义设置，空值回退内置默认）
+	'footerAbout'  => (function_exists('mnbt_home_theme_setting') ? (string)mnbt_home_theme_setting('footer_about', '致力于为客户提供稳定、安全、高性能的虚拟主机与云计算服务。') : ''),
+	'contactQq'    => (function_exists('mnbt_home_theme_setting') ? (string)mnbt_home_theme_setting('contact_qq', '994752422') : ''),
+	'contactEmail' => (function_exists('mnbt_home_theme_setting') ? (string)mnbt_home_theme_setting('contact_email', 'support@mnbt.example') : ''),
+	'contactAddress' => (function_exists('mnbt_home_theme_setting') ? (string)mnbt_home_theme_setting('contact_address', '北京市朝阳区 · 数据中心园区') : ''),
+	'contactHours' => (function_exists('mnbt_home_theme_setting') ? (string)mnbt_home_theme_setting('contact_hours', '工作日 9:00 - 21:00 · 7×24 工单系统') : ''),
+	'aboutIntro'   => (function_exists('mnbt_home_theme_setting') ? (string)mnbt_home_theme_setting('about_intro', '') : ''),
+	'aboutImage'   => (function_exists('mnbt_home_asset') && function_exists('mnbt_home_theme_setting') ? mnbt_home_asset((string)mnbt_home_theme_setting('about_image', '')) : ''),
+	'bannerTexts'  => [
+		[
+			'title'       => (function_exists('mnbt_home_theme_setting') ? (string)mnbt_home_theme_setting('banner_title_1', '高性能虚拟主机') : '高性能虚拟主机'),
+			'subtitle'    => (function_exists('mnbt_home_theme_setting') ? (string)mnbt_home_theme_setting('banner_subtitle_1', '即买即用 · 自动开通 · 秒级部署') : '即买即用 · 自动开通 · 秒级部署'),
+			'description' => (function_exists('mnbt_home_theme_setting') ? (string)mnbt_home_theme_setting('banner_desc_1', '全 SSD 存储与 BGP 多线接入，支付完成后自动开通，分钟级上线，为企业和开发者打造稳定高效的主机平台。') : '全 SSD 存储与 BGP 多线接入，支付完成后自动开通，分钟级上线，为企业和开发者打造稳定高效的主机平台。'),
+		],
+		[
+			'title'       => (function_exists('mnbt_home_theme_setting') ? (string)mnbt_home_theme_setting('banner_title_2', '专业团队支持') : '专业团队支持'),
+			'subtitle'    => (function_exists('mnbt_home_theme_setting') ? (string)mnbt_home_theme_setting('banner_subtitle_2', '7×24 小时全天候技术支持') : '7×24 小时全天候技术支持'),
+			'description' => (function_exists('mnbt_home_theme_setting') ? (string)mnbt_home_theme_setting('banner_desc_2', '经验丰富的运维与开发团队随时待命，从建站到运维全程护航，让您专注于业务本身。') : '经验丰富的运维与开发团队随时待命，从建站到运维全程护航，让您专注于业务本身。'),
+		],
+		[
+			'title'       => (function_exists('mnbt_home_theme_setting') ? (string)mnbt_home_theme_setting('banner_title_3', '企业级安全防护') : '企业级安全防护'),
+			'subtitle'    => (function_exists('mnbt_home_theme_setting') ? (string)mnbt_home_theme_setting('banner_subtitle_3', 'DDoS 清洗 · WAF 规则 · 每日备份') : 'DDoS 清洗 · WAF 规则 · 每日备份'),
+			'description' => (function_exists('mnbt_home_theme_setting') ? (string)mnbt_home_theme_setting('banner_desc_3', '内置安全防护体系与自动备份能力，SSL 一键签发，全面保障您的数据与业务安全。') : '内置安全防护体系与自动备份能力，SSL 一键签发，全面保障您的数据与业务安全。'),
+		],
+	],
 	'favicon'      => $favicon ?? '',
 	'notice'       => $notice ?? '',
 	'showNotice'   => !empty($show_notice),

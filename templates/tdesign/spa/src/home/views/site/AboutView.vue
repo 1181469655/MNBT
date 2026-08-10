@@ -12,13 +12,11 @@
         <div class="site-about-grid">
           <div class="site-about-text">
             <h2>平台简介</h2>
-            <p>
-              MNBT 是一家面向企业和开发者的云计算服务商，专注于虚拟主机、云服务器、域名与安全防护等基础设施服务。依托高性能节点与全自动化部署体系，帮助用户以极低的成本快速上线业务。
-            </p>
-            <p>我们坚持"稳定、安全、简单"的产品理念，通过持续的技术迭代和完善的售后服务，已为大量个人站长与中小企业提供可靠的托管服务。</p>
+            <p v-for="(para, i) in introParagraphs" :key="i">{{ para }}</p>
           </div>
           <div class="site-about-image">
-            <div class="site-ph">数据中心 · 高性能节点</div>
+            <div v-if="boot.aboutImage" class="site-about-img" :style="{ backgroundImage: `url(${boot.aboutImage})` }"></div>
+            <div v-else class="site-ph">数据中心 · 高性能节点</div>
           </div>
         </div>
       </div>
@@ -42,7 +40,7 @@
             </ul>
           </div>
           <div class="site-mv-card">
-            <div class="site-mv-icon"><i class="mdi mdi-rocket-launch-outline"></i></div>
+            <div class="site-mv-icon"><i class="mdi mdi-rocket"></i></div>
             <h3>我们的愿景</h3>
             <p>成为国内领先的轻量云服务品牌，让建站与托管像水电一样简单可靠，助力数字世界的每个创意落地。</p>
             <ul class="site-mv-list">
@@ -76,9 +74,19 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import bg2 from '@/shared/assets/bg2.jpg'
 
+const boot = window.__TD_BOOT__ || {}
 const headerImage = bg2
+
+// 平台简介：优先使用后台「主页内容」配置，空行分段渲染，未配置回退内置文案
+const defaultIntro =
+  'MNBT 是一家面向企业和开发者的云计算服务商，专注于虚拟主机、云服务器、域名与安全防护等基础设施服务。依托高性能节点与全自动化部署体系，帮助用户以极低的成本快速上线业务。\n\n我们坚持"稳定、安全、简单"的产品理念，通过持续的技术迭代和完善的售后服务，已为大量个人站长与中小企业提供可靠的托管服务。'
+const introParagraphs = computed(() => {
+  const text = (boot.aboutIntro || defaultIntro).trim()
+  return text.split(/\n\s*\n/).filter(Boolean)
+})
 
 const teams = [
   { icon: 'mdi-server-network', title: '技术研发', role: '产品与架构', bio: '负责平台架构、自动化开通与功能迭代，持续打磨易用性。' },
@@ -202,6 +210,14 @@ const teams = [
   color: var(--hd-brand);
   font-size: 15px;
   font-weight: 600;
+  border: 1px solid var(--hd-border);
+}
+
+.site-about-image .site-about-img {
+  height: 260px;
+  border-radius: var(--hd-radius-xl);
+  background-size: cover;
+  background-position: center;
   border: 1px solid var(--hd-border);
 }
 

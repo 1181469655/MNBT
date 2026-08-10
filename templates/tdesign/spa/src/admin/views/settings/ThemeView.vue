@@ -288,6 +288,25 @@
                 <t-textarea v-model="themeValues[f.key]" :autosize="{ minRows: 3, maxRows: 8 }" :placeholder="f.placeholder || ''" />
                 <div v-if="f.hint" class="td-form-hint">{{ f.hint }}</div>
               </div>
+              <!-- image -->
+              <div v-else-if="f.type === 'image'" class="td-form-row">
+                <label>{{ f.label }}</label>
+                <div class="home-upload-row">
+                  <img v-if="themeImagePreview(f.key)" :src="themeImagePreview(f.key)" alt="" class="home-image-preview" />
+                  <span v-else class="home-logo-empty">未设置</span>
+                  <input
+                    :ref="(el) => setImageInput(f.key, el)"
+                    type="file"
+                    accept=".png,.jpg,.jpeg,.gif,.webp,.ico"
+                    style="display: none"
+                    @change="onUploadThemeImage(f.key)"
+                  />
+                  <t-button variant="outline" @click="triggerImageUpload(f.key)"><i class="mdi mdi-upload"></i> 上传</t-button>
+                  <t-button variant="outline" theme="danger" @click="themeValues[f.key] = ''">清除</t-button>
+                </div>
+                <t-input v-model="themeValues[f.key]" placeholder="上传后自动填入，或手动填写 URL" clearable />
+                <div v-if="f.hint" class="td-form-hint">{{ f.hint }}</div>
+              </div>
             </template>
 
             <div class="td-form-actions">
@@ -311,7 +330,7 @@
 <script setup>
 import { reactive, ref, computed } from 'vue'
 import { MessagePlugin } from 'tdesign-vue-next'
-import { setTheme, setHome, uploadHomeIcon } from '@/admin/api/settings'
+import { setTheme, setHome, uploadHomeIcon, uploadHomeImage } from '@/admin/api/settings'
 
 const boot = window.__TD_BOOT__ || {}
 // 防御:boot.themeList 可能是对象(关联数组 json_encode 后)或数组,统一转成数组
@@ -407,6 +426,31 @@ const homeForm = reactive({
 })
 
 const logoPreview = computed(() => resolveAsset(homeForm.home_logo))
+
+/* ===== 主题 image 类型字段上传 ===== */
+const imageInputs = {}
+function setImageInput(key, el) {
+  if (el) imageInputs[key] = el
+}
+function triggerImageUpload(key) {
+  imageInputs[key]?.click()
+}
+function themeImagePreview(key) {
+  return resolveAsset(themeValues[key] || '')
+}
+async function onUploadThemeImage(key) {
+  const input = imageInputs[key]
+  if (!input?.files?.length) return
+  const file = input.files[0]
+  homeLoading.value = true
+  const r = await uploadHomeImage(key, file)
+  input.value = ''
+  if (r.ok) {
+    themeValues[key] = 'imsetes/upload_logo/home_' + key + '.png'
+    MessagePlugin.success('上传成功，请保存设置')
+  }
+  homeLoading.value = false
+}
 
 async function onUpload(target) {
   const input = target === 'logo' ? logoInput.value : faviconInput.value
@@ -505,5 +549,13 @@ async function saveHome() {
   border: 1px dashed #e5e7eb;
   border-radius: 8px;
   padding: 6px 12px;
+}
+.home-image-preview {
+  width: 140px;
+  height: 88px;
+  object-fit: cover;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f8f9fa;
 }
 </style>

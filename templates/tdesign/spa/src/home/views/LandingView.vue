@@ -197,25 +197,33 @@ const aboutUrl = computed(() =>
     : (boot.hasUser ? (authState.loggedIn ? '/profile' : '/login') : '/')
 )
 
-const carouselItems = [
+// 三张轮播文案：优先使用后台「主页内容」配置，未配置时回退内置默认
+const defaultBannerTexts = [
   {
     title: '高性能虚拟主机',
     subtitle: '即买即用 · 自动开通 · 秒级部署',
     description: '全 SSD 存储与 BGP 多线接入，支付完成后自动开通，分钟级上线，为企业和开发者打造稳定高效的主机平台。',
-    image: bg1,
   },
   {
     title: '专业团队支持',
     subtitle: '7×24 小时全天候技术支持',
     description: '经验丰富的运维与开发团队随时待命，从建站到运维全程护航，让您专注于业务本身。',
-    image: bg2,
   },
   {
     title: '企业级安全防护',
     subtitle: 'DDoS 清洗 · WAF 规则 · 每日备份',
     description: '内置安全防护体系与自动备份能力，SSL 一键签发，全面保障您的数据与业务安全。',
-    image: bg3,
   },
+]
+const bannerTexts =
+  boot.bannerTexts && boot.bannerTexts.length >= 3
+    ? boot.bannerTexts
+    : defaultBannerTexts
+
+const carouselItems = [
+  { ...bannerTexts[0], image: bg1 },
+  { ...bannerTexts[1], image: bg2 },
+  { ...bannerTexts[2], image: bg3 },
 ]
 
 const currentSlide = ref(0)
@@ -243,7 +251,7 @@ function stopAutoPlay() {
 
 const features = [
   { icon: 'mdi-shield-check', title: '稳定可靠', desc: '企业级硬件架构与 BGP 多线接入，SLA 99.9% 保障，网站始终在线。' },
-  { icon: 'mdi-rocket-launch-outline', title: '极速开通', desc: '支付成功自动开通主机，分钟级上线，无需等待人工处理。' },
+  { icon: 'mdi-rocket', title: '极速开通', desc: '支付成功自动开通主机，分钟级上线，无需等待人工处理。' },
   { icon: 'mdi-headset', title: '专业服务', desc: '7×24 小时技术支持，从建站到运维全程护航，问题快速响应。' },
 ]
 

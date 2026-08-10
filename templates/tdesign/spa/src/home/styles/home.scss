@@ -24,14 +24,35 @@
   --hd-ease: cubic-bezier(0.4, 0, 0.2, 1);
   --hd-dur: 0.2s;
 
-  /* 覆盖 TDesign 品牌色为官网绿色（仅 home scope 生效） */
+  /* 覆盖 TDesign 品牌色为官网绿色（仅 home scope 生效）
+   * 必须完整覆盖调色板 --td-brand-color-1~10 及派生变量，
+   * 否则组件默认色仍读取默认蓝色系 */
+  --td-brand-color-1: #e6f7f0;
+  --td-brand-color-2: #c9efe0;
+  --td-brand-color-3: #9fdfc3;
+  --td-brand-color-4: #6fcfa3;
+  --td-brand-color-5: #4bc18e;
+  --td-brand-color-6: #42b983;
+  --td-brand-color-7: #359c6d;
+  --td-brand-color-8: #2c815c;
+  --td-brand-color-9: #23674a;
+  --td-brand-color-10: #1a4d38;
+  --td-brand-color: #42b983;
+  --td-brand-color-hover: #359c6d;
+  --td-brand-color-active: #2c815c;
+  --td-brand-color-focus: rgba(66, 185, 131, 0.2);
+  --td-brand-color-disabled: rgba(66, 185, 131, 0.4);
+  --td-brand-color-light: #e6f7f0;
+  --td-brand-color-light-hover: #c9efe0;
+  --td-text-color-brand: #42b983;
+  --td-text-color-link: #359c6d;
+  /* 兼容旧命名（部分组件仍引用） */
   --td-brand: #42b983;
   --td-brand-light: #e6f7f0;
   --td-brand-dark: #359c6d;
   --td-brand-hover: #359c6d;
-  --td-brand-active: #359c6d;
+  --td-brand-active: #2c815c;
   --td-brand-focus: rgba(66, 185, 131, 0.2);
-  --td-brand-color-hover: #359c6d;
 }
 
 /* ============ 布局容器 ============ */

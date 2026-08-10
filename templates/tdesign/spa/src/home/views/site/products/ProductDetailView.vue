@@ -34,7 +34,10 @@
             </div>
 
             <div class="site-detail-actions">
-              <t-button theme="primary" size="large" @click="$router.push('/site/contact')">
+              <t-button v-if="product.link" theme="primary" size="large" @click="openProductLink">
+                前往了解 <template #suffix><i class="mdi mdi-open-in-new"></i></template>
+              </t-button>
+              <t-button v-else theme="primary" size="large" @click="$router.push('/site/contact')">
                 联系我们 <template #suffix><i class="mdi mdi-send"></i></template>
               </t-button>
               <t-button variant="outline" size="large" @click="$router.push('/site/products')">返回产品中心</t-button>
@@ -59,17 +62,29 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import bg2 from '@/shared/assets/bg2.jpg'
 import { getSiteProduct } from '@/home/api/site'
 import { formatDate } from '@/home/utils/format'
 
 const headerImage = bg2
 const route = useRoute()
+const router = useRouter()
 
 const product = ref({})
 const loading = ref(true)
 const error = ref('')
+
+// 跳转产品配置的链接（http(s) 外链新窗口，站内路径路由跳转）
+function openProductLink() {
+  const link = (product.value.link || '').trim()
+  if (!link) return
+  if (/^https?:\/\//i.test(link)) {
+    window.open(link, '_blank', 'noopener')
+  } else {
+    router.push(link)
+  }
+}
 
 onMounted(async () => {
   const res = await getSiteProduct(route.params.id)

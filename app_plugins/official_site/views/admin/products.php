@@ -25,6 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 			'description' => $_POST['description'] ?? '',
 			'features'    => $features,
 			'image'       => $_POST['image'] ?? '',
+			'link'        => $_POST['link'] ?? '',
 			'status'      => $_POST['status'] ?? 'active',
 			'sort'        => (int)($_POST['sort'] ?? 50),
 		];
@@ -82,10 +83,10 @@ mnbt_admin_include('head');
 							<tr>
 								<th style="width:60px">ID</th>
 								<th>产品名称</th>
-								<th style="width:120px">分类</th>
+								<th style="width:110px">分类</th>
 								<th>简介</th>
+								<th style="width:130px">跳转链接</th>
 								<th style="width:80px">状态</th>
-								<th style="width:70px">排序</th>
 								<th style="width:170px">操作</th>
 							</tr>
 						</thead>
@@ -96,14 +97,20 @@ mnbt_admin_include('head');
 									<td><?= htmlspecialchars($p['name'], ENT_QUOTES) ?></td>
 									<td><?= htmlspecialchars($categories[$p['category']] ?? $p['category'], ENT_QUOTES) ?></td>
 									<td><?= htmlspecialchars(mb_substr($p['description'], 0, 40), ENT_QUOTES) ?><?= mb_strlen($p['description']) > 40 ? '…' : '' ?></td>
-									<td>
-										<?php if ($p['status'] === 'active'): ?>
-											<span class="badge badge-success">上架</span>
-										<?php else: ?>
-											<span class="badge badge-secondary">下架</span>
-										<?php endif; ?>
-									</td>
-									<td><?= (int)$p['sort'] ?></td>
+								<td>
+									<?php if (!empty($p['link'])): ?>
+										<a href="<?= htmlspecialchars($p['link'], ENT_QUOTES) ?>" target="_blank" rel="noopener" class="text-primary"><?= htmlspecialchars(mb_substr($p['link'], 0, 22), ENT_QUOTES) ?><?= mb_strlen($p['link']) > 22 ? '…' : '' ?></a>
+									<?php else: ?>
+										<span class="text-muted">—</span>
+									<?php endif; ?>
+								</td>
+								<td>
+									<?php if ($p['status'] === 'active'): ?>
+										<span class="badge badge-success">上架</span>
+									<?php else: ?>
+										<span class="badge badge-secondary">下架</span>
+									<?php endif; ?>
+								</td>
 									<td>
 										<button type="button" class="btn btn-sm btn-outline-primary" onclick="openEdit(<?= (int)$p['id'] ?>)">编辑</button>
 										<form method="post" style="display:inline-block" onsubmit="var b=this.querySelector('button');b.disabled=true;b.textContent='删除中...';return confirm('确定删除此产品？')">
@@ -158,6 +165,11 @@ mnbt_admin_include('head');
 						<label>展示图片（URL，可选）</label>
 						<input type="text" class="form-control" name="image" id="f-image" placeholder="https://example.com/image.png">
 					</div>
+					<div class="form-group">
+						<label>跳转链接（可选）</label>
+						<input type="text" class="form-control" name="link" id="f-link" placeholder="/shop 或 https://example.com/product">
+						<small class="form-text text-muted">配置后，产品中心卡片点击将直接跳转到该链接（站内路径或 http(s) 外链）；留空则进入产品详情页。</small>
+					</div>
 					<div class="form-row">
 						<div class="col-6">
 							<div class="form-group">
@@ -202,6 +214,7 @@ function openEdit(id) {
 			el('description').value = p.description || '';
 			el('features').value = (p.features_list || []).join('\n');
 			el('image').value = p.image || '';
+			el('link').value = p.link || '';
 			el('status').value = p.status || 'active';
 			el('sort').value = p.sort || 50;
 		}
@@ -211,6 +224,7 @@ function openEdit(id) {
 		el('description').value = '';
 		el('features').value = '';
 		el('image').value = '';
+		el('link').value = '';
 		el('status').value = 'active';
 		el('sort').value = 50;
 	}
@@ -222,6 +236,7 @@ function openEdit(id) {
 		el('description').value = __siteForm.description || '';
 		el('features').value = (__siteForm.features || []).join('\n');
 		el('image').value = __siteForm.image || '';
+		el('link').value = __siteForm.link || '';
 		el('status').value = __siteForm.status || 'active';
 		el('sort').value = __siteForm.sort || 50;
 	}

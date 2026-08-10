@@ -31,7 +31,7 @@
               v-for="p in products"
               :key="p.id"
               class="site-product-card"
-              @click="$router.push('/site/products/' + p.id)"
+              @click="openProduct(p)"
             >
               <div class="site-product-img">
                 <img v-if="p.image" :src="p.image" :alt="p.name" />
@@ -42,7 +42,10 @@
                 <p class="site-product-desc">{{ p.description }}</p>
                 <div class="site-product-foot">
                   <span class="site-product-cat">{{ p.category_name }}</span>
-                  <span class="site-product-more">了解更多 <i class="mdi mdi-arrow-right"></i></span>
+                  <span class="site-product-more">
+                    {{ p.link ? '前往了解' : '了解更多' }}
+                    <i class="mdi mdi-arrow-right"></i>
+                  </span>
                 </div>
               </div>
             </div>
@@ -84,6 +87,20 @@ async function fetchProducts(category) {
 function switchCategory(id) {
   activeCategory.value = id
   fetchProducts(id)
+}
+
+// 卡片点击：配置了跳转链接优先跳转（http(s) 外链新窗口，站内路径路由跳转），否则进入详情页
+function openProduct(p) {
+  const link = p.link && p.link.trim()
+  if (link) {
+    if (/^https?:\/\//i.test(link)) {
+      window.open(link, '_blank', 'noopener')
+    } else {
+      router.push(link)
+    }
+    return
+  }
+  router.push('/site/products/' + p.id)
 }
 
 onMounted(() => fetchProducts('all'))

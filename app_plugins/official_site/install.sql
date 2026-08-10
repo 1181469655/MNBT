@@ -10,6 +10,7 @@ CREATE TABLE `MN_plugin_site_product` (
   `description` text NOT NULL COMMENT '产品简介',
   `features` text NOT NULL COMMENT '特性列表 JSON 数组',
   `image` varchar(500) NOT NULL DEFAULT '' COMMENT '展示图片 URL',
+  `link` varchar(500) NOT NULL DEFAULT '' COMMENT '跳转链接（配置后产品卡片点击直接跳转，站内路径或 http(s) 外链）',
   `status` varchar(20) NOT NULL DEFAULT 'active' COMMENT 'active/inactive',
   `sort` int(11) NOT NULL DEFAULT '50' COMMENT '排序（小到大）',
   `created_at` varchar(50) NOT NULL DEFAULT '',

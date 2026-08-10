@@ -194,6 +194,45 @@ if($egn == 'home_upload_icon')
 	json_exit('上传成功');
 	return;
 }
+if($egn == 'home_upload_image')
+{
+	// 通用主页图片上传：key 必须是当前主页主题注册的 image 类型字段
+	// 保存到 imsetes/upload_logo/home_{key}.png，路径由前端随 save_home_settings 统一提交
+	$key = (string)($_POST['key'] ?? '');
+	if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]{0,63}$/', $key)) {
+		json_exit('参数错误');
+	}
+	if (function_exists('mnbt_home_get_settings_fields')) {
+		$fields = mnbt_home_get_settings_fields();
+		$isImage = isset($fields[$key]) && ($fields[$key]['type'] ?? '') === 'image';
+		if (!$isImage) {
+			json_exit('非法字段');
+		}
+	}
+	if (empty($_FILES['image']) || !is_array($_FILES['image']) || (int)($_FILES['image']['error'] ?? 1) !== 0) {
+		json_exit('未收到文件或上传失败');
+	}
+	$file = $_FILES['image'];
+	$name = (string)($file['name'] ?? '');
+	$ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+	if (!in_array($ext, ['png', 'jpg', 'jpeg', 'gif', 'ico', 'webp'])) {
+		json_exit('仅支持 png / jpg / gif / webp / ico 格式');
+	}
+	$tmp = (string)($file['tmp_name'] ?? '');
+	if ($tmp === '' || !is_uploaded_file($tmp)) {
+		json_exit('文件上传异常');
+	}
+	$dir = ROOT . 'imsetes/upload_logo/';
+	if (!is_dir($dir) && !@mkdir($dir, 0755, true)) {
+		json_exit('上传目录不可写');
+	}
+	$filename = 'home_' . $key . '.png';
+	if (!move_uploaded_file($tmp, $dir . $filename)) {
+		json_exit('保存文件失败，请检查 imsetes/upload_logo 目录权限');
+	}
+	json_exit('上传成功');
+	return;
+}
 if($egn == 'settheme')
 {
 	$usertheme = mnbt_theme_sanitize($_POST['usertheme'] ?? '');

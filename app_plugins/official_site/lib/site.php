@@ -68,6 +68,21 @@ function site_product_features_parse($row)
 	return $features;
 }
 
+/** 产品表结构迁移：确保 link 列存在（老版本升级，幂等）。 */
+function site_product_ensure_schema()
+{
+	static $done = false;
+	if ($done) {
+		return;
+	}
+	$done = true;
+	global $DB;
+	$cols = $DB->get_all_prepare("SHOW COLUMNS FROM `MN_plugin_site_product` LIKE 'link'") ?: [];
+	if (empty($cols)) {
+		@$DB->query("ALTER TABLE `MN_plugin_site_product` ADD COLUMN `link` varchar(500) NOT NULL DEFAULT '' COMMENT '跳转链接' AFTER `image`");
+	}
+}
+
 /**
  * 产品列表。
  * @param string $status   ''=全部，'active'/'inactive'
@@ -76,6 +91,7 @@ function site_product_features_parse($row)
 function site_product_list($status = '', $category = '')
 {
 	global $DB;
+	site_product_ensure_schema();
 	$sql = "SELECT * FROM MN_plugin_site_product";
 	$where = [];
 	$args = [];
@@ -104,6 +120,7 @@ function site_product_list($status = '', $category = '')
 function site_product_get($id)
 {
 	global $DB;
+	site_product_ensure_schema();
 	$row = $DB->get_row_prepare("SELECT * FROM MN_plugin_site_product WHERE id=? LIMIT 1", [(int)$id]) ?: null;
 	if ($row) {
 		$row['features_list'] = site_product_features_parse($row);
@@ -126,6 +143,7 @@ function site_product_save($data)
 		'description' => trim((string)($data['description'] ?? '')),
 		'features'    => json_encode($features, JSON_UNESCAPED_UNICODE),
 		'image'       => trim((string)($data['image'] ?? '')),
+		'link'        => trim((string)($data['link'] ?? '')),
 		'status'      => ($data['status'] ?? 'active') === 'inactive' ? 'inactive' : 'active',
 		'sort'        => max(0, (int)($data['sort'] ?? 50)),
 	];
@@ -139,14 +157,14 @@ function site_product_save($data)
 	$id = (int)($data['id'] ?? 0);
 	if ($id > 0) {
 		$ok = $DB->query_prepare(
-			"UPDATE MN_plugin_site_product SET name=?, category=?, description=?, features=?, image=?, status=?, sort=? WHERE id=?",
-			[$fields['name'], $fields['category'], $fields['description'], $fields['features'], $fields['image'], $fields['status'], $fields['sort'], $id]
+			"UPDATE MN_plugin_site_product SET name=?, category=?, description=?, features=?, image=?, link=?, status=?, sort=? WHERE id=?",
+			[$fields['name'], $fields['category'], $fields['description'], $fields['features'], $fields['image'], $fields['link'], $fields['status'], $fields['sort'], $id]
 		);
 		return $ok ? true : '更新失败';
 	}
 	$ok = $DB->query_prepare(
-		"INSERT INTO MN_plugin_site_product (name, category, description, features, image, status, sort, created_at) VALUES (?,?,?,?,?,?,?,?)",
-		[$fields['name'], $fields['category'], $fields['description'], $fields['features'], $fields['image'], $fields['status'], $fields['sort'], $now]
+		"INSERT INTO MN_plugin_site_product (name, category, description, features, image, link, status, sort, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+		[$fields['name'], $fields['category'], $fields['description'], $fields['features'], $fields['image'], $fields['link'], $fields['status'], $fields['sort'], $now]
 	);
 	return $ok ? true : '新增失败';
 }

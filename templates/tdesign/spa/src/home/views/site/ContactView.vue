@@ -17,21 +17,21 @@
                 <div class="site-contact-icon"><i class="mdi mdi-map-marker-outline"></i></div>
                 <div class="site-contact-text">
                   <h3>公司地址</h3>
-                  <p>北京市朝阳区 · 数据中心园区</p>
+                  <p>{{ boot.contactAddress || '北京市朝阳区 · 数据中心园区' }}</p>
                 </div>
               </div>
               <div class="site-contact-item">
                 <div class="site-contact-icon"><i class="mdi mdi-email-outline"></i></div>
                 <div class="site-contact-text">
                   <h3>服务邮箱</h3>
-                  <p>support@mnbt.example</p>
+                  <p>{{ boot.contactEmail || 'support@mnbt.example' }}</p>
                 </div>
               </div>
               <div class="site-contact-item">
                 <div class="site-contact-icon"><i class="mdi mdi-headset"></i></div>
                 <div class="site-contact-text">
                   <h3>客服支持</h3>
-                  <p>工作日 9:00 - 21:00 · 7×24 工单系统</p>
+                  <p>{{ boot.contactHours || '工作日 9:00 - 21:00 · 7×24 工单系统' }}</p>
                 </div>
               </div>
             </div>
@@ -84,6 +84,7 @@ import { MessagePlugin } from 'tdesign-vue-next'
 import bg3 from '@/shared/assets/bg3.jpg'
 import { submitSiteContact } from '@/home/api/site'
 
+const boot = window.__TD_BOOT__ || {}
 const headerImage = bg3
 
 const form = reactive({ name: '', email: '', phone: '', message: '' })

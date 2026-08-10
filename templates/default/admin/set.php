@@ -596,6 +596,14 @@ function saveHome() {
     home_show_notice: $('#home_show_notice').is(':checked') ? 'true' : 'false',
     home_show_plans: $('#home_show_plans').is(':checked') ? 'true' : 'false',
   };
+  // 主题自定义设置字段（name 以 home_ts_ 开头的 input/textarea/select）
+  document.querySelectorAll('#home_save_form [name^="home_ts_"], input[name^="home_ts_"], textarea[name^="home_ts_"], select[name^="home_ts_"]').forEach(function (el) {
+    if (el.type === 'checkbox') {
+      data[el.name] = el.checked ? 'true' : 'false';
+    } else {
+      data[el.name] = el.value || '';
+    }
+  });
   $.post('./ajax.php', data, function (r) {
     var j = JSON.parse(r);
     msalert(j.code === '修改成功' ? 1 : 4, j.code || '保存失败', 2000);

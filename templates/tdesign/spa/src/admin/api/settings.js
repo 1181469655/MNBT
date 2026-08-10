@@ -64,3 +64,17 @@ export async function uploadHomeIcon(target, file) {
   if (!r.ok) MessagePlugin.error(r.message || '上传失败')
   return r
 }
+
+/** 上传主页自定义图片字段: key 为 image 类型字段 key */
+export async function uploadHomeImage(key, file) {
+  const boot = window.__TD_BOOT__ || {}
+  const url = boot.ajaxBase || './ajax.php'
+  const fd = new FormData()
+  fd.append('gn', 'home_upload_image')
+  fd.append('key', key)
+  fd.append('image', file)
+  const res = await http.post(url, fd)
+  const r = parseResult(res.data)
+  if (!r.ok) MessagePlugin.error(r.message || '上传失败')
+  return r
+}

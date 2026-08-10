@@ -39,6 +39,7 @@ mnbt_register_route('GET', '/site/api/products', function ($params, $ctx) {
 			'description'   => (string)$p['description'],
 			'features'      => $p['features_list'],
 			'image'         => (string)($p['image'] ?? ''),
+			'link'          => (string)($p['link'] ?? ''),
 		];
 	}
 	$cats = [];
@@ -65,6 +66,7 @@ mnbt_register_route('GET', '/site/api/products/{product_id}', function ($params,
 		'description'   => (string)$p['description'],
 		'features'      => $p['features_list'],
 		'image'         => (string)($p['image'] ?? ''),
+		'link'          => (string)($p['link'] ?? ''),
 		'created_at'    => (string)($p['created_at'] ?? ''),
 	]]);
 });
