@@ -40,10 +40,12 @@ MN_docker_node（节点）/ MN_docker_user（账号）/ MN_docker_plan（套餐�
 |----------|------|
 | 服务器 IP | MNBT 域名 |
 | 端口 | 80/443 |
-| 用户名 | 节点编号（`MN_docker_node.id`） |
-| 密码 | `md5(ktmy.qmk)` 调用密钥 |
+| 用户名 | 节点ID（`MN_docker_node.id`） |
+| 密码 | 调用密钥（可留空）（`md5(ktmy.qmk)`） |
 | Access Hash | 系统 API 密钥 |
 | SSL | 按站点 |
+
+![魔方财务对接Docker配置信息示例](/魔方财务对接Docker配置信息示例.png)
 
 ### 方式二：产品配置选项（精确）
 
@@ -51,7 +53,7 @@ MN_docker_node（节点）/ MN_docker_user（账号）/ MN_docker_plan（套餐�
 |-----|------|
 | `api_url` | `https://mnbt.example.com/api/docker.php` |
 | `api_key` | 系统 API 密钥 |
-| `node_id` | 节点编号 |
+| `node_id` | 节点ID |
 | `call_key` | `md5(ktmy.qmk)` |
 | `plan_id` | 默认套餐 ID（可选） |
 | `console_url` | `https://mnbt.example.com/docker/login.php` |
