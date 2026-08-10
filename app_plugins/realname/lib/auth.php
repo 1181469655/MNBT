@@ -398,11 +398,10 @@ function realname_auto_audit($data)
 	}
 	// 5. OCR 一致性：身份证号
 	if ($ocr_id_card !== '' && $ocr_id_card !== $id_card) {
-		return ['status' => 'rejected', 'note' => 'OCR 识别的身份证号与填写不一致'];
+		return ['status' => 'pending', 'note' => 'OCR 身份证号与填写不一致，已转人工复核'];
 	}
 	// 6. OCR 一致性：姓名
 	if ($allow_name_diff) {
-		// 允许不一致 → 直接通过
 		if ($ocr_id_card === '') {
 			return ['status' => 'pending', 'note' => 'OCR 身份证号识别失败，转人工复核'];
 		}
@@ -412,7 +411,7 @@ function realname_auto_audit($data)
 		return ['status' => 'pending', 'note' => 'OCR 姓名识别失败，转人工复核'];
 	}
 	if ($ocr_name !== $real_name) {
-		return ['status' => 'rejected', 'note' => 'OCR 识别的姓名与填写不一致'];
+		return ['status' => 'pending', 'note' => 'OCR 姓名与填写不一致，已转人工复核'];
 	}
 	if ($ocr_id_card === '') {
 		return ['status' => 'pending', 'note' => 'OCR 身份证号识别失败，转人工复核'];
