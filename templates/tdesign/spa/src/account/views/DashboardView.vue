@@ -18,8 +18,8 @@
       </div>
     </div>
 
-    <!-- 业务概览（余额 / 主机 / 订单） -->
-    <div v-if="hasBalance || hasShop" class="overview-grid">
+    <!-- 业务概览（余额 / 主机 / Docker / 订单） -->
+    <div v-if="hasBalance || hasShop || hasDocker" class="overview-grid">
       <div v-if="hasBalance" class="overview-card td-card" @click="router.push('/balance')">
         <div class="overview-icon overview-blue"><i class="mdi mdi-wallet"></i></div>
         <div class="overview-meta">
@@ -41,6 +41,14 @@
         <div class="overview-meta">
           <span class="overview-label">我的订单</span>
           <strong class="overview-value">{{ orderCount }} 笔</strong>
+        </div>
+        <i class="mdi mdi-chevron-right overview-arrow"></i>
+      </div>
+      <div v-if="hasDocker" class="overview-card td-card" @click="router.push('/docker-assets')">
+        <div class="overview-icon overview-purple"><i class="mdi mdi-docker"></i></div>
+        <div class="overview-meta">
+          <span class="overview-label">我的 Docker</span>
+          <strong class="overview-value">{{ dockerAssetCount }} 台</strong>
         </div>
         <i class="mdi mdi-chevron-right overview-arrow"></i>
       </div>
@@ -132,6 +140,38 @@
           </div>
           <i class="mdi mdi-chevron-right quick-arrow"></i>
         </div>
+        <div v-if="hasDocker" class="quick-item" @click="router.push('/docker-shop')">
+          <div class="quick-icon quick-icon-blue"><i class="mdi mdi-cart"></i></div>
+          <div>
+            <strong>Docker 商城</strong>
+            <span>浏览并购买 Docker 容器套餐</span>
+          </div>
+          <i class="mdi mdi-chevron-right quick-arrow"></i>
+        </div>
+        <div v-if="hasDocker" class="quick-item" @click="router.push('/docker-assets')">
+          <div class="quick-icon quick-icon-green"><i class="mdi mdi-docker"></i></div>
+          <div>
+            <strong>我的 Docker</strong>
+            <span>管理已开通的 Docker 账号</span>
+          </div>
+          <i class="mdi mdi-chevron-right quick-arrow"></i>
+        </div>
+        <div v-if="hasDocker" class="quick-item" @click="router.push('/docker-orders')">
+          <div class="quick-icon quick-icon-orange"><i class="mdi mdi-receipt"></i></div>
+          <div>
+            <strong>Docker 订单</strong>
+            <span>查看 Docker 订单与支付状态</span>
+          </div>
+          <i class="mdi mdi-chevron-right quick-arrow"></i>
+        </div>
+        <a v-if="hasDocker && dockerUrl" class="quick-item" :href="dockerUrl" target="_blank" rel="noopener">
+          <div class="quick-icon quick-icon-purple"><i class="mdi mdi-docker"></i></div>
+          <div>
+            <strong>Docker 控制台</strong>
+            <span>进入 Docker 业务管理界面</span>
+          </div>
+          <i class="mdi mdi-chevron-right quick-arrow"></i>
+        </a>
         <a v-if="panelUrl" class="quick-item" :href="panelUrl">
           <div class="quick-icon quick-icon-green"><i class="mdi mdi-server"></i></div>
           <div>
@@ -156,21 +196,24 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { pluginEnabled, getBalanceInfo, getShopAssets, getShopOrders, centsToYuan } from '@/account/api/plugins'
+import { pluginEnabled, getBalanceInfo, getShopAssets, getShopOrders, getDockerShopAssets, centsToYuan } from '@/account/api/plugins'
 
 const router = useRouter()
 const boot = window.__TD_BOOT__ || {}
 const siteName = boot.siteName || 'MNBT'
 const panelUrl = boot.panelUrl || ''
+const dockerUrl = boot.dockerUrl || ''
 const homeUrl = boot.homeUrl || ''
 const user = boot.accountUser || { username: boot.user || 'user', email: '', qq: '', created_at: '' }
 
 const hasBalance = pluginEnabled('balance')
 const hasShop = pluginEnabled('hosting_shop')
+const hasDocker = pluginEnabled('docker_shop')
 
 const balanceCents = ref(0)
 const assetCount = ref(0)
 const orderCount = ref(0)
+const dockerAssetCount = ref(0)
 
 const balanceText = computed(() => centsToYuan(balanceCents.value))
 
@@ -181,6 +224,7 @@ onMounted(async () => {
     tasks.push(getShopAssets())
     tasks.push(getShopOrders(1, 1))
   }
+  if (hasDocker) tasks.push(getDockerShopAssets())
   const results = await Promise.all(tasks)
   let idx = 0
   if (hasBalance) {
@@ -192,6 +236,10 @@ onMounted(async () => {
     if (assetRes.ok) assetCount.value = (assetRes.data.assets || []).length
     const orderRes = results[idx++]
     if (orderRes.ok) orderCount.value = (orderRes.data.orders || {}).total || 0
+  }
+  if (hasDocker) {
+    const dockerRes = results[idx++]
+    if (dockerRes.ok) dockerAssetCount.value = (dockerRes.data.assets || []).length
   }
 })
 </script>
@@ -272,6 +320,7 @@ onMounted(async () => {
 .overview-blue { background: #e8f3ff; color: #0052d9; }
 .overview-green { background: #e8f8f0; color: #2ba471; }
 .overview-orange { background: #fff3e0; color: #e37318; }
+.overview-purple { background: #f3e8ff; color: #7a4dd0; }
 .overview-meta {
   flex: 1;
   min-width: 0;

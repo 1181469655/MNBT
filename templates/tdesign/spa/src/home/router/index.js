@@ -5,14 +5,9 @@ const HomeLayout = () => import('@/home/layouts/HomeLayout.vue')
 const LandingView = () => import('@/home/views/LandingView.vue')
 const LoginView = () => import('@/home/views/auth/LoginView.vue')
 const RegisterView = () => import('@/home/views/auth/RegisterView.vue')
-const ProfileView = () => import('@/home/views/auth/ProfileView.vue')
-const PasswordView = () => import('@/home/views/auth/PasswordView.vue')
 const ShopView = () => import('@/home/views/shop/ShopView.vue')
-const OrderView = () => import('@/home/views/shop/OrderView.vue')
-const AssetsView = () => import('@/home/views/shop/AssetsView.vue')
-const OrdersView = () => import('@/home/views/shop/OrdersView.vue')
-const BalanceView = () => import('@/home/views/balance/BalanceView.vue')
-const RechargeView = () => import('@/home/views/balance/RechargeView.vue')
+// Docker 售卖（docker_shop 插件）
+const DockerShopView = () => import('@/home/views/docker/DockerShopView.vue')
 // 官网内容（official_site 插件）
 const AboutView = () => import('@/home/views/site/AboutView.vue')
 const SiteProductsView = () => import('@/home/views/site/products/ProductsView.vue')
@@ -29,14 +24,9 @@ const routes = [
       { path: '', name: 'home-landing', component: LandingView, meta: { title: '' } },
       { path: 'login', name: 'home-login', component: LoginView, meta: { title: '登录', guest: true, cap: 'user' } },
       { path: 'register', name: 'home-register', component: RegisterView, meta: { title: '注册', guest: true, cap: 'user' } },
-      { path: 'profile', name: 'home-profile', component: ProfileView, meta: { title: '个人信息', auth: true, cap: 'user' } },
-      { path: 'password', name: 'home-password', component: PasswordView, meta: { title: '修改密码', auth: true, cap: 'user' } },
       { path: 'shop', name: 'home-shop', component: ShopView, meta: { title: '主机套餐', cap: 'shop' } },
-      { path: 'shop/order/:planId', name: 'home-order', component: OrderView, meta: { title: '购买套餐', auth: true, cap: 'shop' } },
-      { path: 'shop/assets', name: 'home-assets', component: AssetsView, meta: { title: '我的主机', auth: true, cap: 'shop' } },
-      { path: 'shop/orders', name: 'home-orders', component: OrdersView, meta: { title: '我的订单', auth: true, cap: 'shop' } },
-      { path: 'balance', name: 'home-balance', component: BalanceView, meta: { title: '我的余额', auth: true, cap: 'balance' } },
-      { path: 'balance/recharge', name: 'home-recharge', component: RechargeView, meta: { title: '余额充值', auth: true, cap: 'balance' } },
+      // Docker 售卖（docker_shop 插件）
+      { path: 'docker-shop', name: 'home-docker-shop', component: DockerShopView, meta: { title: 'Docker 套餐', cap: 'docker' } },
       // 官网内容（official_site 插件）
       { path: 'about', name: 'home-about', component: AboutView, meta: { title: '关于我们', cap: 'site' } },
       { path: 'site/products', name: 'home-site-products', component: SiteProductsView, meta: { title: '产品中心', cap: 'site' } },
@@ -78,7 +68,7 @@ router.beforeEach(async (to, _from, next) => {
     next('/')
     return
   }
-  if (cap === 'balance' && boot.hasBalance === false) {
+  if (cap === 'docker' && boot.hasDocker === false) {
     next('/')
     return
   }

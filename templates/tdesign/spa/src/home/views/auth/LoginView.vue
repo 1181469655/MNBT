@@ -36,12 +36,11 @@
 
 <script setup>
 import { ref, reactive } from 'vue'
-import { useRouter } from 'vue-router'
 import { MessagePlugin } from 'tdesign-vue-next'
 import { login } from '@/home/api/account'
-import { initAuth } from '@/home/store/auth'
+import { initAuth, authState } from '@/home/store/auth'
+import { accountUrl } from '@/home/utils/account'
 
-const router = useRouter()
 const formRef = ref(null)
 const loading = ref(false)
 const errorMsg = ref('')
@@ -64,8 +63,10 @@ async function onSubmit({ validateResult }) {
     const res = await login(formData.username, formData.password)
     if (res.ok) {
       MessagePlugin.success('登录成功')
-      await initAuth()
-      router.push('/')
+      // 强制重新探测登录态：避免路由守卫并发 initAuth 早退导致登录态未刷新
+      await initAuth(true)
+      // 跳转到用户中心（account SPA 个人资料页）
+      window.location.href = accountUrl('profile')
     } else {
       errorMsg.value = res.message || '登录失败'
     }

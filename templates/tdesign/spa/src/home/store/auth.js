@@ -12,9 +12,11 @@ export const authState = reactive({
   initialized: false,
 })
 
-/** 探测当前登录态（不弹窗） */
-export async function initAuth() {
-  if (authState.loading) return authState
+/** 探测当前登录态（不弹窗）
+ * @param {boolean} force 强制重新探测；false 时若已有探测在途则复用，避免并发早退
+ */
+export async function initAuth(force = false) {
+  if (authState.loading && !force) return authState
   authState.loading = true
   try {
     const res = await getMe()

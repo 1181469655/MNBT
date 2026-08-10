@@ -14,13 +14,10 @@
             <li v-if="boot.hasSite"><router-link to="/site/products" active-class="active">产品中心</router-link></li>
             <li v-if="boot.hasSite"><router-link to="/site/news" active-class="active">新闻资讯</router-link></li>
             <li v-if="boot.hasSite"><router-link to="/site/contact" active-class="active">联系我们</router-link></li>
-            <li v-if="!boot.hasSite && boot.hasShop"><router-link to="/shop" active-class="active">主机套餐</router-link></li>
-            <li v-if="authState.loggedIn && boot.hasShop"><router-link to="/shop/assets" active-class="active">我的主机</router-link></li>
-            <li v-if="authState.loggedIn && boot.hasBalance"><router-link to="/balance" active-class="active">我的余额</router-link></li>
           </ul>
           <div class="hd-nav-actions">
             <template v-if="authState.loggedIn">
-              <a v-if="boot.hasUser" :href="accountUrl" class="hd-account-link" title="进入用户中心">
+              <a v-if="boot.hasUser" :href="accountUrl()" class="hd-account-link" title="进入用户中心">
                 <i class="mdi mdi-account-circle-outline"></i><span>{{ authState.user?.username }}</span>
               </a>
               <span v-else class="hd-user-name">{{ authState.user?.username }}</span>
@@ -64,7 +61,6 @@
             <ul>
               <li><router-link to="/">首页</router-link></li>
               <li v-if="boot.hasSite"><router-link to="/about">关于我们</router-link></li>
-              <li v-if="boot.hasShop"><router-link to="/shop">主机套餐</router-link></li>
               <li v-if="boot.hasSite"><router-link to="/site/news">新闻资讯</router-link></li>
               <li v-if="boot.hasSite"><router-link to="/site/contact">联系我们</router-link></li>
             </ul>
@@ -107,6 +103,7 @@ import { ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { MessagePlugin } from 'tdesign-vue-next'
 import authState from '@/home/store/auth'
+import { accountUrl } from '@/home/utils/account'
 
 const boot = window.__TD_BOOT__ || {}
 const menuOpen = ref(false)
@@ -122,9 +119,6 @@ function onLogout() {
   window.location.href = (boot.routeBase || '/index.php?_r=') + 'account/logout'
   MessagePlugin.success('已退出登录')
 }
-
-// 用户中心（user_info 插件独立后台）
-const accountUrl = (boot.routeBase || '/index.php?_r=') + 'account'
 
 function scrollToTop() {
   window.scrollTo({ top: 0, behavior: 'smooth' })

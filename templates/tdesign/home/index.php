@@ -4,7 +4,7 @@
  *
  * 由 MPHX/frontend.php 的 mnbt_home_render() 渲染，注入 mnbt_home_data() 变量：
  *   $site_title / $site_logo / $site_primary / $site_hero / $site_footer / $favicon
- *   $notice / $show_notice / $show_plans / $logged_in / $has_shop / $has_user / $has_site
+ *   $notice / $show_notice / $show_plans / $logged_in / $has_shop / $has_user / $has_site / $has_docker
  *   $plans（套餐卡）/ $blocks（插件扩展区块）
  *   $url($path) 路由 URL / $coreUrl($path) 核心文件 URL
  *
@@ -60,6 +60,7 @@ $boot = [
 	'hasBalance'   => !empty($has_balance),
 	'hasUser'      => !empty($has_user),
 	'hasSite'      => !empty($has_site),
+	'hasDocker'    => !empty($has_docker),
 	'plans'        => $plans ?? [],
 	'blocks'       => $blocks ?? [],
 	'base'         => function_exists('mnbt_home_base') ? mnbt_home_base() : '',

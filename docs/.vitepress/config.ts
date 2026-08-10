@@ -87,6 +87,7 @@ export default defineConfig({
           { text: 'user_info 用户信息', link: '/development/plugin/builtin/user-info' },
           { text: 'balance 余额管理', link: '/development/plugin/builtin/balance' },
           { text: 'hosting_shop 主机售卖', link: '/development/plugin/builtin/hosting-shop' },
+          { text: 'docker_shop Docker 售卖', link: '/development/plugin/builtin/docker-shop' },
           { text: 'epay 易支付', link: '/development/plugin/builtin/epay' },
           { text: 'alipay_official 支付宝', link: '/development/plugin/builtin/alipay-official' },
           { text: 'webhook_notify 通知', link: '/development/plugin/builtin/webhook-notify' },
@@ -111,6 +112,7 @@ export default defineConfig({
           { text: 'Docker × 魔方财务 PRD', link: '/prd/docker-idcsmart' },
           { text: '虚拟主机 × 魔方财务 PRD', link: '/prd/hosting-idcsmart' },
           { text: 'Docker 测试文档', link: '/prd/docker-test' },
+          { text: 'docker_shop Docker 售卖 PRD', link: '/prd/docker-shop' },
         ]},
       ],
       '/store/': [

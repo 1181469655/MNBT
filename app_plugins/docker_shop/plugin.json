@@ -1,0 +1,10 @@
+{
+  "id": "docker_shop",
+  "name": "Docker 售卖",
+  "version": "1.0.0",
+  "author": "MNBT",
+  "description": "Docker 容器售卖：管理员配置售卖套餐（绑定 Docker 配额套餐与固定节点、设置周期价格），用户购买后自动开通 Docker 账号，可在控制台创建容器。依赖 user_info 与 balance 插件。",
+  "requires_mnbt": "1.83",
+  "requires_plugins": ["user_info", "balance"],
+  "type": ["business"]
+}

@@ -1,0 +1,60 @@
+/* docker_shop Layui 风格覆盖（与 hosting_shop 共用 hs-* 语义类） */
+.hs-navbar{background:#1e9fff;}
+.ly-nav{color:#fff;padding:0 16px;height:54px;display:flex;align-items:center;}
+.ly-nav-inner{max-width:1060px;margin:0 auto;width:100%;display:flex;align-items:center;justify-content:space-between;}
+.ly-nav-brand{color:#fff;font-size:17px;font-weight:700;text-decoration:none;letter-spacing:.5px;}
+.ly-nav-brand:hover{color:#fff;text-decoration:none;}
+.ly-nav-links a{color:rgba(255,255,255,.85);font-size:14px;margin-left:22px;text-decoration:none;transition:color .15s;}
+.ly-nav-links a:hover{color:#fff;text-decoration:none;}
+.ly-page-wide{max-width:1060px;margin:30px auto;padding:0 16px;}
+.ly-msg{display:none;padding:10px 16px;border-radius:4px;margin-bottom:16px;font-size:14px;}
+.ly-msg.show{display:block;}
+.ly-msg-success{background:#e8f5e9;color:#2e7d32;border:1px solid #c8e6c9;}
+.ly-msg-error{background:#ffebee;color:#c62828;border:1px solid #ffcdd2;}
+.hs-section{margin-bottom:20px;text-align:center;}
+.hs-section h1{font-size:24px;color:#222;margin:0 0 6px;}
+.hs-section p{color:#888;font-size:14px;}
+.hs-plan-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-bottom:20px;}
+.hs-plan-card{background:#fff;border:1px solid #e8e8e8;border-radius:8px;overflow:hidden;transition:box-shadow .15s;}
+.hs-plan-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.08);}
+.hs-plan-head{background:#f9fafb;padding:20px 20px 14px;border-bottom:1px solid #eee;}
+.hs-plan-head h2{font-size:18px;color:#222;margin:0;}
+.hs-plan-tag{display:inline-block;padding:2px 10px;font-size:11px;background:#e6f4ff;color:#1e9fff;border-radius:10px;margin-top:6px;}
+.hs-plan-desc{padding:14px 20px;font-size:13px;color:#666;line-height:1.7;}
+.hs-plan-spec{list-style:none;margin:0;padding:0 20px 10px;}
+.hs-plan-spec li{display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-bottom:1px dashed #f0f0f0;}
+.hs-plan-spec li span{color:#888;}
+.hs-plan-spec li b{color:#222;font-weight:600;}
+.hs-plan-price{display:flex;gap:14px;padding:12px 20px;background:#fafbfc;border-top:1px solid #f0f0f0;flex-wrap:wrap;}
+.hs-price-item{display:flex;align-items:center;gap:4px;font-size:12px;}
+.hs-price-label{background:#e8e8e8;color:#666;padding:1px 6px;border-radius:3px;}
+.hs-price-value{font-size:18px;font-weight:700;color:#1e9fff;}
+.hs-plan-buy{display:block;margin:0 20px 20px;text-align:center;}
+.hs-plan-buy .layui-btn{width:100%;}
+.ly-table{width:100%;border-collapse:collapse;font-size:13px;}
+.ly-table th{background:#fafafa;padding:10px 12px;text-align:left;color:#666;font-weight:600;border-bottom:2px solid #e6e6e6;}
+.ly-table td{padding:10px 12px;border-bottom:1px solid #f0f0f0;color:#333;}
+.ly-mono{font-family:Consolas,Monaco,monospace;font-size:12px;}
+.ly-status{display:inline-block;padding:2px 10px;border-radius:10px;font-size:11px;font-weight:500;}
+.ly-status-active,.ly-status-paid,.ly-status-opened{background:#e8f5e9;color:#2e7d32;}
+.ly-status-pending{background:#fff3e0;color:#e65100;}
+.ly-status-expired,.ly-status-failed,.ly-status-cancelled{background:#ffebee;color:#c62828;}
+.ly-pager{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:16px;padding:12px;font-size:13px;}
+.ly-pager a{color:#1e9fff;text-decoration:none;padding:4px 12px;border:1px solid #ddd;border-radius:3px;}
+.ly-pager a:hover{border-color:#1e9fff;background:#f0f8ff;}
+.ly-pager-info{color:#888;}
+@media(max-width:600px){.hs-plan-grid{grid-template-columns:1fr;}}
+
+/* 订单页原生表单样式（不依赖 layui.form.render） */
+.hs-order-form .layui-form-label{width:90px;padding:9px 10px;text-align:right;box-sizing:border-box;}
+.hs-order-form .layui-input-block{margin-left:110px;min-height:36px;line-height:36px;}
+.hs-form-choices{display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
+.hs-choice{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:#f7f9fa;border:1px solid #e4e7ed;border-radius:6px;cursor:pointer;font-size:14px;color:#333;transition:border-color .15s,background .15s;}
+.hs-choice:hover{border-color:#1e9fff;background:#f0f8ff;}
+.hs-choice input[type="radio"]{margin:0;cursor:pointer;}
+.hs-choice.active{border-color:#1e9fff;background:#e6f4ff;color:#1e9fff;}
+@media(max-width:600px){
+  .hs-order-form .layui-form-label{width:auto;display:block;text-align:left;padding-left:0;}
+  .hs-order-form .layui-input-block{margin-left:0;}
+  .hs-form-choices{gap:8px;}
+}

@@ -114,6 +114,39 @@
             </li>
           </ul>
         </template>
+
+        <!-- Docker -->
+        <template v-if="hasDocker">
+          <div class="td-side-group" v-show="!sidebarCollapsed || isMobile">
+            <div class="td-side-group-label">
+              <i class="mdi mdi-docker"></i>
+              <span>Docker</span>
+            </div>
+          </div>
+          <ul class="td-side-menu">
+            <li class="td-side-item">
+              <router-link to="/docker-shop" custom v-slot="{ navigate, isActive }">
+                <a href="javascript:;" :class="{ active: isActive }" @click="navigate">
+                  <i class="mdi mdi-cart"></i><span>Docker 商城</span>
+                </a>
+              </router-link>
+            </li>
+            <li class="td-side-item">
+              <router-link to="/docker-assets" custom v-slot="{ navigate, isActive }">
+                <a href="javascript:;" :class="{ active: isActive }" @click="navigate">
+                  <i class="mdi mdi-docker"></i><span>我的 Docker</span>
+                </a>
+              </router-link>
+            </li>
+            <li class="td-side-item">
+              <router-link to="/docker-orders" custom v-slot="{ navigate, isActive }">
+                <a href="javascript:;" :class="{ active: isActive }" @click="navigate">
+                  <i class="mdi mdi-receipt"></i><span>Docker 订单</span>
+                </a>
+              </router-link>
+            </li>
+          </ul>
+        </template>
       </div>
 
       <!-- 底部用户卡 -->
@@ -131,6 +164,9 @@
       </div>
       <a v-show="!sidebarCollapsed || isMobile" :href="panelUrl || 'javascript:;'" class="td-side-panel-link">
         <i class="mdi mdi-server"></i><span>进入主机管理面板</span>
+      </a>
+      <a v-if="hasDocker && dockerUrl" v-show="!sidebarCollapsed || isMobile" :href="dockerUrl" class="td-side-panel-link" target="_blank" rel="noopener">
+        <i class="mdi mdi-docker"></i><span>进入 Docker 控制台</span>
       </a>
     </aside>
 
@@ -191,11 +227,13 @@ const boot = window.__TD_BOOT__ || {}
 
 const siteName = boot.siteName || 'MNBT'
 const panelUrl = boot.panelUrl || ''
+const dockerUrl = boot.dockerUrl || ''
 const homeUrl = boot.homeUrl || ''
 const userName = boot.accountUser?.username || boot.user || 'user'
 
 const hasBalance = pluginEnabled('balance')
 const hasShop = pluginEnabled('hosting_shop')
+const hasDocker = pluginEnabled('docker_shop')
 
 const sidebarCollapsed = ref(false)
 const mobileOpen = ref(false)
@@ -213,6 +251,7 @@ const userMenuOptions = computed(() => {
   ]
   if (hasBalance) list.push({ content: '余额中心', value: 'balance' })
   if (hasShop) list.push({ content: '主机商城', value: 'shop' })
+  if (hasDocker) list.push({ content: 'Docker 商城', value: 'docker-shop' })
   list.push({ content: '退出登录', value: 'logout', theme: 'error' })
   return list
 })
@@ -263,6 +302,7 @@ function onUserMenuClick(item) {
     password: '/password',
     balance: '/balance',
     shop: '/shop',
+    'docker-shop': '/docker-shop',
   }
   if (targets[v]) router.push(targets[v])
 }

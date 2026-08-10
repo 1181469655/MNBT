@@ -115,6 +115,7 @@ function mnbt_home_data(): array
 		'has_balance'   => function_exists('mnbt_plugin_enabled') && mnbt_plugin_enabled('balance'),
 		'has_user'      => function_exists('mnbt_plugin_enabled') && mnbt_plugin_enabled('user_info'),
 		'has_site'      => function_exists('mnbt_plugin_enabled') && mnbt_plugin_enabled('official_site'),
+		'has_docker'    => function_exists('mnbt_plugin_enabled') && mnbt_plugin_enabled('docker_shop'),
 		// 业务数据
 		'plans'         => [],
 		'blocks'        => [],

@@ -45,12 +45,11 @@
 
 <script setup>
 import { ref, reactive } from 'vue'
-import { useRouter } from 'vue-router'
 import { MessagePlugin } from 'tdesign-vue-next'
 import { register } from '@/home/api/account'
 import { initAuth } from '@/home/store/auth'
+import { accountUrl } from '@/home/utils/account'
 
-const router = useRouter()
 const formRef = ref(null)
 const loading = ref(false)
 const errorMsg = ref('')
@@ -95,8 +94,9 @@ async function onSubmit({ validateResult }) {
     })
     if (res.ok) {
       MessagePlugin.success('注册成功')
-      await initAuth()
-      router.push('/')
+      // 注册成功后自动登录，强制刷新登录态避免并发早退；跳转到用户中心
+      await initAuth(true)
+      window.location.href = accountUrl('profile')
     } else {
       errorMsg.value = res.message || '注册失败'
     }

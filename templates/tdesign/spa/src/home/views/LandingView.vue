@@ -80,7 +80,49 @@
                 <li v-if="!plan.feats || plan.feats.length === 0"><span class="ok">✓</span>高性能节点资源</li>
                 <li v-if="!plan.feats || plan.feats.length === 0"><span class="ok">✓</span>一键开通部署</li>
               </ul>
-              <t-button block theme="primary" size="large" @click="$router.push('/shop/order/' + plan.id)">立即购买</t-button>
+              <t-button block theme="primary" size="large" @click="goBuy('shop')">立即购买</t-button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Docker 售卖区（docker_shop 插件） -->
+    <section v-if="boot.hasDocker" class="plans-section section">
+      <div class="container">
+        <div class="section-header">
+          <h2 class="section-title">Docker 容器套餐</h2>
+          <p class="section-subtitle">轻量级容器服务，秒级部署，按需扩展</p>
+          <router-link to="/docker-shop" class="more-news">查看全部 Docker 套餐 ›</router-link>
+        </div>
+        <div v-if="dockerPlans.length === 0" class="hd-empty">
+          <i class="mdi mdi-docker"></i>
+          <p>暂无可购买的 Docker 套餐，请联系管理员</p>
+        </div>
+        <div v-else class="hd-plans">
+          <div
+            v-for="(plan, i) in dockerPlans.slice(0, 3)"
+            :key="plan.id"
+            class="hd-plan-card"
+            :class="{ pop: i === 1 }"
+          >
+            <div class="hd-plan-top">
+              <span v-if="i === 1" class="hd-plan-chip">推荐</span>
+              <h3>{{ plan.name }}</h3>
+              <div class="hd-plan-desc">{{ plan.description || 'Docker 容器服务，即买即用' }}</div>
+            </div>
+            <div class="hd-plan-body">
+              <div class="hd-plan-price">
+                <div class="num">{{ dockerPriceText(plan) }}</div>
+                <div class="sub">{{ plan.node?.name ? '开通节点：' + plan.node.name : '自动分配节点' }}</div>
+              </div>
+              <ul class="hd-plan-feats">
+                <li><span class="ok">✓</span>CPU {{ dockerSpecText(plan.base_plan, 'cpu') }}</li>
+                <li><span class="ok">✓</span>内存 {{ dockerSpecText(plan.base_plan, 'mem') }}</li>
+                <li><span class="ok">✓</span>磁盘 {{ dockerSpecText(plan.base_plan, 'disk') }}</li>
+                <li><span class="ok">✓</span>代理 {{ dockerSpecText(plan.base_plan, 'proxy') }}</li>
+              </ul>
+              <t-button block theme="primary" size="large" @click="goBuy('docker-shop')">立即购买</t-button>
             </div>
           </div>
         </div>
@@ -179,7 +221,9 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import authState from '@/home/store/auth'
 import { getSiteNews } from '@/home/api/site'
+import { getDockerPlans } from '@/home/api/docker'
 import { formatDate } from '@/home/utils/format'
+import { accountUrl } from '@/home/utils/account'
 import bg1 from '@/shared/assets/bg1.jpg'
 import bg2 from '@/shared/assets/bg2.jpg'
 import bg3 from '@/shared/assets/bg3.jpg'
@@ -188,14 +232,52 @@ const boot = window.__TD_BOOT__ || {}
 
 const plans = computed(() => boot.plans || [])
 
+// Docker 售卖套餐（客户端加载，docker_shop 插件）
+const dockerPlans = ref([])
+function dockerPriceText(plan) {
+  if (!plan.prices) return '免费'
+  let min = 0
+  for (const cents of Object.values(plan.prices)) {
+    if (cents > 0 && (min === 0 || cents < min)) min = cents
+  }
+  return min > 0 ? '¥' + (min / 100).toFixed(2) + ' 起' : '免费'
+}
+function dockerSpecText(base, key) {
+  if (!base) return '—'
+  if (key === 'cpu') {
+    const v = Number(base.cpu_max)
+    return v > 0 ? v + ' 核' : '—'
+  }
+  if (key === 'mem' || key === 'disk') {
+    const mb = Number(key === 'mem' ? base.mem_max : base.disk_max)
+    if (!mb) return '—'
+    return mb >= 1024 ? mb / 1024 + ' GB' : mb + ' MB'
+  }
+  if (key === 'proxy') {
+    const v = Number(base.proxy_max)
+    return v > 0 ? v + ' 个' : '不限'
+  }
+  return '—'
+}
+
 // hero 按钮路由：优先官网产品页，无官网插件则回退套餐/登录
 const productsUrl = computed(() =>
   boot.hasSite ? '/site/products' : (boot.hasShop ? '/shop' : '/')
 )
+// 已登录用户点“关于我们”时直接进入用户中心（account SPA）
 const aboutUrl = computed(() =>
   boot.hasSite ? '/about'
-    : (boot.hasUser ? (authState.loggedIn ? '/profile' : '/login') : '/')
+    : (boot.hasUser ? (authState.loggedIn ? accountUrl('profile') : '/login') : '/')
 )
+
+// 购买统一跳转 account SPA 商城（hosting_shop → shop，docker_shop → docker-shop）
+function goBuy(module) {
+  if (!authState.loggedIn) {
+    window.location.href = accountUrl()
+    return
+  }
+  window.location.href = accountUrl(module)
+}
 
 // 三张轮播文案：优先使用后台「主页内容」配置，未配置时回退内置默认
 const defaultBannerTexts = [
@@ -275,6 +357,12 @@ onMounted(async () => {
     const res = await getSiteNews({ page: 1, perPage: 3 })
     if (res.ok && res.data?.news) {
       newsList.value = res.data.news
+    }
+  }
+  if (boot.hasDocker) {
+    const res = await getDockerPlans()
+    if (res.ok && res.data?.plans) {
+      dockerPlans.value = res.data.plans
     }
   }
 })

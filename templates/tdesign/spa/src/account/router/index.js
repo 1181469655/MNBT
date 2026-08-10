@@ -71,6 +71,24 @@ const routes = [
         component: () => import('@/account/views/OrdersView.vue'),
         meta: { title: '我的订单', requiresAuth: true },
       },
+      {
+        path: 'docker-shop',
+        name: 'docker-shop',
+        component: () => import('@/account/views/DockerShopView.vue'),
+        meta: { title: 'Docker 商城', requiresAuth: true },
+      },
+      {
+        path: 'docker-assets',
+        name: 'docker-assets',
+        component: () => import('@/account/views/DockerAssetsView.vue'),
+        meta: { title: '我的 Docker', requiresAuth: true },
+      },
+      {
+        path: 'docker-orders',
+        name: 'docker-orders',
+        component: () => import('@/account/views/DockerOrdersView.vue'),
+        meta: { title: 'Docker 订单', requiresAuth: true },
+      },
     ],
   },
   {

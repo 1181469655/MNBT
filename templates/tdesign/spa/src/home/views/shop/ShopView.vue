@@ -30,7 +30,7 @@
                 <li v-if="plan.spec_flow"><span class="ok">✓</span>月流量 {{ plan.spec_flow }} GB</li>
                 <li v-if="plan.spec_domain"><span class="ok">✓</span>可绑定 {{ plan.spec_domain }} 个域名</li>
               </ul>
-              <t-button block theme="primary" @click="$router.push('/shop/order/' + plan.id)">立即购买</t-button>
+              <t-button block theme="primary" @click="goBuy">立即购买</t-button>
             </div>
           </div>
         </div>
@@ -42,7 +42,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { getPlans } from '@/home/api/shop'
-import { periodLabels } from '@/home/utils/format'
+import { accountUrl } from '@/home/utils/account'
 
 const loading = ref(true)
 const plans = ref([])
@@ -68,4 +68,9 @@ onMounted(async () => {
   }
   loading.value = false
 })
+
+// 购买统一跳转 account SPA 的主机商城（下单/支付在 account 完成）
+function goBuy() {
+  window.location.href = accountUrl('shop')
+}
 </script>

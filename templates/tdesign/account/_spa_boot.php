@@ -44,9 +44,12 @@ $boot = [
 	'plugins'     => [
 		'balance'      => function_exists('mnbt_plugin_enabled') ? mnbt_plugin_enabled('balance') : false,
 		'hosting_shop' => function_exists('mnbt_plugin_enabled') ? mnbt_plugin_enabled('hosting_shop') : false,
+		'docker_shop'  => function_exists('mnbt_plugin_enabled') ? mnbt_plugin_enabled('docker_shop') : false,
 	],
 	// 主机管理面板入口（核心 user scope）
 	'panelUrl'    => $td_base . '/user/',
+	// Docker 控制台入口（核心 docker scope）
+	'dockerUrl'   => $td_base . '/docker/',
 	// 官网首页入口
 	'homeUrl'     => $td_base . '/',
 	'theme'       => $td_theme,
