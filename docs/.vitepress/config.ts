@@ -83,6 +83,7 @@ export default defineConfig({
           { text: '钩子与数据库', link: '/development/plugin/hooks' },
         ]},
         { text: '内置插件', items: [
+          { text: '内置插件总览', link: '/development/plugin/builtin/' },
           { text: 'user_info 用户信息', link: '/development/plugin/builtin/user-info' },
           { text: 'balance 余额管理', link: '/development/plugin/builtin/balance' },
           { text: 'hosting_shop 主机售卖', link: '/development/plugin/builtin/hosting-shop' },
