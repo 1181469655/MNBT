@@ -1,0 +1,10 @@
+{
+  "id": "zjmfmanager_reserve",
+  "name": "魔方财务代理分销",
+  "version": "1.0.0",
+  "author": "启明智联",
+  "description": "以代理商身份分销魔方财务产品：商品同步加价、本地余额购买、代理商直通开通、主机管理与升降级。依赖 user_info 与 balance 插件。",
+  "requires_mnbt": "1.81",
+  "requires_plugins": ["user_info", "balance"],
+  "type": ["business"]
+}
