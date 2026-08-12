@@ -1403,9 +1403,14 @@ class bt_api
     private function HttpPostCookie($url, $data, $timeout = 60, $connectTimeout = 10)
     {
         $cookie_file = ROOT . 'api/cookie/' . md5($this->BT_PANEL) . '.cookie';
+        if (!is_dir(dirname($cookie_file))) {
+            @mkdir(dirname($cookie_file), 0755, true);
+        }
         if (!file_exists($cookie_file)) {
             $fp = fopen($cookie_file, 'w+');
-            fclose($fp);
+            if (is_resource($fp)) {
+                fclose($fp);
+            }
         }
 
         $ch = curl_init();

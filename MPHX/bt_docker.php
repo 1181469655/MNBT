@@ -344,7 +344,9 @@ class bt_docker
         }
         if (!file_exists($cookie_file)) {
             $fp = fopen($cookie_file, 'w+');
-            fclose($fp);
+            if (is_resource($fp)) {
+                fclose($fp);
+            }
         }
 
         $ch = curl_init();
