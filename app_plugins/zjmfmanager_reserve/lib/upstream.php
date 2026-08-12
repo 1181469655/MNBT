@@ -100,14 +100,33 @@ class ZjmfUpstream
 		}
 		try {
 			$upId = (int)$upProductId;
-			$detail = $client->productDetail($upId, 'agent');
-			$prod = $detail['data']['product'] ?? ($detail['data'] ?? []);
-			$item = [
-				'id'          => $upId,
-				'name'        => (string)($prod['name'] ?? ''),
-				'description' => (string)($prod['description'] ?? ''),
-			];
-			$currency = (string)($detail['data']['currency_code'] ?? '');
+			// 优先从列表取真实条目（含 billingcycle/price 等周期信息），失败再退回详情
+			$item = null;
+			$currency = '';
+			try {
+				$res = $client->productList();
+				if (($res['status'] ?? 0) == 200 && !empty($res['data']['list'])) {
+					$currency = (string)($res['data']['currency_code'] ?? '');
+					foreach ($res['data']['list'] as $row) {
+						if ((int)($row['id'] ?? 0) === $upId) {
+							$item = $row;
+							break;
+						}
+					}
+				}
+			} catch (CubeFinanceException $e) {
+				// 列表失败忽略，退回详情
+			}
+			if (!$item) {
+				$detail = $client->productDetail($upId, 'agent');
+				$prod = $detail['data']['product'] ?? ($detail['data'] ?? []);
+				$item = [
+					'id'          => $upId,
+					'name'        => (string)($prod['name'] ?? ''),
+					'description' => (string)($prod['description'] ?? ''),
+				];
+				$currency = (string)($detail['data']['currency_code'] ?? $currency);
+			}
 			$ok = self::syncOneProduct(
 				$client, (int)($supplier['id'] ?? 0), $upId, $item, $currency
 			);
@@ -194,8 +213,9 @@ class ZjmfUpstream
 		global $DB, $date;
 		$now = $date ?: date('Y-m-d H:i:s');
 
-		// 代理价（详情接口）
+		// 代理价（详情接口，失败回退列表项 price）
 		$agentCents = 0;
+		$detail = null;
 		try {
 			$detail = $client->productDetail($upId, 'agent');
 			$prod = $detail['data']['product'] ?? ($detail['data'] ?? []);
@@ -203,27 +223,51 @@ class ZjmfUpstream
 		} catch (CubeFinanceException $e) {
 			// 详情失败不致命，仅代理价缺失
 		}
+		if ($agentCents <= 0) {
+			$agentCents = self::itemPrice($item);
+		}
 
-		// 各周期试算价
-		$cycles = [];
-		foreach (zjmf_cycles() as $cycle => $cfg) {
-			try {
-				$trial = $client->cartSetConfig(['pid' => $upId, 'billingcycle' => $cycle]);
-				$price = self::parseTrialPrice($trial);
-				if ($price > 0) {
-					$cycles[] = [
-						'cycle'             => $cycle,
-						'name'              => $cfg['name'],
-						'agent_price_cents' => $price,
-					];
+		// 各周期价：优先读上游返回的 cycle 字段（列表项 → 详情），均无则回退购物车试算
+		$cycles = self::parseItemCycles($item);
+		if ($cycles === []) {
+			$cycles = $detail ? self::parseDetailCycles($detail) : [];
+		}
+		if ($cycles === []) {
+			foreach (zjmf_cycles() as $cycle => $cfg) {
+				try {
+					$trial = $client->cartSetConfig(['pid' => $upId, 'billingcycle' => $cycle]);
+					$price = self::parseTrialPrice($trial);
+					if ($price > 0) {
+						$cycles[$cycle] = [
+							'cycle'             => $cycle,
+							'name'              => $cfg['name'],
+							'agent_price_cents' => $price,
+						];
+					}
+				} catch (CubeFinanceException $e) {
+					continue;
 				}
-			} catch (CubeFinanceException $e) {
-				continue;
 			}
 		}
-		$cyclesJson = json_encode($cycles, JSON_UNESCAPED_UNICODE);
+		$cyclesJson = json_encode(array_values($cycles), JSON_UNESCAPED_UNICODE);
 
 		$existing = zjmf_product_get_by_up($supplierId, $upId);
+		if ($existing) {
+			// 同步不覆盖管理员手动设置的售价（override）
+			$oldCycles = zjmf_product_cycles($existing);
+			$changed = false;
+			foreach ($cycles as $k => &$cfg) {
+				if (isset($oldCycles[$k]['override']) && (int)$oldCycles[$k]['override'] > 0) {
+					$cfg['override'] = (int)$oldCycles[$k]['override'];
+					$cfg['price_cents'] = (int)$oldCycles[$k]['override'];
+					$changed = true;
+				}
+			}
+			unset($cfg);
+			if ($changed) {
+				$cyclesJson = json_encode(array_values($cycles), JSON_UNESCAPED_UNICODE);
+			}
+		}
 		if ($existing) {
 			// 重复同步仅刷新价格/周期，不覆盖本地已修改的名称与简介
 			$ok = $DB->query_prepare(
@@ -250,7 +294,7 @@ class ZjmfUpstream
 					$supplierId,
 					$upId,
 					(string)($item['name'] ?? ''),
-					(string)($item['description'] ?? ''),
+					zjmf_render_description((string)($item['description'] ?? '')),
 					$currency,
 					$agentCents,
 					$cyclesJson,
@@ -574,6 +618,125 @@ class ZjmfUpstream
 			}
 		}
 		return 0;
+	}
+
+	/**
+	 * 从列表项提取各周期价格（分）。
+	 * 魔方财务列表项为「单周期」结构：billingcycle + price + billingcycle_zh（cycle 只是标签字符串）。
+	 * 兼容完整周期结构（cycle/pricing 为数组或映射），解析失败返回空数组。
+	 */
+	protected static function parseItemCycles($item)
+	{
+		if (!is_array($item)) {
+			return [];
+		}
+		// 单周期结构：billingcycle + price + billingcycle_zh
+		$key = (string)($item['billingcycle'] ?? '');
+		if ($key !== '') {
+			$cents = self::toCents(self::pickPrice($item));
+			if ($cents > 0) {
+				$entry = self::cycleEntry($key, $cents, (string)($item['billingcycle_zh'] ?? ''));
+				return [$entry['cycle'] => $entry];
+			}
+		}
+		// 兼容完整周期结构：cycle/pricing 为数组或映射
+		$raw = $item['cycle'] ?? $item['pricing'] ?? null;
+		if (is_string($raw)) {
+			$decoded = json_decode($raw, true);
+			$raw = is_array($decoded) ? $decoded : null;
+		}
+		if (is_array($raw) && $raw !== []) {
+			return self::parseCycleMap($raw);
+		}
+		return [];
+	}
+
+	/**
+	 * 从商品详情响应提取各周期价格（分）。
+	 * 魔方财务详情接口将各周期价格放在 data.product.cycle（结构与列表项一致）。
+	 */
+	protected static function parseDetailCycles($detail)
+	{
+		$data = $detail['data'] ?? [];
+		if (!is_array($data)) {
+			return [];
+		}
+		$prod = is_array($data['product'] ?? null) ? $data['product'] : $data;
+		$raw = $prod['cycle'] ?? $data['cycle'] ?? null;
+		if (is_string($raw)) {
+			$decoded = json_decode($raw, true);
+			$raw = is_array($decoded) ? $decoded : null;
+		}
+		if (!is_array($raw) || $raw === []) {
+			return [];
+		}
+		return self::parseCycleMap($raw);
+	}
+
+	/** 构建单个周期条目（键归一化 + 名称兜底）。 */
+	protected static function cycleEntry($key, $cents, $name = '')
+	{
+		$norm = self::normalizeCycleKey($key);
+		$known = zjmf_cycles();
+		return [
+			'cycle'             => $norm,
+			'name'              => $name !== '' ? $name : ($known[$norm]['name'] ?? $norm),
+			'agent_price_cents' => max(0, (int)$cents),
+		];
+	}
+
+	/** 周期键归一化：忽略大小写匹配内置周期（monthly → Monthly）。 */
+	protected static function normalizeCycleKey($key)
+	{
+		$key = (string)$key;
+		if ($key === '') {
+			return '';
+		}
+		foreach (array_keys(zjmf_cycles()) as $k) {
+			if (strcasecmp($k, $key) === 0) {
+				return $k;
+			}
+		}
+		return $key;
+	}
+
+	/** 解析周期映射/数组，返回 ['Monthly' => ['cycle','name','agent_price_cents']]。 */
+	protected static function parseCycleMap($raw)
+	{
+		$out = [];
+		// 数组形式：[{billingcycle: 'monthly', billingcycle_zh: '月', price: '25.00'}, ...]
+		if (isset($raw[0]) && is_array($raw[0])) {
+			foreach ($raw as $item) {
+				if (!is_array($item)) {
+					continue;
+				}
+				$key = (string)($item['billingcycle'] ?? $item['cycle'] ?? '');
+				if ($key === '') {
+					continue;
+				}
+				$cents = self::toCents(self::pickPrice($item));
+				if ($cents <= 0) {
+					continue;
+				}
+				$name = (string)($item['name'] ?? $item['billingcycle_zh'] ?? '');
+				$out[self::normalizeCycleKey($key)] = self::cycleEntry($key, $cents, $name);
+			}
+		} else {
+			// 映射形式：{'monthly': '25.00' 或 {price: '25.00'}}
+			foreach ($raw as $key => $v) {
+				$key = (string)$key;
+				if ($key === '') {
+					continue;
+				}
+				$cents = self::toCents(is_array($v) ? self::pickPrice($v) : $v);
+				if ($cents <= 0) {
+					continue;
+				}
+				$name = is_array($v) ? (string)($v['name'] ?? $v['billingcycle_zh'] ?? '') : '';
+				$out[self::normalizeCycleKey($key)] = self::cycleEntry($key, $cents, $name);
+			}
+		}
+		return $out;
 	}
 
 	/** 金额（元）→ 分。 */

@@ -378,6 +378,56 @@ mnbt_register_ajax('admin', 'p_zjmf_admin_save_product', function () {
 	json_exit_success('已保存');
 });
 
+// 保存商品各周期售价（管理员直接定价，覆盖加价规则）
+mnbt_register_ajax('admin', 'p_zjmf_admin_save_cycles', function () {
+	mnbt_plugin_require_admin();
+	global $DB, $date;
+
+	$id = (int)($_POST['id'] ?? 0);
+	$product = zjmf_product_get($id);
+	if (!$product) {
+		json_exit_error('商品不存在');
+	}
+
+	$overrides = (isset($_POST['overrides']) && is_array($_POST['overrides']))
+		? $_POST['overrides'] : [];
+	if ($overrides === []) {
+		json_exit_error('请至少填写一个周期的售价');
+	}
+
+	$now = $date ?: date('Y-m-d H:i:s');
+	$known = zjmf_cycles();
+	$agentCents = max(0, (int)$product['agent_price_cents']);
+	$old = zjmf_product_cycles($product);
+	$save = [];
+	foreach ($overrides as $cycle => $val) {
+		$cycle = trim((string)$cycle);
+		if ($cycle === '' || !is_numeric($val)) {
+			continue;
+		}
+		$override = max(0, (int)round((float)$val * 100));
+		$entry = $old[$cycle] ?? [];
+		$save[$cycle] = [
+			'cycle'             => $cycle,
+			'name'              => (string)($entry['name'] ?? $known[$cycle]['name'] ?? $cycle),
+			'agent_price_cents' => (int)($entry['agent_price_cents'] ?? $agentCents),
+			'price_cents'       => $override,
+			'override'          => $override,
+		];
+	}
+	if ($save === []) {
+		json_exit_error('周期售价参数无效');
+	}
+	$ok = $DB->query_prepare(
+		"UPDATE MN_plugin_zjmf_product SET cycles=?, updated_at=? WHERE id=?",
+		[json_encode(array_values($save), JSON_UNESCAPED_UNICODE), $now, $id]
+	);
+	if (!$ok) {
+		json_exit_error('保存失败');
+	}
+	json_exit_success('周期售价已保存');
+});
+
 // 切换商品上架/下架
 mnbt_register_ajax('admin', 'p_zjmf_admin_toggle_product', function () {
 	mnbt_plugin_require_admin();
@@ -410,6 +460,28 @@ mnbt_register_route('GET', '/reserve/shop', function ($params, $ctx) {
 	]);
 });
 
+// 公开商品列表 API（供官网首页/游客展示，无需登录）
+mnbt_register_route('GET', '/reserve/api/public_products', function ($params, $ctx) {
+	$list = [];
+	foreach (zjmf_product_list_active() as $p) {
+		$min = 0;
+		foreach (zjmf_product_cycles($p) as $cfg) {
+			$c = (int)$cfg['price_cents'];
+			if ($c > 0 && ($min === 0 || $c < $min)) {
+				$min = $c;
+			}
+		}
+		$list[] = [
+			'id'             => (int)$p['id'],
+			'name'           => (string)$p['name'],
+			'description'    => zjmf_render_description((string)($p['description'] ?? '')),
+			'currency'       => (string)($p['currency'] ?? ''),
+			'min_price_cents'=> $min,
+		];
+	}
+	zjmf_json('ok', ['list' => $list]);
+});
+
 // 下单页（选周期 + 支付方式）
 mnbt_register_route('GET', '/reserve/product/{product_id}', function ($params, $ctx) {
 	zjmf_require_user();
@@ -422,7 +494,7 @@ mnbt_register_route('GET', '/reserve/product/{product_id}', function ($params, $
 	}
 	if (!zjmf_supplier_usable((int)$product['supplier_id'])) {
 		http_response_code(404);
-		echo '商品所属供应商已停用';
+		echo '该商品已暂停销售';
 		return;
 	}
 	$methods = function_exists('mnbt_get_enabled_payment_methods')
@@ -456,7 +528,7 @@ mnbt_register_route('POST', '/reserve/api/create_order', function ($params, $ctx
 		zjmf_json('商品不存在或已下架');
 	}
 	if (!zjmf_supplier_usable((int)$product['supplier_id'])) {
-		zjmf_json('商品所属供应商已停用，无法下单');
+		zjmf_json('该商品已暂停销售，无法下单');
 	}
 	$cycles = zjmf_product_cycles($product);
 	if (!isset($cycles[$cycle])) {
@@ -519,10 +591,82 @@ mnbt_register_route('POST', '/reserve/api/create_order', function ($params, $ctx
 		zjmf_json('支付方式不可用，请检查支付插件是否已启用');
 	}
 
-	zjmf_json('正在跳转到支付页面', [
+	zjmf_json('ok', [
 		'html'     => $html,
 		'order_no' => $order_no,
+		'msg'      => '正在跳转到支付页面',
 	]);
+});
+
+/* ============================================================
+ *  用户端 API 路由（SPA 数据接口）
+ * ============================================================ */
+
+// 上架商品列表（含各周期价格，游客可访问，供 account SPA 商城页）
+mnbt_register_route('GET', '/reserve/api/products', function ($params, $ctx) {
+	$list = [];
+	foreach (zjmf_product_list_active() as $p) {
+		$cycles = [];
+		foreach (zjmf_product_cycles($p) as $key => $cfg) {
+			$cycles[] = [
+				'key'         => $key,
+				'name'        => $cfg['name'],
+				'price_cents' => $cfg['price_cents'],
+			];
+		}
+		$list[] = [
+			'id'          => (int)$p['id'],
+			'name'        => (string)$p['name'],
+			'description' => zjmf_render_description((string)($p['description'] ?? '')),
+			'currency'    => (string)($p['currency'] ?? ''),
+			'cycles'      => $cycles,
+		];
+	}
+	zjmf_json('ok', ['list' => $list]);
+});
+
+// 可用支付方式（account SPA 下单页用）
+mnbt_register_route('GET', '/reserve/api/methods', function ($params, $ctx) {
+	$methods = function_exists('mnbt_get_enabled_payment_methods')
+		? mnbt_get_enabled_payment_methods() : [];
+	zjmf_json('ok', ['methods' => $methods]);
+});
+
+// 我的主机（account SPA，脱敏后返回）
+mnbt_register_route('GET', '/reserve/api/hosts', function ($params, $ctx) {
+	$user = function_exists('user_info_auth_current') ? user_info_auth_current() : null;
+	if (!$user) {
+		zjmf_json('not_login', ['logged_in' => false]);
+		return;
+	}
+	$hosts = [];
+	foreach (zjmf_host_list_by_user((int)$user['id']) as $h) {
+		$hosts[] = [
+			'id'            => (int)$h['id'],
+			'up_host_id'    => (int)$h['up_host_id'],
+			'name'          => (string)$h['name'],
+			'username'      => (string)$h['username'],
+			'cycle'         => (string)$h['cycle'],
+			'status'        => (string)$h['status'],
+			'renew_date'    => (string)$h['renew_date'],
+			'created_at'    => (string)$h['created_at'],
+			'updated_at'    => (string)$h['updated_at'],
+		];
+	}
+	zjmf_json('ok', ['logged_in' => true, 'hosts' => $hosts]);
+});
+
+// 我的订单（account SPA，分页）
+mnbt_register_route('GET', '/reserve/api/orders', function ($params, $ctx) {
+	$user = function_exists('user_info_auth_current') ? user_info_auth_current() : null;
+	if (!$user) {
+		zjmf_json('not_login', ['logged_in' => false]);
+		return;
+	}
+	$page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+	$per  = isset($_GET['per_page']) ? max(1, min(100, (int)$_GET['per_page'])) : 15;
+	$orders = zjmf_order_list_by_user((int)$user['id'], $page, $per);
+	zjmf_json('ok', ['logged_in' => true, 'orders' => $orders]);
 });
 
 // 我的订单
@@ -594,7 +738,7 @@ mnbt_register_route('POST', '/reserve/api/host_action', function ($params, $ctx)
 		zjmf_json('该主机缺少上游主机 ID，无法执行操作');
 	}
 	if (!zjmf_supplier_usable((int)$host['supplier_id'])) {
-		zjmf_json('供应商已停用，无法执行操作');
+		zjmf_json('服务已停用，无法执行操作');
 	}
 	$supplier = zjmf_supplier_get((int)$host['supplier_id']);
 
@@ -662,7 +806,7 @@ mnbt_register_route('GET', '/reserve/hosts/{host_id}/upgrade', function ($params
 		return;
 	}
 	if (!zjmf_supplier_usable((int)$host['supplier_id'])) {
-		echo '供应商已停用，无法升级';
+		echo '服务已停用，无法升级';
 		return;
 	}
 	$supplier = zjmf_supplier_get((int)$host['supplier_id']);
@@ -693,7 +837,7 @@ mnbt_register_route('POST', '/reserve/api/upgrade', function ($params, $ctx) {
 		zjmf_json('该主机缺少上游主机 ID，无法升级');
 	}
 	if (!zjmf_supplier_usable((int)$host['supplier_id'])) {
-		zjmf_json('供应商已停用，无法升级');
+		zjmf_json('服务已停用，无法升级');
 	}
 	$supplier = zjmf_supplier_get((int)$host['supplier_id']);
 

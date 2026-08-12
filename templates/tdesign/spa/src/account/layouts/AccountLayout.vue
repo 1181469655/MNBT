@@ -154,6 +154,39 @@
             </li>
           </ul>
         </template>
+
+        <!-- 云服务器（zjmfmanager_reserve 插件） -->
+        <template v-if="hasZjmf">
+          <div class="td-side-group" v-show="!sidebarCollapsed || isMobile">
+            <div class="td-side-group-label">
+              <i class="mdi mdi-cloud-outline"></i>
+              <span>云服务器</span>
+            </div>
+          </div>
+          <ul class="td-side-menu">
+            <li class="td-side-item">
+              <router-link to="/zjmf-shop" custom v-slot="{ navigate, isActive }">
+                <a href="javascript:;" :class="{ active: isActive }" @click="navigate">
+                  <i class="mdi mdi-cart"></i><span>商品选购</span>
+                </a>
+              </router-link>
+            </li>
+            <li class="td-side-item">
+              <router-link to="/zjmf-assets" custom v-slot="{ navigate, isActive }">
+                <a href="javascript:;" :class="{ active: isActive }" @click="navigate">
+                  <i class="mdi mdi-server"></i><span>我的主机</span>
+                </a>
+              </router-link>
+            </li>
+            <li class="td-side-item">
+              <router-link to="/zjmf-orders" custom v-slot="{ navigate, isActive }">
+                <a href="javascript:;" :class="{ active: isActive }" @click="navigate">
+                  <i class="mdi mdi-receipt"></i><span>我的订单</span>
+                </a>
+              </router-link>
+            </li>
+          </ul>
+        </template>
       </div>
 
       <!-- 底部用户卡 -->
@@ -242,6 +275,7 @@ const hasBalance = pluginEnabled('balance')
 const hasShop = pluginEnabled('hosting_shop')
 const hasDocker = pluginEnabled('docker_shop')
 const hasRealname = pluginEnabled('realname')
+const hasZjmf = pluginEnabled('zjmf')
 
 const sidebarCollapsed = ref(false)
 const mobileOpen = ref(false)
@@ -261,6 +295,7 @@ const userMenuOptions = computed(() => {
   if (hasBalance) list.push({ content: '余额中心', value: 'balance' })
   if (hasShop) list.push({ content: '主机商城', value: 'shop' })
   if (hasDocker) list.push({ content: 'Docker 商城', value: 'docker-shop' })
+  if (hasZjmf) list.push({ content: '云服务器', value: 'zjmf-shop' })
   list.push({ content: '退出登录', value: 'logout', theme: 'error' })
   return list
 })
@@ -299,10 +334,20 @@ function onLogout() {
   })
 }
 
+/** zjmfmanager_reserve 插件独立页面 URL（主机详情等仍走 P2 路由） */
+function reserveUrl(path) {
+  const base = boot.routeBase || '/index.php?_r='
+  return base + 'reserve/' + String(path).replace(/^\/+/, '')
+}
+
 function onUserMenuClick(item) {
   const v = item?.value
   if (v === 'logout') {
     onLogout()
+    return
+  }
+  if (v === 'zjmf-shop') {
+    router.push('/zjmf-shop')
     return
   }
   const targets = {

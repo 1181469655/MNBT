@@ -129,6 +129,43 @@
       </div>
     </section>
 
+    <!-- 云服务器区（zjmfmanager_reserve 插件） -->
+    <section v-if="boot.hasZjmf" class="plans-section section">
+      <div class="container">
+        <div class="section-header">
+          <h2 class="section-title">云服务器</h2>
+          <p class="section-subtitle">魔方财务代理分销，即买即用，支付完成自动开通</p>
+          <a :href="accountUrl('zjmf-shop')" class="more-news">查看全部云服务器 ›</a>
+        </div>
+        <div v-if="zjmfProducts.length === 0" class="hd-empty">
+          <i class="mdi mdi-cloud-outline"></i>
+          <p>暂无可购买的云服务器，请联系管理员</p>
+        </div>
+        <div v-else class="hd-plans">
+          <div
+            v-for="(p, i) in zjmfProducts.slice(0, 3)"
+            :key="p.id"
+            class="hd-plan-card"
+            :class="{ pop: i === 1 }"
+          >
+            <div class="hd-plan-top">
+              <span v-if="i === 1" class="hd-plan-chip">推荐</span>
+              <h3>{{ p.name }}</h3>
+              <div class="hd-plan-desc" v-if="p.description" v-html="p.description"></div>
+              <div class="hd-plan-desc" v-else>云服务器服务，即买即用</div>
+            </div>
+            <div class="hd-plan-body">
+              <div class="hd-plan-price">
+                <div class="num">{{ zjmfPriceText(p) }}</div>
+                <div class="sub">即买即用</div>
+              </div>
+              <t-button block theme="primary" size="large" @click="goZjmfBuy">立即购买</t-button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- 核心优势 -->
     <section class="features section">
       <div class="container">
@@ -222,6 +259,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import authState from '@/home/store/auth'
 import { getSiteNews } from '@/home/api/site'
 import { getDockerPlans } from '@/home/api/docker'
+import { getZjmfProducts } from '@/home/api/zjmf'
 import { formatDate } from '@/home/utils/format'
 import { accountUrl } from '@/home/utils/account'
 import bg1 from '@/shared/assets/bg1.jpg'
@@ -258,6 +296,22 @@ function dockerSpecText(base, key) {
     return v > 0 ? v + ' 个' : '不限'
   }
   return '—'
+}
+
+// 云服务器（zjmfmanager_reserve 插件）
+const zjmfProducts = ref([])
+/** 最低价展示：有价显示 ¥x.xx 起，无价显示 咨询价格 */
+function zjmfPriceText(p) {
+  const cents = Number(p.min_price_cents || 0)
+  return cents > 0 ? '¥' + (cents / 100).toFixed(2) + ' 起' : '咨询价格'
+}
+/** 立即购买：与主机/Docker 一致，跳转 account SPA 商城 */
+function goZjmfBuy() {
+  if (!authState.loggedIn) {
+    window.location.href = accountUrl()
+    return
+  }
+  window.location.href = accountUrl('zjmf-shop')
 }
 
 // hero 按钮路由：优先官网产品页，无官网插件则回退套餐/登录
@@ -363,6 +417,12 @@ onMounted(async () => {
     const res = await getDockerPlans()
     if (res.ok && res.data?.plans) {
       dockerPlans.value = res.data.plans
+    }
+  }
+  if (boot.hasZjmf) {
+    const res = await getZjmfProducts()
+    if (res.ok && res.data?.list) {
+      zjmfProducts.value = res.data.list
     }
   }
 })

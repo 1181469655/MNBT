@@ -27,6 +27,10 @@
 .zj-card-desc img{max-width:100%;}
 .zj-desc{padding:10px 2px 18px;font-size:13px;color:#666;line-height:1.7;overflow-wrap:break-word;}
 .zj-desc img{max-width:100%;}
+/* 上游简介 li 列表：显式声明保证每项独占一行、带圆点（不受全局 reset 影响） */
+.zj-card-desc ul,.zj-desc ul{margin:6px 0 6px 18px;padding:0;}
+.zj-card-desc li,.zj-desc li{display:list-item;list-style:disc;margin:3px 0;padding:0;line-height:1.6;}
+.zj-card-desc ul li ul,.zj-desc ul li ul{list-style:circle;}
 .zj-price{display:flex;gap:14px;padding:12px 20px;background:#fafbfc;border-top:1px solid #f0f0f0;flex-wrap:wrap;}
 .zj-price-item{display:flex;align-items:center;gap:4px;font-size:12px;}
 .zj-price-label{background:#e8e8e8;color:#666;padding:1px 6px;border-radius:3px;}

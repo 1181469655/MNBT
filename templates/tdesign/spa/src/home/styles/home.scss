@@ -691,6 +691,19 @@
   font-size: 13px;
   min-height: 40px;
   line-height: 1.6;
+  /* 简介 li 列表：每项独占一行、带圆点 */
+  ul {
+    margin: 4px 0;
+    padding-left: 16px;
+  }
+  li {
+    display: list-item;
+    list-style: disc;
+    margin: 2px 0;
+  }
+  p {
+    margin: 2px 0;
+  }
 }
 
 .hd-plan-body {

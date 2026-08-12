@@ -61,6 +61,7 @@ $boot = [
 	'hasUser'      => !empty($has_user),
 	'hasSite'      => !empty($has_site),
 	'hasDocker'    => !empty($has_docker),
+	'hasZjmf'      => function_exists('mnbt_plugin_enabled') ? mnbt_plugin_enabled('zjmfmanager_reserve') : false,
 	'plans'        => $plans ?? [],
 	'blocks'       => $blocks ?? [],
 	'base'         => function_exists('mnbt_home_base') ? mnbt_home_base() : '',

@@ -47,6 +47,7 @@ $boot = [
 		'hosting_shop' => function_exists('mnbt_plugin_enabled') ? mnbt_plugin_enabled('hosting_shop') : false,
 		'docker_shop'  => function_exists('mnbt_plugin_enabled') ? mnbt_plugin_enabled('docker_shop') : false,
 		'realname'     => function_exists('mnbt_plugin_enabled') ? mnbt_plugin_enabled('realname') : false,
+		'zjmf'         => function_exists('mnbt_plugin_enabled') ? mnbt_plugin_enabled('zjmfmanager_reserve') : false,
 	],
 	// 主机管理面板入口（核心 user scope）
 	'panelUrl'    => $td_base . '/user/',

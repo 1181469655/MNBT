@@ -95,6 +95,24 @@ const routes = [
         component: () => import('@/account/views/DockerOrdersView.vue'),
         meta: { title: 'Docker 订单', requiresAuth: true },
       },
+      {
+        path: 'zjmf-shop',
+        name: 'zjmf-shop',
+        component: () => import('@/account/views/ZjmfShopView.vue'),
+        meta: { title: '云服务器选购', requiresAuth: true },
+      },
+      {
+        path: 'zjmf-assets',
+        name: 'zjmf-assets',
+        component: () => import('@/account/views/ZjmfAssetsView.vue'),
+        meta: { title: '我的云服务器', requiresAuth: true },
+      },
+      {
+        path: 'zjmf-orders',
+        name: 'zjmf-orders',
+        component: () => import('@/account/views/ZjmfOrdersView.vue'),
+        meta: { title: '云服务器订单', requiresAuth: true },
+      },
     ],
   },
   {

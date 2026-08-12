@@ -175,6 +175,14 @@ function zjmf_admin_markup_label($product)
             </select>
           </div>
           <div class="col-md-12 mb-2">
+            <label class="small text-muted">周期售价（元）</label>
+            <div id="zjf-edit-cycles" class="border rounded p-2 bg-light"></div>
+            <div class="small text-muted mt-1">
+              留空表示按加价规则计算；填写后该周期按填写值定价，重新同步不覆盖手动定价。
+              无周期数据时可直接填写售价生成周期。
+            </div>
+          </div>
+          <div class="col-md-12 mb-2">
             <label class="small text-muted">商品简介（支持 HTML）</label>
             <textarea id="zjf-edit-desc" class="form-control form-control-sm" rows="4"
                       placeholder="支持 HTML 标签，如 &lt;b&gt;加粗&lt;/b&gt;、&lt;br&gt; 换行。同步商品不会覆盖此处内容。"></textarea>
@@ -184,6 +192,7 @@ function zjmf_admin_markup_label($product)
           留空加价数值表示使用所属供应商的加价规则；重新同步上游仅更新价格，不覆盖本地名称与简介。
         </div>
         <button type="button" class="btn btn-sm btn-primary" id="zjf-edit-save">保存</button>
+        <button type="button" class="btn btn-sm btn-outline-primary" id="zjf-edit-save-cycles">保存售价</button>
         <button type="button" class="btn btn-sm btn-secondary" id="zjf-edit-cancel">取消</button>
       </div>
 
@@ -235,6 +244,8 @@ function zjmf_admin_markup_label($product)
                             data-id="<?= (int)$p['id'] ?>"
                             data-name="<?= htmlspecialchars($p['name'], ENT_QUOTES) ?>"
                             data-desc="<?= htmlspecialchars($p['description'] ?? '', ENT_QUOTES) ?>"
+                            data-cycles="<?= htmlspecialchars((string)($p['cycles'] ?? ''), ENT_QUOTES) ?>"
+                            data-agent="<?= (int)$p['agent_price_cents'] ?>"
                             data-type="<?= (int)$p['markup_type'] ?>"
                             data-value="<?= (int)$p['markup_value'] ?>"
                             data-sort="<?= (int)$p['sort'] ?>"
@@ -422,6 +433,33 @@ function zjmf_admin_markup_label($product)
   var editSort = document.getElementById('zjf-edit-sort');
   var editStatus = document.getElementById('zjf-edit-status');
 
+  function renderCyclesEditor(raw, agent) {
+    var box = document.getElementById('zjf-edit-cycles');
+    box.innerHTML = '';
+    var cycles = [];
+    try { cycles = JSON.parse(raw || '[]'); } catch (e) { cycles = []; }
+    cycles = (Array.isArray(cycles) ? cycles : []).filter(function (c) {
+      return c && typeof c === 'object' && c.cycle;
+    });
+    if (!cycles.length) {
+      // 无周期数据（如旧版坏数据/未同步），给默认行便于直接定价
+      cycles = [{cycle: 'Monthly', name: '月付', price_cents: 0, agent_price_cents: agent || 0}];
+    }
+    cycles.forEach(function (c) {
+      var row = document.createElement('div');
+      row.className = 'd-flex align-items-center mb-1';
+      row.style.maxWidth = '420px';
+      row.innerHTML =
+        '<span class="mr-2 small" style="min-width:56px">' + esc(c.name || c.cycle) + '</span>'
+        + '<input type="number" step="0.01" min="0" class="form-control form-control-sm zjf-cycle-input"'
+        + ' data-cycle="' + esc(c.cycle) + '" value="'
+        + (c.price_cents > 0 ? (c.price_cents / 100).toFixed(2) : '') + '">'
+        + '<span class="ml-2 small text-muted" style="min-width:110px">上游 '
+        + (c.agent_price_cents > 0 ? '¥' + (c.agent_price_cents / 100).toFixed(2) : '-') + '</span>';
+      box.appendChild(row);
+    });
+  }
+
   document.querySelectorAll('.zjf-edit').forEach(function (btn) {
     btn.addEventListener('click', function () {
       syncWrap.style.display = 'none';
@@ -433,6 +471,8 @@ function zjmf_admin_markup_label($product)
       editValue.value = btn.getAttribute('data-value');
       editSort.value = btn.getAttribute('data-sort');
       editStatus.value = btn.getAttribute('data-status');
+      renderCyclesEditor(btn.getAttribute('data-cycles'),
+        parseInt(btn.getAttribute('data-agent'), 10) || 0);
       editWrap.style.display = 'block';
       editWrap.scrollIntoView({behavior: 'smooth', block: 'start'});
     });
@@ -456,6 +496,24 @@ function zjmf_admin_markup_label($product)
       sort: editSort.value,
       status: editStatus.value
     }, true);
+  });
+
+  document.getElementById('zjf-edit-save-cycles').addEventListener('click', function () {
+    var id = parseInt(editId.value, 10);
+    if (!id) return;
+    var overrides = {};
+    document.querySelectorAll('.zjf-cycle-input').forEach(function (inp) {
+      var v = inp.value;
+      if (v !== '' && !isNaN(parseFloat(v))) {
+        overrides[inp.getAttribute('data-cycle')] = parseFloat(v);
+      }
+    });
+    if (!Object.keys(overrides).length) { alert('请至少填写一个周期的售价'); return; }
+    $.post('ajax.php', {
+      gn: 'p_zjmf_admin_save_cycles',
+      id: id,
+      overrides: overrides
+    }, function (r) { notify(res(r), true); });
   });
 
   document.querySelectorAll('.zjf-toggle').forEach(function (btn) {

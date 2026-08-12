@@ -201,6 +201,35 @@ function zjmf_cycles()
 	];
 }
 
+/**
+ * 渲染商品简介为规范的展示 HTML。
+ * 上游常见 `&lt;li&gt;CPU：4核&lt;/li&gt; &lt;li&gt;内存：4G&lt;/li&gt;...` 格式：
+ *   解码实体 → 压缩标签间空白 → 外层包裹 <ul> 渲染成列表。
+ * 非 <li> 内容（含管理员手写 HTML）仅解码实体后原样输出。
+ */
+function zjmf_render_description($raw)
+{
+	$html = (string)$raw;
+	if ($html === '') {
+		return '';
+	}
+	// 解码实体直到稳定（兼容单/双重编码）
+	$i = 0;
+	do {
+		$prev = $html;
+		$html = html_entity_decode($html, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+		$i++;
+	} while ($html !== $prev && $i < 3);
+	if (stripos($html, '<li') === false) {
+		return $html;
+	}
+	$html = preg_replace('/>\s+</', '><', $html);
+	if (stripos($html, '<ul') === false) {
+		$html = '<ul>' . $html . '</ul>';
+	}
+	return $html;
+}
+
 /* ============================================================
  *  供应商管理
  * ============================================================ */
@@ -301,8 +330,7 @@ function zjmf_product_list_active()
 {
 	global $DB;
 	return $DB->get_all_prepare(
-		"SELECT p.*, s.name AS supplier_name
-		 FROM MN_plugin_zjmf_product p
+		"SELECT p.* FROM MN_plugin_zjmf_product p
 		 LEFT JOIN MN_plugin_zjmf_supplier s ON s.id = p.supplier_id
 		 WHERE p.status=1 AND s.status=1
 		 ORDER BY s.sort ASC, p.sort ASC, p.id ASC"
@@ -321,7 +349,7 @@ function zjmf_product_list_all()
 	) ?: [];
 }
 
-/** 解析商品周期 JSON，返回 ['cycle' => ['name'=>, 'price_cents'=>]]。 */
+/** 解析商品周期 JSON，返回 ['cycle' => ['name'=>, 'price_cents'=>, 'override'=>]]。 */
 function zjmf_product_cycles($product)
 {
 	$raw = isset($product['cycles']) ? json_decode($product['cycles'], true) : null;
@@ -329,14 +357,31 @@ function zjmf_product_cycles($product)
 		return [];
 	}
 	$map = [];
+	// 旧版扁平格式：["Monthly","月",2500]
+	if (isset($raw[0]) && !is_array($raw[0])) {
+		if ($raw[0] !== '' && isset($raw[2])) {
+			$cycle = (string)$raw[0];
+			$map[$cycle] = [
+				'cycle'             => $cycle,
+				'name'              => (string)$raw[1],
+				'price_cents'       => (int)$raw[2],
+				'agent_price_cents' => (int)$raw[2],
+				'override'          => 0,
+			];
+		}
+		return $map;
+	}
 	foreach ($raw as $item) {
 		$cycle = (string)($item['cycle'] ?? '');
 		if ($cycle === '') {
 			continue;
 		}
 		$map[$cycle] = [
-			'name'        => (string)($item['name'] ?? $cycle),
-			'price_cents' => (int)($item['price_cents'] ?? 0),
+			'cycle'             => $cycle,
+			'name'              => (string)($item['name'] ?? $cycle),
+			'price_cents'       => (int)($item['price_cents'] ?? 0),
+			'agent_price_cents' => (int)($item['agent_price_cents'] ?? 0),
+			'override'          => (int)($item['override'] ?? 0),
 		];
 	}
 	return $map;
@@ -388,12 +433,16 @@ function zjmf_product_recalc_price($product_id)
 		return;
 	}
 	foreach ($cycles as $cycle => &$cfg) {
-		// agent_price 保存的是该周期对应的上游价（分）
-		$cfg['price_cents'] = zjmf_calc_price(
-			$cfg['agent_price_cents'] ?? 0,
-			$markupType,
-			$markupValue
-		);
+		// 管理员手动设置过售价（override>0）时保持不动，否则按加价规则重算
+		if ((int)($cfg['override'] ?? 0) > 0) {
+			$cfg['price_cents'] = (int)$cfg['override'];
+		} else {
+			$cfg['price_cents'] = zjmf_calc_price(
+				$cfg['agent_price_cents'] ?? 0,
+				$markupType,
+				$markupValue
+			);
+		}
 	}
 	unset($cfg);
 	$now = $date ?: date('Y-m-d H:i:s');
@@ -441,9 +490,7 @@ function zjmf_order_list_by_user($user_id, $page = 1, $per_page = 20)
 	);
 	$total = $count_row ? (int)$count_row['cnt'] : 0;
 	$list = $DB->get_all_prepare(
-		"SELECT o.*, s.name AS supplier_name
-		 FROM MN_plugin_zjmf_order o
-		 LEFT JOIN MN_plugin_zjmf_supplier s ON s.id = o.supplier_id
+		"SELECT o.* FROM MN_plugin_zjmf_order o
 		 WHERE o.user_id=? ORDER BY o.id DESC LIMIT {$offset},{$per_page}",
 		[$user_id]
 	) ?: [];
@@ -674,9 +721,7 @@ function zjmf_host_get_by_user($user_id, $host_id)
 {
 	global $DB;
 	return $DB->get_row_prepare(
-		"SELECT h.*, s.name AS supplier_name
-		 FROM MN_plugin_zjmf_host h
-		 LEFT JOIN MN_plugin_zjmf_supplier s ON s.id = h.supplier_id
+		"SELECT h.* FROM MN_plugin_zjmf_host h
 		 WHERE h.id=? AND h.user_id=? LIMIT 1",
 		[(int)$host_id, (int)$user_id]
 	) ?: null;
@@ -697,9 +742,7 @@ function zjmf_host_list_by_user($user_id)
 {
 	global $DB;
 	return $DB->get_all_prepare(
-		"SELECT h.*, s.name AS supplier_name
-		 FROM MN_plugin_zjmf_host h
-		 LEFT JOIN MN_plugin_zjmf_supplier s ON s.id = h.supplier_id
+		"SELECT h.* FROM MN_plugin_zjmf_host h
 		 WHERE h.user_id=? ORDER BY h.id DESC",
 		[(int)$user_id]
 	) ?: [];

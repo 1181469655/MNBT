@@ -150,3 +150,37 @@ export function dockerConsoleUrl() {
   const boot = window.__TD_BOOT__ || {}
   return boot.dockerUrl || ''
 }
+
+/* ============================================================
+ *  zjmfmanager_reserve 插件（云服务器/魔方财务分销）
+ * ============================================================ */
+
+/** 上架商品列表（含各周期价格，游客可访问） */
+export function getZjmfProducts() {
+  return apiGet('/reserve/api/products')
+}
+
+/** 我的主机（已脱敏，不含密码） */
+export function getZjmfHosts() {
+  return apiGet('/reserve/api/hosts')
+}
+
+/** 我的订单（分页） */
+export function getZjmfOrders(page = 1, perPage = 15) {
+  return apiGet('/reserve/api/orders', { page, per_page: perPage })
+}
+
+/** 可用支付方式（zjmf 下单用，含余额支付等全部方式） */
+export function getZjmfMethods() {
+  return apiGet('/reserve/api/methods')
+}
+
+/** 创建购买订单：product_id + cycle + type → 返回支付 HTML */
+export function createZjmfOrder(productId, cycle, type) {
+  return apiPost('/reserve/api/create_order', { product_id: productId, cycle, type })
+}
+
+/** 主机操作：开机/关机/重启/重置密码/重装（重置密码需传 password） */
+export function zjmfHostAction(hostId, action, password = '') {
+  return apiPost('/reserve/api/host_action', { host_id: hostId, action, password })
+}
