@@ -19,7 +19,7 @@ ob_start();
       <a class="layui-btn layui-btn-xs layui-btn-primary" href="<?= zjmf_url('reserve/shop') ?>">返回商品列表</a>
     </div>
 
-    <div class="zj-desc"><?= nl2br(htmlspecialchars($product['description'])) ?></div>
+    <div class="zj-desc"><?= $product['description'] ?></div>
 
     <form class="zj-order-form" id="zjf-order-form">
       <div class="layui-form-item">

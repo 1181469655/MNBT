@@ -253,6 +253,8 @@ mnbt_register_ajax('admin', 'p_zjmf_admin_upstream_products', function () {
 			'id'          => (int)($item['id'] ?? 0),
 			'name'        => (string)($item['name'] ?? ''),
 			'description' => (string)($item['description'] ?? ''),
+			'module'      => ZjmfUpstream::itemModule($item),
+			'price'       => ZjmfUpstream::itemPrice($item),
 			'synced'      => isset($existing[(int)($item['id'] ?? 0)]),
 		];
 	}
@@ -331,7 +333,7 @@ mnbt_register_ajax('admin', 'p_zjmf_admin_add_product', function () {
 	json_exit_success('商品已添加，价格同步完成');
 });
 
-// 保存商品加价/排序/状态
+// 保存商品名称/简介/加价/排序/状态
 mnbt_register_ajax('admin', 'p_zjmf_admin_save_product', function () {
 	mnbt_plugin_require_admin();
 
@@ -339,6 +341,18 @@ mnbt_register_ajax('admin', 'p_zjmf_admin_save_product', function () {
 	$product = zjmf_product_get($id);
 	if (!$product) {
 		json_exit_error('商品不存在');
+	}
+
+	$name = trim((string)($_POST['name'] ?? ''));
+	$description = (string)($_POST['description'] ?? '');
+	if ($name === '') {
+		json_exit_error('请填写商品名称');
+	}
+	if (mb_strlen($name) > 100) {
+		json_exit_error('商品名称过长');
+	}
+	if (mb_strlen($description) > 65535) {
+		json_exit_error('商品简介过长');
 	}
 
 	$markupType = in_array((string)($_POST['markup_type'] ?? ''), ['0', '1'], true)
@@ -352,9 +366,9 @@ mnbt_register_ajax('admin', 'p_zjmf_admin_save_product', function () {
 	$now = $date ?: date('Y-m-d H:i:s');
 	$ok = $DB->query_prepare(
 		"UPDATE MN_plugin_zjmf_product
-		 SET markup_type=?, markup_value=?, sort=?, status=?, updated_at=?
+		 SET name=?, description=?, markup_type=?, markup_value=?, sort=?, status=?, updated_at=?
 		 WHERE id=?",
-		[$markupType, $markupValue, $sort, $status, $now, $id]
+		[$name, $description, $markupType, $markupValue, $sort, $status, $now, $id]
 	);
 	if (!$ok) {
 		json_exit_error('保存失败');
@@ -388,9 +402,8 @@ mnbt_register_ajax('admin', 'p_zjmf_admin_toggle_product', function () {
  *  用户端页面路由
  * ============================================================ */
 
-// 商品列表
+// 商品列表（对游客开放，无需登录）
 mnbt_register_route('GET', '/reserve/shop', function ($params, $ctx) {
-	zjmf_require_user();
 	zjmf_render('shop', [
 		'page_title' => '商品选购',
 		'products'   => zjmf_product_list_active(),

@@ -23,8 +23,10 @@
 .zj-card-head h2{font-size:18px;color:#222;margin:0;}
 .zj-tag{display:inline-block;padding:2px 10px;font-size:11px;background:#e6f4ff;
   color:#1e9fff;border-radius:10px;margin-top:6px;}
-.zj-card-desc{padding:14px 20px;font-size:13px;color:#666;line-height:1.7;}
-.zj-desc{padding:10px 2px 18px;font-size:13px;color:#666;line-height:1.7;}
+.zj-card-desc{padding:14px 20px;font-size:13px;color:#666;line-height:1.7;overflow-wrap:break-word;}
+.zj-card-desc img{max-width:100%;}
+.zj-desc{padding:10px 2px 18px;font-size:13px;color:#666;line-height:1.7;overflow-wrap:break-word;}
+.zj-desc img{max-width:100%;}
 .zj-price{display:flex;gap:14px;padding:12px 20px;background:#fafbfc;border-top:1px solid #f0f0f0;flex-wrap:wrap;}
 .zj-price-item{display:flex;align-items:center;gap:4px;font-size:12px;}
 .zj-price-label{background:#e8e8e8;color:#666;padding:1px 6px;border-radius:3px;}

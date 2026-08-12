@@ -225,14 +225,12 @@ class ZjmfUpstream
 
 		$existing = zjmf_product_get_by_up($supplierId, $upId);
 		if ($existing) {
+			// 重复同步仅刷新价格/周期，不覆盖本地已修改的名称与简介
 			$ok = $DB->query_prepare(
 				"UPDATE MN_plugin_zjmf_product
-				 SET name=?, description=?, currency=?, agent_price_cents=?,
-				     cycles=?, synced_at=?, updated_at=?
+				 SET currency=?, agent_price_cents=?, cycles=?, synced_at=?, updated_at=?
 				 WHERE id=?",
 				[
-					(string)($item['name'] ?? ''),
-					(string)($item['description'] ?? ''),
 					$currency,
 					$agentCents,
 					$cyclesJson,
@@ -582,6 +580,33 @@ class ZjmfUpstream
 	protected static function toCents($val)
 	{
 		return (int)round((float)$val * 100);
+	}
+
+	/** 上游列表项价格（分），支持嵌套 pricing 结构，无价格返回 0。 */
+	public static function itemPrice($item)
+	{
+		if (!is_array($item)) {
+			return 0;
+		}
+		$cents = self::toCents(self::pickPrice($item));
+		if ($cents <= 0 && isset($item['pricing']) && is_array($item['pricing'])) {
+			foreach ($item['pricing'] as $v) {
+				$cents = self::toCents(is_array($v) ? self::pickPrice($v) : $v);
+				if ($cents > 0) {
+					break;
+				}
+			}
+		}
+		return $cents;
+	}
+
+	/** 上游列表项模块类型（魔方财务列表返回字段为 type），无则返回空串。 */
+	public static function itemModule($item)
+	{
+		if (!is_array($item)) {
+			return '';
+		}
+		return (string)($item['type'] ?? $item['module'] ?? $item['module_name'] ?? '');
 	}
 
 	/** 从 data 中找通用 ID（订单 ID）。 */

@@ -49,7 +49,7 @@ ob_start();
                 <span class="zj-tag"><?= htmlspecialchars($product['currency']) ?></span>
               <?php endif; ?>
             </div>
-            <div class="zj-card-desc"><?= nl2br(htmlspecialchars($product['description'])) ?></div>
+            <div class="zj-card-desc"><?= $product['description'] ?></div>
             <div class="zj-price">
               <?php $cycles = zjmf_product_cycles($product); ?>
               <?php foreach ($cycles as $cycle => $cfg): ?>

@@ -89,11 +89,13 @@ function zjmf_admin_markup_label($product)
                 </th>
                 <th>上游ID</th>
                 <th>名称</th>
+                <th>价格</th>
+                <th>模块</th>
                 <th>状态</th>
               </tr>
             </thead>
             <tbody id="zjf-sync-list">
-              <tr><td colspan="4" class="text-center text-muted">
+              <tr><td colspan="6" class="text-center text-muted">
                 请先选择供应商并加载商品列表
               </td></tr>
             </tbody>
@@ -123,11 +125,12 @@ function zjmf_admin_markup_label($product)
           </div>
           <div class="col-md-3 mb-2">
             <label class="small text-muted">商品名称 *</label>
-            <input type="text" id="zjf-add-name" class="form-control form-control-sm">
+            <input type="text" id="zjf-add-name" class="form-control form-control-sm" maxlength="100">
           </div>
           <div class="col-md-4 mb-2">
-            <label class="small text-muted">描述</label>
-            <input type="text" id="zjf-add-desc" class="form-control form-control-sm">
+            <label class="small text-muted">描述（支持 HTML）</label>
+            <textarea id="zjf-add-desc" class="form-control form-control-sm" rows="2"
+                      placeholder="支持 HTML 标签，如 &lt;b&gt;加粗&lt;/b&gt;"></textarea>
           </div>
         </div>
         <div class="small text-muted mb-2">
@@ -143,8 +146,9 @@ function zjmf_admin_markup_label($product)
         <input type="hidden" id="zjf-edit-id" value="0">
         <div class="form-row">
           <div class="col-md-4 mb-2">
-            <label class="small text-muted">商品名</label>
-            <div id="zjf-edit-name" class="pt-1"></div>
+            <label class="small text-muted">商品名 *</label>
+            <input type="text" id="zjf-edit-name" class="form-control form-control-sm"
+                   maxlength="100">
           </div>
           <div class="col-md-2 mb-2">
             <label class="small text-muted">加价方式</label>
@@ -170,9 +174,14 @@ function zjmf_admin_markup_label($product)
               <option value="0">下架</option>
             </select>
           </div>
+          <div class="col-md-12 mb-2">
+            <label class="small text-muted">商品简介（支持 HTML）</label>
+            <textarea id="zjf-edit-desc" class="form-control form-control-sm" rows="4"
+                      placeholder="支持 HTML 标签，如 &lt;b&gt;加粗&lt;/b&gt;、&lt;br&gt; 换行。同步商品不会覆盖此处内容。"></textarea>
+          </div>
         </div>
         <div class="small text-muted mb-2">
-          留空加价数值表示使用所属供应商的加价规则
+          留空加价数值表示使用所属供应商的加价规则；重新同步上游仅更新价格，不覆盖本地名称与简介。
         </div>
         <button type="button" class="btn btn-sm btn-primary" id="zjf-edit-save">保存</button>
         <button type="button" class="btn btn-sm btn-secondary" id="zjf-edit-cancel">取消</button>
@@ -225,6 +234,7 @@ function zjmf_admin_markup_label($product)
                     <button type="button" class="btn btn-sm btn-outline-primary zjf-edit"
                             data-id="<?= (int)$p['id'] ?>"
                             data-name="<?= htmlspecialchars($p['name'], ENT_QUOTES) ?>"
+                            data-desc="<?= htmlspecialchars($p['description'] ?? '', ENT_QUOTES) ?>"
                             data-type="<?= (int)$p['markup_type'] ?>"
                             data-value="<?= (int)$p['markup_value'] ?>"
                             data-sort="<?= (int)$p['sort'] ?>"
@@ -259,6 +269,11 @@ function zjmf_admin_markup_label($product)
     }
     if (ok && reload) setTimeout(function () { location.reload(); }, 600);
   }
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
   function post(data, reload) {
     $.post('ajax.php', data, function (r) { notify(res(r), reload); });
   }
@@ -284,7 +299,7 @@ function zjmf_admin_markup_label($product)
     btn.disabled = true;
     btn.textContent = '加载中...';
     syncTip.textContent = '正在拉取上游商品列表...';
-    syncList.innerHTML = '<tr><td colspan="4" class="text-center text-muted">加载中...</td></tr>';
+    syncList.innerHTML = '<tr><td colspan="6" class="text-center text-muted">加载中...</td></tr>';
     $.post('ajax.php', {gn: 'p_zjmf_admin_upstream_products', id: supplierId},
       function (r) {
         var d = res(r);
@@ -292,26 +307,28 @@ function zjmf_admin_markup_label($product)
         btn.textContent = '加载商品列表';
         if (d.qk != 1 && !d.success) {
           syncTip.textContent = '';
-          syncList.innerHTML = '<tr><td colspan="4" class="text-center text-muted">'
+          syncList.innerHTML = '<tr><td colspan="6" class="text-center text-muted">'
             + (d.msg || d.code || '拉取失败') + '</td></tr>';
           return;
         }
         var list = d.list || (d.data && d.data.list) || [];
         if (!list.length) {
-          syncList.innerHTML = '<tr><td colspan="4" class="text-center text-muted">'
+          syncList.innerHTML = '<tr><td colspan="6" class="text-center text-muted">'
             + '该供应商暂无商品</td></tr>';
           return;
         }
         syncTip.textContent = '共 ' + list.length + ' 个商品，勾选要同步的项目后点击「开始同步」'
-          + '（已同步过的将更新价格，不覆盖加价与上架状态）';
+          + '（已同步过的将更新价格，不覆盖本地名称/简介与加价配置）';
         var html = '';
         for (var i = 0; i < list.length; i++) {
           var it = list[i];
-          html += '<tr class="zjf-up-row" data-name="' + (it.name || '').toLowerCase() + '">'
+          html += '<tr class="zjf-up-row" data-name="' + esc((it.name || '').toLowerCase()) + '">'
             + '<td><input type="checkbox" class="zjf-up-check" value="' + it.id + '"'
             + (it.synced ? ' checked' : '') + '></td>'
             + '<td>' + it.id + '</td>'
-            + '<td>' + (it.name || '-') + '</td>'
+            + '<td>' + esc(it.name || '-') + '</td>'
+            + '<td>' + (it.price ? '¥' + (it.price / 100).toFixed(2) : '-') + '</td>'
+            + '<td>' + (it.module ? '<span class="badge badge-info">' + esc(it.module) + '</span>' : '-') + '</td>'
             + '<td>' + (it.synced ? '<span class="badge badge-success">已同步</span>'
                 : '<span class="badge badge-secondary">未同步</span>') + '</td>'
             + '</tr>';
@@ -399,6 +416,7 @@ function zjmf_admin_markup_label($product)
   /* ---------------- 编辑商品 ---------------- */
   var editId = document.getElementById('zjf-edit-id');
   var editName = document.getElementById('zjf-edit-name');
+  var editDesc = document.getElementById('zjf-edit-desc');
   var editType = document.getElementById('zjf-edit-type');
   var editValue = document.getElementById('zjf-edit-value');
   var editSort = document.getElementById('zjf-edit-sort');
@@ -409,7 +427,8 @@ function zjmf_admin_markup_label($product)
       syncWrap.style.display = 'none';
       addWrap.style.display = 'none';
       editId.value = btn.getAttribute('data-id');
-      editName.textContent = btn.getAttribute('data-name');
+      editName.value = btn.getAttribute('data-name');
+      editDesc.value = btn.getAttribute('data-desc') || '';
       editType.value = btn.getAttribute('data-type');
       editValue.value = btn.getAttribute('data-value');
       editSort.value = btn.getAttribute('data-sort');
@@ -426,9 +445,12 @@ function zjmf_admin_markup_label($product)
   document.getElementById('zjf-edit-save').addEventListener('click', function () {
     var id = parseInt(editId.value, 10);
     if (!id) return;
+    if (!editName.value) { alert('请填写商品名称'); return; }
     post({
       gn: 'p_zjmf_admin_save_product',
       id: id,
+      name: editName.value,
+      description: editDesc.value,
       markup_type: editType.value,
       markup_value: editValue.value,
       sort: editSort.value,
