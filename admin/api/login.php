@@ -7,7 +7,7 @@ if($egn=='login') {
 		if ($conf['yzm']=='true' && $code != $_SESSION['authcode']) {
 			unset($_SESSION['authcode']);
 			@header('Content-Type: text/html; charset=UTF-8');
-			json_exit('验证码错误');
+			json_exit_error('验证码错误');
 		} elseif($user==$conf['user'] && $pass==$conf['pwd']) {
 			unset($_SESSION['authcode']);
 			$session=md5($user.$pass.$password_hash);
@@ -19,7 +19,7 @@ if($egn=='login') {
 		} else {
 			unset($_SESSION['authcode']);
 			@header('Content-Type: text/html; charset=UTF-8');
-			json_exit('用户名或密码错误');
+			json_exit_error('用户名或密码错误');
 		}
 	} elseif(isset($_POST['logout'])) {
 		mnbt_set_auth_cookie("admin_token", "", time() - 604800);

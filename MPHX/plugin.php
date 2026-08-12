@@ -231,8 +231,17 @@ function mnbt_plugin_run_sql_file($file)
 	}
 	$parts = preg_split('/;\s*[\r\n]+/', $sql);
 	foreach ($parts as $stmt) {
-		$stmt = trim($stmt);
-		if ($stmt === '' || strpos($stmt, '--') === 0) {
+		// 逐行剔除 `--` 注释行，避免「注释 + SQL」同段被整体误判为注释而跳过建表/删表语句
+		$lines = [];
+		foreach (explode("\n", $stmt) as $line) {
+			$trimmed = ltrim($line);
+			if ($trimmed === '' || strpos($trimmed, '--') === 0) {
+				continue;
+			}
+			$lines[] = $line;
+		}
+		$stmt = trim(implode("\n", $lines));
+		if ($stmt === '') {
 			continue;
 		}
 		@$DB->query($stmt);

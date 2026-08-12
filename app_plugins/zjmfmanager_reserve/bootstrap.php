@@ -19,6 +19,15 @@ if (!defined('IN_CRONLITE')) {
 require_once __DIR__ . '/lib/zjmf.php';
 require_once __DIR__ . '/lib/upstream.php';
 
+// 确保插件数据表存在：修复历史版本安装时 install.sql 首段（注释 + CREATE TABLE）
+// 被 mnbt_plugin_run_sql_file 整体跳过导致缺表（如 MN_plugin_zjmf_supplier）的问题。
+// install.sql 全部为 IF NOT EXISTS 建表，幂等，可安全重复执行。
+static $zjmf_tables_ready = false;
+if (!$zjmf_tables_ready && function_exists('mnbt_plugin_run_sql_file')) {
+	$zjmf_tables_ready = true;
+	mnbt_plugin_run_sql_file(__DIR__ . '/install.sql');
+}
+
 mnbt_plugin_register('zjmfmanager_reserve', [
 	'name'        => '魔方财务代理分销',
 	'description' => '商品同步加价、本地余额购买、代理商直通开通、主机管理与升降级',
