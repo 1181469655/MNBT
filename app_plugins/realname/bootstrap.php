@@ -183,20 +183,6 @@ mnbt_register_route('GET', '/realname/api/img', function ($params, $ctx) {
 mnbt_add_filter('pay.dispatch.before', 'realname_pay_guard', 10);
 
 /* ============================================================
- *  用户端菜单
- * ============================================================ */
-
-mnbt_register_menu('user', [
-	'title'    => '实名认证',
-	'icon'     => 'mdi-account-check',
-	'order'    => 90,
-	'children' => [
-		['title' => '实名认证', 'page' => 'apply', 'icon' => 'mdi-card-account-details', 'multitabs' => true],
-		['title' => '认证状态', 'page' => 'status', 'icon' => 'mdi-shield-check', 'multitabs' => true],
-	],
-]);
-
-/* ============================================================
  *  管理员端页面与菜单
  * ============================================================ */
 
