@@ -28,13 +28,14 @@ $providers = $DB->get_all_prepare("SELECT * FROM plg_dns_provider order by id as
               <input type="text" class="form-control" id="name" placeholder="如：我的 DNSPod 账号">
             </div>
             <div class="form-group">
-              <label>API Token ID</label>
-              <input type="text" class="form-control" id="api_id" placeholder="DNSPod API Token ID">
-              <small>在 DNSPod 控制台 → 安全设置 → API Token 中创建</small>
+              <label>SecretId（腾讯云 API 密钥 ID）</label>
+              <input type="text" class="form-control" id="api_id" placeholder="形如 AKIDxxxxxxxxxxxxxxxx">
+              <small>腾讯云控制台 → 访问管理 → API 密钥管理 中创建，形如 AKID 开头</small>
             </div>
             <div class="form-group">
-              <label>API Token Secret</label>
-              <input type="text" class="form-control" id="api_secret" placeholder="DNSPod API Token Secret">
+              <label>SecretKey（腾讯云 API 密钥 Key）</label>
+              <input type="text" class="form-control" id="api_secret" placeholder="腾讯云 SecretKey">
+              <small>DNSPod 已停用旧版 API Token，请改用腾讯云 API 3.0 密钥（SecretId/SecretKey）</small>
             </div>
             <div class="form-group">
               <label class="btn-block">是否启用</label>
@@ -62,7 +63,7 @@ $providers = $DB->get_all_prepare("SELECT * FROM plg_dns_provider order by id as
             <table class="table table-bordered table-striped">
               <thead>
                 <tr>
-                  <th>ID</th><th>类型</th><th>名称</th><th>Token ID</th>
+                  <th>ID</th><th>类型</th><th>名称</th><th>SecretId</th>
                   <th>状态</th><th>添加时间</th><th>操作</th>
                 </tr>
               </thead>
