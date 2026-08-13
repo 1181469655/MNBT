@@ -1413,6 +1413,20 @@ class bt_api
             }
         }
 
+        $output = $this->curlRequest($url, $data, $cookie_file, $timeout, $connectTimeout, $last_error);
+        if ($output === false) {
+            return '{"status":false,"msg":"连接面板失败：' . addslashes((string)$last_error) . '"}';
+        }
+        return $output;
+    }
+
+    /**
+     * 执行一次 cURL POST 请求。
+     * 跟随面板 http->https 跳转并保持 POST 方法，避免面板开启 SSL 后 http 方式无法对接。
+     * @return string|false 响应体；请求失败返回 false 并写入 $last_error
+     */
+    private function curlRequest($url, $data, $cookie_file, $timeout, $connectTimeout, &$last_error)
+    {
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
@@ -1423,11 +1437,14 @@ class bt_api
         curl_setopt($ch, CURLOPT_COOKIEFILE, $cookie_file);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($ch, CURLOPT_HEADER, 0);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
+        curl_setopt($ch, CURLOPT_POSTREDIR, CURL_REDIR_POST_ALL);
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
         $output = curl_exec($ch);
         if ($output === false) {
-            $output = '{"status":false,"msg":"连接面板失败：' . addslashes((string)curl_error($ch)) . '"}';
+            $last_error = (string)curl_error($ch);
         }
         curl_close($ch);
         return $output;

@@ -31,7 +31,11 @@ function mnbt_node_php_list($btdh)
     $api = new bt_api($btipe, $node['btmy']);
     $result = $api->btapi_listphp();
     if (!is_array($result)) {
-        return ['ok' => false, 'msg' => '无法获取 PHP 版本列表'];
+        return ['ok' => false, 'msg' => '无法获取 PHP 版本列表', 'raw' => $result];
+    }
+    // 面板返回业务错误（连接失败/鉴权失败等），透出真实原因，避免误报为「未安装 PHP」
+    if (isset($result['status']) && ($result['status'] === false || $result['status'] === 0 || $result['status'] === '0')) {
+        return ['ok' => false, 'msg' => isset($result['msg']) ? $result['msg'] : '面板返回错误', 'raw' => $result];
     }
     // 移除纯静态(0)和自定义/其他(1)，与用户端处理保持一致
     unset($result[0], $result[1]);
@@ -42,7 +46,7 @@ function mnbt_node_php_list($btdh)
         }
     }
     if (empty($versions)) {
-        return ['ok' => false, 'msg' => '该节点未安装任何 PHP 版本'];
+        return ['ok' => false, 'msg' => '该节点未安装任何 PHP 版本', 'raw' => $result];
     }
     usort($versions, function ($a, $b) {
         return strcmp($b['version'], $a['version']);

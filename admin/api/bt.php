@@ -34,10 +34,12 @@ if($egn=='btsc') {
 	$cres=$DB->get_row_prepare("SELECT * FROM MN_bt WHERE id=? limit 1", [$id]);
 	$ssbt=$cres['btdh'];
 	if($DB->query_prepare("DELETE FROM MN_bt WHERE id=? limit 1", [$id])) {
-		$rs=$DB->query_prepare("SELECT * FROM MN_zj WHERE ssbt=? order by id desc limit 9999", [$ssbt]);
-		while($res = $DB->fetch($rs)) {
-			$bjyr=$res['id'];
-			$DB->query_prepare("DELETE FROM MN_zj WHERE id=? limit 1", [$bjyr]);
+		$rs=$DB->get_all_prepare("SELECT * FROM MN_zj WHERE ssbt=? order by id desc limit 9999", [$ssbt]);
+		if (is_array($rs)) {
+			foreach($rs as $res) {
+				$bjyr=$res['id'];
+				$DB->query_prepare("DELETE FROM MN_zj WHERE id=? limit 1", [$bjyr]);
+			}
 		}
 		json_exit('删除成功');
 	} else {
@@ -119,6 +121,10 @@ if($egn=='btztjc') {
 	$api = new bt_api($bt_url, $cert['btmy']);
 	try {
 		$result = $api->btapi_listphp();
+		if(is_array($result) && isset($result['status']) && ($result['status'] === false || $result['status'] === 0 || $result['status'] === '0')) {
+			// 面板返回业务错误（连接失败/鉴权失败等），透出真实原因
+			exit(json_encode(['qk'=>0,'code'=>($result['msg'] ?? '面板返回错误'),'titco'=>'text-danger'], JSON_UNESCAPED_UNICODE));
+		}
 		if(is_array($result)) {
 			exit(json_encode(['qk'=>1,'code'=>'通信正常','titco'=>'text-success']));
 		} else {
@@ -139,7 +145,7 @@ if ($egn === 'list_node_php') {
 	require_once SYSTEM_ROOT . 'bt_php.function.php';
 	$result = mnbt_node_php_list($btdh);
 	if (!$result['ok']) {
-		exit(json_encode(['qk' => 0, 'msg' => $result['msg']]));
+		exit(json_encode(['qk' => 0, 'msg' => $result['msg'], 'raw' => $result['raw'] ?? null], JSON_UNESCAPED_UNICODE));
 	}
 	$currentDefault = mnbt_node_get_php($btdh);
 	exit(json_encode(['qk' => 1, 'versions' => $result['versions'], 'latest' => $result['latest'], 'current_default' => $currentDefault]));
