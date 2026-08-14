@@ -92,12 +92,17 @@ mnbt_register_payment('epay', [
 		$siteurl = isset($order['siteurl']) ? $order['siteurl'] : '';
 		// 站点根 URL 末尾保证带斜杠
 		$siteurl = rtrim((string)$siteurl, '/') . '/';
+		// 回调地址统一用 index.php?_r= 兼容路由：不依赖服务器伪静态重写。
+		// 部分环境（未配置 rewrite 规则）下 /pay/epay/notify 会直接返回 nginx 404，
+		// 导致易支付网关异步通知收不到、订单无法结算（支付成功但余额不入账）。
+		$notifyUrl = $siteurl . 'index.php?_r=/pay/epay/notify';
+		$returnUrl = $siteurl . 'index.php?_r=/pay/epay/return';
 
 		$params = [
 			'type'          => $method,           // alipay / wxpay / qqpay
 			'out_trade_no'  => $order['out_trade_no'],
-			'notify_url'    => $siteurl . 'pay/epay/notify',
-			'return_url'    => $siteurl . 'pay/epay/return',
+			'notify_url'    => $notifyUrl,
+			'return_url'    => $returnUrl,
 			'name'          => $order['name'],
 			'money'         => $order['money'],
 		];
@@ -107,15 +112,24 @@ mnbt_register_payment('epay', [
 
 // ============================================================
 //  注册回调路由：/pay/epay/notify（异步通知）
+//  注意：路由方式必须为 *（GET+POST 都接收）——
+//  部分易支付变体（如 pay1987）的自动通知/后台补发使用 GET 携带参数，
+//  只注册 POST 会导致通知命中不了路由、订单无法结算。
 // ============================================================
-mnbt_register_route('POST', '/pay/epay/notify', function ($params, $ctx) {
+mnbt_register_route('*', '/pay/epay/notify', function ($params, $ctx) {
 	@header('Content-Type: text/plain; charset=UTF-8');
 	if (!epay_is_configured()) {
 		echo 'fail';
 		return;
 	}
 	$c = epay_get_config();
+	// 兼容 POST / GET 两种通知方式
 	$data = $_POST;
+	if (empty($data)) {
+		$data = $_GET;
+		// 路由参数 _r 是我们拼接的，不参与网关签名，验签前必须剔除
+		unset($data['_r']);
+	}
 	if (empty($data) || empty($data['sign'])) {
 		mnbt_pay_log('易支付异步通知无数据或缺少 sign', '回调异常', $data['out_trade_no'] ?? '');
 		echo 'fail';
@@ -152,6 +166,8 @@ mnbt_register_route('GET', '/pay/epay/return', function ($params, $ctx) {
 	}
 	$c = epay_get_config();
 	$data = $_GET;
+	// 剔除路由参数 _r（不参与签名）
+	unset($data['_r']);
 	$ok = false;
 	if (!empty($data) && !empty($data['sign'])) {
 		$ok = Epay_Core::verifySign($data, $c['key'], (string)$data['sign']);

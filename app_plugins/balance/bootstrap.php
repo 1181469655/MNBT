@@ -198,7 +198,8 @@ mnbt_register_route('POST', '/balance/api/create_recharge', function ($params, $
 	}
 
 	// 返回支付 HTML，前端用 document.write 输出跳转
-	balance_json('正在跳转到支付页面', ['html' => $html]);
+	// code 必须为 'ok'：支付发起成功（HTML 已生成），否则 SPA 等客户端会按失败处理而不跳转
+	balance_json('ok', ['html' => $html]);
 });
 
 /* ============================================================

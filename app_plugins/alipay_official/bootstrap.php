@@ -73,8 +73,9 @@ mnbt_register_payment('alipay_official', [
 		}
 		$siteurl = isset($order['siteurl']) ? $order['siteurl'] : '';
 		$siteurl = rtrim((string)$siteurl, '/') . '/';
-		$notifyUrl = $siteurl . 'pay/alipay_official/notify';
-		$returnUrl = $siteurl . 'pay/alipay_official/return';
+		// 回调地址统一用 index.php?_r= 兼容路由：不依赖服务器伪静态重写（同 epay）
+		$notifyUrl = $siteurl . 'index.php?_r=/pay/alipay_official/notify';
+		$returnUrl = $siteurl . 'index.php?_r=/pay/alipay_official/return';
 
 		$params = [
 			'out_trade_no' => $order['out_trade_no'],

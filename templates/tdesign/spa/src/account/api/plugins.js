@@ -26,17 +26,16 @@ export function centsToYuan(cents) {
 
 /**
  * 处理支付跳转响应（create_recharge / create_order 通用）
- * @returns {boolean} 是否已触发跳转（html 弹窗 / redirect 跳转）
+ * @returns {boolean} 是否已触发跳转（html 写入当前文档 / redirect 跳转）
  */
 export function goPay(res) {
   const data = res?.data || {}
   if (data.html) {
-    const win = window.open('', '_blank')
-    if (win) {
-      win.document.open()
-      win.document.write(data.html)
-      win.document.close()
-    }
+    // 直接写入当前文档触发表单自动提交跳转支付页。
+    // 不能用 window.open('', '_blank')：经过 await 后已无用户手势，会被浏览器弹窗拦截导致不跳转。
+    document.open()
+    document.write(data.html)
+    document.close()
     return true
   }
   if (data.redirect) {

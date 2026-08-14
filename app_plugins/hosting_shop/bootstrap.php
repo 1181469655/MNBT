@@ -323,7 +323,7 @@ mnbt_register_route('POST', '/shop/api/create_order', function ($params, $ctx) {
 		hosting_json('支付方式不可用，请检查支付插件是否已启用');
 	}
 
-	hosting_json('正在跳转到支付页面', ['html' => $html, 'order_no' => $order_no]);
+	hosting_json('ok', ['html' => $html, 'order_no' => $order_no]);
 });
 
 /* ============================================================

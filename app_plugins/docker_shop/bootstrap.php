@@ -287,7 +287,7 @@ mnbt_register_route('POST', '/docker-shop/api/create_order', function ($params, 
 		docker_shop_json('支付方式不可用，请检查支付插件是否已启用');
 	}
 
-	docker_shop_json('正在跳转到支付页面', ['html' => $html, 'order_no' => $order_no]);
+	docker_shop_json('ok', ['html' => $html, 'order_no' => $order_no]);
 });
 
 // 重置 Docker 账号密码

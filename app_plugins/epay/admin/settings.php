@@ -26,8 +26,9 @@ $siteRoot = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https://
 if (substr($siteRoot, -6) === '/admin') {
 	$siteRoot = substr($siteRoot, 0, -6);
 }
-$notifyUrl = $siteRoot . '/pay/epay/notify';
-$returnUrl = $siteRoot . '/pay/epay/return';
+// 回调地址统一用 index.php?_r= 兼容路由：不依赖服务器伪静态重写
+$notifyUrl = $siteRoot . '/index.php?_r=/pay/epay/notify';
+$returnUrl = $siteRoot . '/index.php?_r=/pay/epay/return';
 ?>
 
 <div class="mn-set-card">
