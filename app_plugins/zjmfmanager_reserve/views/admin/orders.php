@@ -87,11 +87,12 @@ $title = $title ?? '订单管理';
               <th>状态</th>
               <th>下单时间</th>
               <th>完成时间</th>
+              <th>备注/失败原因</th>
             </tr>
           </thead>
           <tbody>
             <?php if (empty($orders['list'])): ?>
-              <tr><td colspan="13" class="text-center text-muted">暂无订单</td></tr>
+              <tr><td colspan="14" class="text-center text-muted">暂无订单</td></tr>
             <?php else: ?>
               <?php foreach ($orders['list'] as $o): ?>
                 <tr>
@@ -112,6 +113,7 @@ $title = $title ?? '订单管理';
                   </td>
                   <td class="small"><?= htmlspecialchars($o['created_at']) ?></td>
                   <td class="small"><?= htmlspecialchars($o['opened_at'] ?: '-') ?></td>
+                  <td class="small text-danger"><?= htmlspecialchars($o['remark'] ?: '-') ?></td>
                 </tr>
               <?php endforeach; ?>
             <?php endif; ?>

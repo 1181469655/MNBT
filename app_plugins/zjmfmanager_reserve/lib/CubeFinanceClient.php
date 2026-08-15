@@ -290,7 +290,7 @@ class CubeFinanceClient
 	 */
 	public function hostTrafficUsage($hostId, array $extra = [])
 	{
-		$data = array_merge(['host_id' => intval($hostId)], $extra);
+		$data = array_merge(['id' => intval($hostId)], $extra);
 		return $this->get('host/trafficusage', $data);
 	}
 
@@ -373,18 +373,6 @@ class CubeFinanceClient
 	}
 
 	/**
-	 * 余额抵扣 / 支付（视站点配置而定）。
-	 * POST apply_credit
-	 *
-	 * @param array $params
-	 * @return array
-	 */
-	public function applyCredit(array $params)
-	{
-		return $this->post('apply_credit', $params);
-	}
-
-	/**
 	 * 任意未封装接口。
 	 *
 	 * @param string $method GET|POST|PUT|DELETE
@@ -457,9 +445,9 @@ class CubeFinanceClient
 		if ($httpCode < 200 || $httpCode >= 300) {
 			$snippet = is_string($body) ? $this->truncate($body, 300) : '';
 			throw new CubeFinanceException(
-				"HTTP {$httpCode}" . ($snippet !== '' ? ': ' . $snippet : ''),
+				"HTTP {$httpCode} {$method} {$url}" . ($snippet !== '' ? ': ' . $snippet : ''),
 				$httpCode,
-				['http_code' => $httpCode, 'body' => $body]
+				['url' => $url, 'http_code' => $httpCode, 'body' => $body]
 			);
 		}
 		if ($body === false || $body === '') {

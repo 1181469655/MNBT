@@ -15,8 +15,16 @@ if (!defined('IN_CRONLITE')) {
 
 require_once __DIR__ . '/CubeFinanceClient.php';
 
-/** 上游下单端点（方案 A，Q1 联调确认；如上游为 provision 直通则改此处） */
-define('ZJMF_CHECKOUT_PATH', 'cart/checkout');
+/**
+ * 开通流程（按魔方财务官方 API 文档，前台会员中心接口，无 v1 前缀）：
+ *   1. POST /cart/add_to_shop 添加产品至购物车（pid/billingcycle/qty/host/password）→ data.i 购物车位置
+ *   2. POST /cart/settle      结算购物车（pos[]=[i]、checkout=1 直接结算）→ data.invoiceid
+ *   3. POST /apply_credit     使用余额支付账单（invoiceid、use_credit=1、enough=1）
+ *   4. GET  /invoices/{id}    账单详情，取 host[].num 得到主机 ID（产品 ID）
+ *   5. GET  /host/header      查询主机信息（username/password/productname/nextduedate）
+ * 接口与响应字段以官方文档为准（docs/zjmf-api-doc/zjmf-api.md）；
+ * 上游版本/定制站存在差异时，失败信息会带出上游返回详情便于联调适配（见 PRD §3.3 / §12 Q1）。
+ */
 
 class ZjmfUpstream
 {
@@ -335,8 +343,8 @@ class ZjmfUpstream
 
 	/**
 	 * 上游开通主机（按订单所属供应商路由）。
-	 * 方案 A：cart/set_config 试算 → 下单 → apply_credit 余额支付 → 解析主机信息。
-	 * 端点与响应字段联调确认（Q1），调整仅需改动本方法。
+	 * 流程：add_to_shop 加购 → settle 结算 → apply_credit 余额支付 → 账单详情取主机 ID → host/header 查信息。
+	 * 端点与响应字段以官方文档为准（Q1），调整仅需改动本方法。
 	 *
 	 * @param array $order    MN_plugin_zjmf_order 行
 	 * @param array $supplier MN_plugin_zjmf_supplier 行
@@ -351,41 +359,84 @@ class ZjmfUpstream
 			return ['ok' => false, 'msg' => '供应商连接信息不完整'];
 		}
 
-		$params = [
-			'pid'          => (int)($order['up_product_id'] ?? 0),
-			'billingcycle' => (string)($order['cycle'] ?? ''),
-		];
+		$upProductId = (int)($order['up_product_id'] ?? 0);
+		$cycle = (string)($order['cycle'] ?? '');
 		$extra = json_decode((string)($order['order_params'] ?? ''), true);
-		if (is_array($extra)) {
-			$params = array_merge($params, $extra);
+		if (!is_array($extra)) {
+			$extra = [];
 		}
 
 		try {
-			// 1. 下单
-			$res = $client->post(ZJMF_CHECKOUT_PATH, $params);
-			if (($res['status'] ?? 0) != 200) {
-				return ['ok' => false, 'msg' => (string)($res['msg'] ?? '上游下单失败')];
+			// 1. 添加产品至购物车（官方：POST /cart/add_to_shop）→ data.i 购物车位置
+			$addParams = [
+				'pid'          => $upProductId,
+				'billingcycle' => $cycle,
+				'qty'          => 1,
+				'host'         => (string)($extra['host'] ?? self::randHost()),
+				'password'     => (string)($extra['password'] ?? self::randPassword()),
+			];
+			foreach (['configoption', 'customfield', 'serverid', 'os'] as $k) {
+				if (isset($extra[$k])) {
+					$addParams[$k] = $extra[$k];
+				}
 			}
-			$data = is_array($res['data'] ?? null) ? $res['data'] : [];
+			$res = $client->post('cart/add_to_shop', $addParams);
+			if (!self::respOk($res)) {
+				return ['ok' => false, 'msg' => self::respErr('上游添加购物车失败', $res)];
+			}
+			$position = -1;
+			if (is_array($res['data'] ?? null)) {
+				$position = (int)($res['data']['i'] ?? -1);
+			} elseif (is_numeric($res['data'] ?? null)) {
+				$position = (int)$res['data'];
+			}
+			if ($position < 0) {
+				return ['ok' => false, 'msg' => '上游添加购物车未返回位置，无法结算'];
+			}
 
-			// 2. 若有上游订单，尝试余额抵扣支付（部分站点下单即开通，忽略失败）
-			$upOrderId = self::findId($data);
-			if ($upOrderId > 0) {
-				try {
-					$client->applyCredit(['order_id' => $upOrderId]);
-				} catch (CubeFinanceException $e) {
-					// 忽略：非致命
+			// 2. 结算购物车（官方：POST /cart/settle，checkout=1 直接结算）→ data.invoiceid
+			$checkout = $client->post('cart/settle', [
+				'pos[]'    => [$position],
+				'checkout' => 1,
+			]);
+			if (!self::respOk($checkout)) {
+				return ['ok' => false, 'msg' => self::respErr('上游结算失败', $checkout)];
+			}
+			$checkoutData = is_array($checkout['data'] ?? null) ? $checkout['data'] : [];
+			$invoiceId = self::findId($checkoutData);
+			$hostId = self::findHostId($checkoutData);
+
+			// 3. 使用余额支付账单（官方：POST /apply_credit）
+			if ($invoiceId > 0 && $hostId <= 0) {
+				$credit = $client->post('apply_credit', [
+					'invoiceid' => $invoiceId,
+					'use_credit' => 1,
+					'enough'    => 1,
+				]);
+				if (!self::respOk($credit)) {
+					// 账单可能已被自动扣款，确认已支付后再继续
+					$info = self::invoiceInfo($client, $invoiceId, 1);
+					if (!$info || !self::isPaidStatus($info['status'])) {
+						return ['ok' => false, 'msg' => self::respErr('上游余额支付失败', $credit)];
+					}
 				}
 			}
 
-			// 3. 解析主机信息
-			$hostId = self::findHostId($data);
+			// 4. 账单已支付，轮询账单详情取主机 ID（主机创建可能异步）
+			if ($hostId <= 0 && $invoiceId > 0) {
+				$info = self::invoiceInfo($client, $invoiceId);
+				if ($info) {
+					$hostId = (int)$info['host_id'];
+				}
+			}
+
+			// 5. 拿到主机 ID → 查询主机信息（官方：GET /host/header）
 			if ($hostId > 0) {
 				$header = self::safeHostHeader($client, $hostId);
 				return [
 					'ok'          => true,
 					'msg'         => '开通成功',
-					'up_order_id' => $upOrderId,
+					'up_order_id' => $invoiceId,
 					'up_host_id'  => $hostId,
 					'username'    => $header['username'],
 					'password'    => $header['password'],
@@ -394,11 +445,11 @@ class ZjmfUpstream
 				];
 			}
 
-			// 4. 未拿到 host_id：订单已生成，需人工核对（不判失败，避免误退款）
+			// 6. 订单已创建/支付但未拿到主机：人工核对（不判失败，避免误退款）
 			return [
 				'ok'          => true,
 				'msg'         => '上游订单已创建，但未返回主机 ID，请到上游后台核对',
-				'up_order_id' => $upOrderId,
+				'up_order_id' => $invoiceId,
 				'up_host_id'  => 0,
 				'username'    => '',
 				'password'    => '',
@@ -406,7 +457,11 @@ class ZjmfUpstream
 				'renew_date'  => '',
 			];
 		} catch (CubeFinanceException $e) {
-			return ['ok' => false, 'msg' => $e->getMessage()];
+			$detail = '';
+			if (is_array($e->response) && !empty($e->response['body'])) {
+				$detail = '（响应: ' . self::truncate((string)$e->response['body'], 300) . '）';
+			}
+			return ['ok' => false, 'msg' => $e->getMessage() . $detail];
 		}
 	}
 
@@ -427,9 +482,7 @@ class ZjmfUpstream
 				return ['ok' => false, 'msg' => (string)($res['msg'] ?? '查询失败')];
 			}
 			$data = $res['data'] ?? [];
-			if (is_array($data) && isset($data['host']) && is_array($data['host'])) {
-				$data = $data['host'];
-			}
+			$data = self::pickHostData($data);
 			return ['ok' => true, 'data' => $data, 'status' => self::mapHostStatus($data)];
 		} catch (CubeFinanceException $e) {
 			return ['ok' => false, 'msg' => $e->getMessage()];
@@ -462,7 +515,11 @@ class ZjmfUpstream
 			return ['ok' => false, 'msg' => '供应商连接信息不完整'];
 		}
 		try {
-			$params = array_merge(['id' => (int)$upHostId, 'func' => $func], $extra);
+			$params = array_merge([
+				'id'      => (int)$upHostId,
+				'func'    => $func,
+				'is_api'  => 1,
+			], $extra);
 			$res = $client->provisionDefault($params);
 			if (($res['status'] ?? 0) == 200) {
 				return ['ok' => true, 'msg' => (string)($res['msg'] ?? '操作成功')];
@@ -772,29 +829,84 @@ class ZjmfUpstream
 		return (string)($item['type'] ?? $item['module'] ?? $item['module_name'] ?? '');
 	}
 
-	/** 从 data 中找通用 ID（订单 ID）。 */
+	/** 上游返回是否成功（200 常规成功；1001 购买成功/支付完成，无需继续支付）。 */
+	protected static function respOk($res)
+	{
+		$st = (int)($res['status'] ?? 0);
+		return in_array($st, [200, 1001], true);
+	}
+
+	/** 组装上游失败详情（msg + data 截断），避免日志里只有泛化文案。 */
+	protected static function respErr($prefix, $res)
+	{
+		$msg = (string)($res['msg'] ?? '');
+		$data = $res['data'] ?? null;
+		$detail = '';
+		if (is_array($data) || is_scalar($data)) {
+			$json = json_encode($data, JSON_UNESCAPED_UNICODE);
+			if (is_string($json)) {
+				$detail = ' data=' . self::truncate($json, 300);
+			}
+		}
+		$out = trim($prefix . '：' . $msg . $detail, '：');
+		return $out !== '' ? $out : $prefix;
+	}
+
+	/** 截断字符串（mb_substr 不可用时回退 substr）。 */
+	protected static function truncate($str, $len)
+	{
+		if (function_exists('mb_substr')) {
+			return mb_substr($str, 0, $len);
+		}
+		return substr($str, 0, $len);
+	}
+
+	/** 生成上游主机名（官方示例：ser + 12 位随机串）。 */
+	protected static function randHost()
+	{
+		$chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+		return 'ser' . substr(str_shuffle($chars), 0, 12);
+	}
+
+	/** 生成随机密码（12 位字母数字）。 */
+	protected static function randPassword()
+	{
+		$chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+		return substr(str_shuffle($chars), 0, 12);
+	}
+
 	protected static function findId($arr)
 	{
 		if (!is_array($arr)) {
 			return 0;
 		}
-		foreach (['id', 'order_id', 'orderid'] as $k) {
+		foreach (['id', 'order_id', 'orderid', 'invoiceid', 'invoice_id'] as $k) {
 			if (isset($arr[$k])) {
-				return (int)$arr[$k];
+				$v = $arr[$k];
+				if (is_array($v)) {
+					$v = reset($v);
+				}
+				return (int)$v;
 			}
 		}
 		return 0;
 	}
 
-	/** 从 data 中找主机 ID（支持嵌套 host）。 */
+	/** 从 data 中找主机 ID（支持嵌套 host 与 hostid 数组）。 */
 	protected static function findHostId($arr)
 	{
 		if (!is_array($arr)) {
 			return 0;
 		}
 		foreach (['host_id', 'hostid', 'hid', 'id'] as $k) {
-			if (isset($arr[$k]) && (int)$arr[$k] > 0) {
-				return (int)$arr[$k];
+			if (isset($arr[$k])) {
+				$v = $arr[$k];
+				if (is_array($v)) {
+					$v = reset($v);
+				}
+				if ((int)$v > 0) {
+					return (int)$v;
+				}
 			}
 		}
 		if (isset($arr['host']) && is_array($arr['host'])) {
@@ -803,20 +915,99 @@ class ZjmfUpstream
 		return 0;
 	}
 
+	/**
+	 * 查询账单详情并轮询主机 ID（主机创建可能异步）。
+	 * 官方：GET /invoices/{id} → data.invoices[].status（支付状态）+
+	 *      data.host[].num（账单项目关联的产品 ID，兼容标量/数组）。
+	 *
+	 * @param CubeFinanceClient $client
+	 * @param int               $invoiceId
+	 * @param int               $maxTries 轮询次数（每次间隔 2 秒）
+	 * @return array|null ['status'=>string, 'host_id'=>int]，未取到主机 ID 时轮询至超时
+	 */
+	protected static function invoiceInfo($client, $invoiceId, $maxTries = 4)
+	{
+		for ($i = 0; $i < $maxTries; $i++) {
+			try {
+				$res = $client->get('invoices/' . (int)$invoiceId);
+				if (self::respOk($res)) {
+					$data = is_array($res['data'] ?? null) ? $res['data'] : [];
+					$info = ['status' => '', 'host_id' => 0];
+					$inv = $data['invoices'] ?? null;
+					if (is_array($inv)) {
+						$first = (isset($inv[0]) && is_array($inv[0])) ? $inv[0] : $inv;
+						$info['status'] = strtolower((string)($first['status'] ?? ''));
+					}
+					$items = $data['host'] ?? null;
+					if (is_array($items)) {
+						foreach ($items as $item) {
+							if (!is_array($item)) {
+								continue;
+							}
+							$num = $item['num'] ?? null;
+							if (is_array($num)) {
+								foreach ($num as $n) {
+									if ((int)$n > 0) {
+										$info['host_id'] = (int)$n;
+										break 2;
+									}
+								}
+							} elseif ((int)$num > 0) {
+								$info['host_id'] = (int)$num;
+								break;
+							}
+						}
+					}
+					if ($info['host_id'] > 0) {
+						return $info;
+					}
+				}
+			} catch (CubeFinanceException $e) {
+				// 查询失败忽略，稍后重试
+			}
+			if ($i < $maxTries - 1) {
+				sleep(2);
+			}
+		}
+		return null;
+	}
+
+	/** 账单支付状态是否已支付（兼容英文/中文）。 */
+	protected static function isPaidStatus($status)
+	{
+		$st = strtolower(trim((string)$status));
+		return in_array($st, ['paid', '已支付', 'completed', 'complete', 'success', 'payment'], true);
+	}
+
+	/** 从主机详情响应提取主机数据（兼容 host_data/host 键与单对象/数组结构）。 */
+	protected static function pickHostData($data)
+	{
+		if (!is_array($data)) {
+			return [];
+		}
+		foreach (['host_data', 'host', 'info'] as $k) {
+			if (isset($data[$k]) && is_array($data[$k])) {
+				$v = $data[$k];
+				if (isset($v[0]) && is_array($v[0])) {
+					return $v[0];
+				}
+				return $v;
+			}
+		}
+		return $data;
+	}
+
 	/** 查询主机头信息并安全提取字段（失败给空）。 */
 	protected static function safeHostHeader($client, $hostId)
 	{
 		try {
 			$res = $client->hostHeader((int)$hostId);
-			$data = $res['data'] ?? [];
-			if (is_array($data) && isset($data['host']) && is_array($data['host'])) {
-				$data = $data['host'];
-			}
+			$host = self::pickHostData($res['data'] ?? []);
 			return [
-				'username'   => (string)($data['username'] ?? ''),
-				'password'   => (string)($data['password'] ?? ''),
-				'name'       => (string)($data['name'] ?? ''),
-				'renew_date' => (string)($data['renew_date'] ?? $data['renewdate'] ?? ''),
+				'username'   => (string)($host['username'] ?? ''),
+				'password'   => (string)($host['password'] ?? ''),
+				'name'       => (string)($host['productname'] ?? $host['name'] ?? ''),
+				'renew_date' => (string)($host['nextduedate'] ?? $host['renew_date'] ?? $host['renewdate'] ?? ''),
 			];
 		} catch (CubeFinanceException $e) {
 			return ['username' => '', 'password' => '', 'name' => '', 'renew_date' => ''];

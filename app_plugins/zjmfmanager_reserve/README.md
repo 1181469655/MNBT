@@ -86,7 +86,10 @@ app_plugins/zjmfmanager_reserve/
 以下端点/字段因上游版本与定制模块而异，已集中在 `lib/upstream.php` 便于调整
 （详见 PRD §3.3 与开放问题 Q1/Q3）：
 
-- 开通端点：`cart/checkout`（`ZJMF_CHECKOUT_PATH`），如上游为 provision 直通则修改此处
+- 开通流程（按魔方财务官方 API 文档，见 `docs/zjmf-api-doc/zjmf-api.md`）：
+  `cart/add_to_shop`（添加购物车，返回 data.i 位置）→ `cart/settle`（结算，pos[]+checkout=1）→
+  `apply_credit`（余额支付，invoiceid+use_credit=1）→ `invoices/{id}`（账单详情取主机 ID）→
+  `host/header`（查账号密码），成功码兼容 200 与 1001；失败信息带出上游返回详情，联调按实际站点适配
 - 主机操作 func：`on/off/reboot/passwd/reinstall`（`zjmf_action_func()` 映射）
 - 升级端点：`upgrade/upgrade_config_page|_post`、`upgrade/upgrade_product_page|_post`
 - 响应字段解析均为防御式（`pickPrice`/`findId`/`findHostId`/`parseTrialPrice`）
