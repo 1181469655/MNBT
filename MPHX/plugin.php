@@ -1365,7 +1365,25 @@ function mnbt_plugin_dispatch_route()
 				while (ob_get_level() > $bufferLevel) ob_end_clean();
 				error_log('[MNBT plugin] route ' . $item['method'] . ' ' . $item['path'] . ' @' . ($item['plugin'] ?? '?') . ': ' . $e->getMessage());
 				$GLOBALS['mnbt_plugin_current'] = $prev;
-				continue;
+				// 路由已匹配但回调抛异常：渲染错误页终止请求，
+				// 不再静默 continue 落到默认行为（曾导致用户端被跳转到核心虚拟主机登录页）
+				if (!headers_sent()) {
+					http_response_code(500);
+					@header('Content-Type: text/html; charset=UTF-8');
+				}
+				echo '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>页面错误</title>'
+					. '<style>body{font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:#f2f3f5;color:#1a2e28;display:grid;place-items:center;min-height:100vh;margin:0}'
+					. '.box{max-width:680px;padding:32px 40px;background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,.06)}'
+					. 'h1{font-size:18px;margin:0 0 10px;color:#d54941}'
+					. 'p{font-size:14px;line-height:1.7;color:#555;margin:8px 0}'
+					. 'code{background:#f2f3f5;padding:2px 6px;border-radius:4px;font-size:12px}'
+					. 'pre{background:#fafbfc;border:1px solid #eee;border-radius:8px;padding:14px;overflow:auto;font-size:12px;line-height:1.6;color:#333}</style></head>'
+					. '<body><div class="box"><h1>页面处理出错</h1>'
+					. '<p>路由 <code>' . htmlspecialchars($item['method'] . ' ' . $item['path'], ENT_QUOTES, 'UTF-8')
+					. '</code> 处理异常，请稍后重试或联系管理员。</p>'
+					. '<pre>' . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8') . '</pre>'
+					. '</div></body></html>';
+				exit;
 			}
 			$GLOBALS['mnbt_plugin_current'] = $prev;
 			if ($result === false) {

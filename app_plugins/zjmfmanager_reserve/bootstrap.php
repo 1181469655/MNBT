@@ -88,6 +88,7 @@ mnbt_register_page('admin', 'suppliers', 'views/admin/suppliers.php', '供应商
 mnbt_register_page('admin', 'products', 'views/admin/products.php', '商品管理');
 mnbt_register_page('admin', 'orders', 'views/admin/orders.php', '订单管理');
 mnbt_register_page('admin', 'hosts', 'views/admin/hosts.php', '主机管理');
+mnbt_register_page('admin', 'assign', 'views/admin/assign.php', '主机指派');
 mnbt_register_page('admin', 'logs', 'views/admin/logs.php', '操作日志');
 
 // 侧边栏菜单（三级结构）
@@ -100,6 +101,7 @@ mnbt_register_menu('admin', [
 		['title' => '商品管理', 'page' => 'products', 'icon' => 'mdi-package-variant', 'multitabs' => true],
 		['title' => '订单管理', 'page' => 'orders', 'icon' => 'mdi-receipt', 'multitabs' => true],
 		['title' => '主机管理', 'page' => 'hosts', 'icon' => 'mdi-server', 'multitabs' => true],
+		['title' => '主机指派', 'page' => 'assign', 'icon' => 'mdi-gift', 'multitabs' => true],
 		['title' => '操作日志', 'page' => 'logs', 'icon' => 'mdi-clipboard-text', 'multitabs' => true],
 	],
 ]);
@@ -228,6 +230,23 @@ mnbt_register_ajax('admin', 'p_zjmf_admin_test_supplier', function () {
 	json_exit_success($result['msg'] ?? '连接成功');
 });
 
+// 查询供应商上游余额（GET /user_info → data.credit）
+mnbt_register_ajax('admin', 'p_zjmf_admin_supplier_balance', function () {
+	mnbt_plugin_require_admin();
+	$supplier = zjmf_supplier_get((int)($_POST['id'] ?? 0));
+	if (!$supplier) {
+		json_exit_error('供应商不存在');
+	}
+	$result = ZjmfUpstream::balance($supplier);
+	if (empty($result['ok'])) {
+		json_exit_error($result['msg'] ?? '获取失败');
+	}
+	json_exit_success('ok', [
+		'credit'   => (string)($result['credit'] ?? ''),
+		'currency' => (string)($result['currency'] ?? ''),
+	]);
+});
+
 // 拉取供应商上游商品列表（供同步弹窗选择）
 mnbt_register_ajax('admin', 'p_zjmf_admin_upstream_products', function () {
 	mnbt_plugin_require_admin();
@@ -264,6 +283,237 @@ mnbt_register_ajax('admin', 'p_zjmf_admin_upstream_products', function () {
 	]);
 });
 
+// 拉取当前账户（代理）已开通的主机列表（产品分配页用）
+// 来源：GET host/list，每台主机一行；标注本地已指派状态
+mnbt_register_ajax('admin', 'p_zjmf_admin_upstream_owned_products', function () {
+	mnbt_plugin_require_admin();
+	global $DB;
+	$supplier = zjmf_supplier_get((int)($_POST['id'] ?? 0));
+	if (!$supplier) {
+		json_exit_error('供应商不存在');
+	}
+
+	// 分页拉全量主机列表（limit 尽量大，翻页兜底；安全上限防死循环）
+	$items = [];
+	$sum = 0;
+	$maxPage = 1;
+	$page = 1;
+	$safety = 30;
+	while ($page <= $maxPage && $safety-- > 0) {
+		$res = ZjmfUpstream::hostList($supplier, ['page' => $page, 'limit' => 100]);
+		if (empty($res['ok'])) {
+			json_exit_error('拉取失败：' . (string)($res['msg'] ?? ''));
+		}
+		$data = $res['data'] ?? [];
+		foreach (($data['list'] ?? []) as $h) {
+			$items[] = $h;
+		}
+		$sum = (int)($data['sum'] ?? count($items));
+		$maxPage = (int)($data['max_page'] ?? 0);
+		if ($maxPage <= 0) {
+			$maxPage = 1;
+		}
+		if ($sum > 0 && count($items) >= $sum) {
+			break;
+		}
+		$page++;
+	}
+
+	// 本地已指派的主机集合（供应商 + 上游主机ID）
+	$assigned = [];
+	$rows = $DB->get_all_prepare(
+		"SELECT up_host_id FROM MN_plugin_zjmf_host
+		 WHERE supplier_id=? AND up_host_id>0",
+		[(int)$supplier['id']]
+	) ?: [];
+	foreach ($rows as $r) {
+		$assigned[(int)$r['up_host_id']] = true;
+	}
+
+	$list = [];
+	foreach ($items as $h) {
+		$upId = (int)($h['id'] ?? 0);
+		if ($upId <= 0) {
+			continue;
+		}
+		$list[] = [
+			'id'          => $upId,
+			'domain'      => (string)($h['domain'] ?? ''),
+			'productname' => (string)($h['productname'] ?? ''),
+			'status'      => (string)($h['domainstatus'] ?? ''),
+			'status_desc' => (string)($h['domainstatus_desc'] ?? $h['domainstatus'] ?? ''),
+			'dedicatedip' => (string)($h['dedicatedip'] ?? ''),
+			'cycle'       => (string)($h['cycle_desc'] ?? $h['billingcycle'] ?? ''),
+			'nextdue'     => zjmf_normalize_date((string)($h['nextduedate'] ?? '')),
+			'assigned'    => isset($assigned[$upId]),
+		];
+	}
+	json_exit_success('拉取成功', [
+		'list' => $list,
+	]);
+});
+
+// 产品分配：把上游已开通的机器直接指派给指定用户（本地绑定，不调上游购买）
+mnbt_register_ajax('admin', 'p_zjmf_admin_assign_host', function () {
+	mnbt_plugin_require_admin();
+	global $DB;
+
+	$supplier = zjmf_supplier_get((int)($_POST['supplier_id'] ?? 0));
+	if (!$supplier || (int)$supplier['status'] !== 1) {
+		json_exit_error('供应商不存在或已停用');
+	}
+	$user_id = (int)($_POST['user_id'] ?? 0);
+	$user = $DB->get_row_prepare(
+		"SELECT id, username, email FROM MN_plugin_user
+		 WHERE id=? AND status=1 LIMIT 1",
+		[$user_id]
+	);
+	if (!$user) {
+		json_exit_error('目标用户不存在或已禁用');
+	}
+
+	$upHostIds = [];
+	if (isset($_POST['up_host_id']) && is_array($_POST['up_host_id'])) {
+		foreach ($_POST['up_host_id'] as $v) {
+			$v = (int)$v;
+			if ($v > 0) {
+				$upHostIds[] = $v;
+			}
+		}
+	}
+	if ($upHostIds === []) {
+		json_exit_error('请至少勾选一台主机');
+	}
+
+	// 一次拉取上游主机列表，匹配勾选机器的详情（产品名/周期/状态/到期）
+	$upMap = [];
+	$res = ZjmfUpstream::hostList($supplier, ['page' => 1, 'limit' => 100]);
+	if (!empty($res['ok'])) {
+		foreach (($res['data']['list'] ?? []) as $h) {
+			$upMap[(int)($h['id'] ?? 0)] = $h;
+		}
+	}
+
+	$results = [];
+	foreach ($upHostIds as $upHostId) {
+		// 幂等：该上游主机已指派则跳过
+		$exist = $DB->get_row_prepare(
+			"SELECT id FROM MN_plugin_zjmf_host
+			 WHERE supplier_id=? AND up_host_id=? LIMIT 1",
+			[(int)$supplier['id'], $upHostId]
+		);
+		if ($exist) {
+			$results[] = [
+				'up_host_id' => $upHostId,
+				'domain'     => (string)($upMap[$upHostId]['domain'] ?? ''),
+				'ok'         => false,
+				'msg'        => '该机器已指派（本地主机 #' . (int)$exist['id'] . '）',
+				'host_id'    => (int)$exist['id'],
+			];
+			continue;
+		}
+
+		$upRow = $upMap[$upHostId] ?? [];
+		$name = (string)($upRow['productname'] ?? '');
+		$cycle = (string)($upRow['cycle_desc'] ?? $upRow['billingcycle'] ?? '');
+		$status = (string)($upRow['domainstatus'] ?? '');
+		$renew = (string)($upRow['nextduedate'] ?? '');
+		$account = '';
+		$password = '';
+		// 拉取上游主机头信息（账号/密码），失败不阻断
+		// 注意：host/header 返回字段为 domainstatus/nextduedate/billingcycle/productname
+		$info = ZjmfUpstream::hostInfo($supplier, $upHostId);
+		if (!empty($info['ok']) && is_array($info['data'])) {
+			$d = $info['data'];
+			$account = (string)($d['username'] ?? '');
+			$password = (string)($d['password'] ?? '');
+			if ($name === '') {
+				$name = (string)($d['productname'] ?? $d['name'] ?? '');
+			}
+			if ($cycle === '') {
+				$cycle = (string)($d['billingcycle_desc'] ?? $d['billingcycle'] ?? $d['cycle_desc'] ?? '');
+			}
+			if ($status === '') {
+				$status = (string)($d['domainstatus'] ?? $d['status'] ?? '');
+			}
+			if ($renew === '') {
+				$renew = (string)($d['nextduedate'] ?? $d['renew_date'] ?? '');
+			}
+		}
+		if ($name === '') {
+			$name = '上游主机#' . $upHostId;
+		}
+
+		// 创建指派订单（记录用，金额 0，直接标记已开通）
+		$product = [
+			'id'            => 0,
+			'supplier_id'   => (int)$supplier['id'],
+			'up_product_id' => (int)($upRow['pid'] ?? 0),
+			'name'          => $name,
+		];
+		$cycleCfg = ['name' => $cycle !== '' ? $cycle : 'Monthly', 'price_cents' => 0];
+		$order = zjmf_order_create($user, $product, $cycle, $cycleCfg, 'assign', [
+			'cost_cents'   => 0,
+			'up_host_id'   => $upHostId,
+			'order_params' => json_encode([
+				'assign_by'   => 'admin',
+				'assign_type' => 'existing_host',
+			], JSON_UNESCAPED_UNICODE),
+		]);
+		if (empty($order['ok'])) {
+			$results[] = [
+				'up_host_id' => $upHostId,
+				'domain'     => (string)($upRow['domain'] ?? ''),
+				'ok'         => false,
+				'msg'        => (string)($order['msg'] ?? '订单创建失败'),
+				'host_id'    => 0,
+			];
+			continue;
+		}
+		$order_id = (int)$order['order_id'];
+		zjmf_order_fill_opened($order_id, 0, $upHostId, $account);
+		zjmf_order_set_status($order_id, 'opened', '管理员指派');
+
+		// 写本地主机映射（绑定该上游机器）
+		$hostId = zjmf_host_create([
+			'supplier_id'   => (int)$supplier['id'],
+			'user_id'       => (int)$user['id'],
+			'order_id'      => $order_id,
+			'up_host_id'    => $upHostId,
+			'up_product_id' => (int)($upRow['pid'] ?? 0),
+			'name'          => $name,
+			'username'      => $account,
+			'password'      => $password !== '' ? zjmf_encrypt($password) : '',
+			'cycle'         => $cycle,
+			'status'        => zjmf_map_upstream_status($status),
+			'renew_date'    => zjmf_normalize_date($renew),
+		]);
+		if ($hostId <= 0) {
+			$results[] = [
+				'up_host_id' => $upHostId,
+				'domain'     => (string)($upRow['domain'] ?? ''),
+				'ok'         => false,
+				'msg'        => '本地主机映射写入失败',
+				'host_id'    => 0,
+			];
+			continue;
+		}
+
+		zjmf_log((int)$user['id'], (string)($order['order_no'] ?? ''), 'assign', 'success',
+			json_encode(['up_host_id' => $upHostId, 'assign_by' => 'admin'], JSON_UNESCAPED_UNICODE),
+			(int)$supplier['id']);
+
+		$results[] = [
+			'up_host_id' => $upHostId,
+			'domain'     => (string)($upRow['domain'] ?? ''),
+			'ok'         => true,
+			'msg'        => '指派成功',
+			'host_id'    => $hostId,
+		];
+	}
+	json_exit_success('处理完成', ['results' => $results]);
+});
+
 // 按所选供应商 + 勾选商品 ID 列表同步
 mnbt_register_ajax('admin', 'p_zjmf_admin_sync_products', function () {
 	mnbt_plugin_require_admin();
@@ -285,6 +535,157 @@ mnbt_register_ajax('admin', 'p_zjmf_admin_sync_products', function () {
 		json_exit_error($result['msg'] ?? '同步失败');
 	}
 	json_exit_success($result['msg'] ?? '同步完成');
+});
+
+// 产品分配：按关键词搜索可分配用户（user_info 独立用户表）
+mnbt_register_ajax('admin', 'p_zjmf_admin_search_users', function () {
+	mnbt_plugin_require_admin();
+	global $DB;
+	$kw = trim((string)($_POST['keyword'] ?? ''));
+	$list = [];
+	if ($kw !== '') {
+		$like = '%' . $kw . '%';
+		$list = $DB->get_all_prepare(
+			"SELECT id, username, email, qq, created_at
+			 FROM MN_plugin_user
+			 WHERE status=1 AND (username LIKE ? OR email LIKE ? OR id=?)
+			 ORDER BY id DESC LIMIT 20",
+			[$like, $like, (int)$kw]
+		) ?: [];
+	}
+	json_exit_success('ok', ['list' => $list]);
+});
+
+// 产品分配：同步勾选的上游商品并直接给指定用户开通（管理员代开，金额 0）
+mnbt_register_ajax('admin', 'p_zjmf_admin_assign_open', function () {
+	mnbt_plugin_require_admin();
+	global $DB;
+
+	$supplier = zjmf_supplier_get((int)($_POST['supplier_id'] ?? 0));
+	if (!$supplier || (int)$supplier['status'] !== 1) {
+		json_exit_error('供应商不存在或已停用');
+	}
+	$user_id = (int)($_POST['user_id'] ?? 0);
+	$user = $DB->get_row_prepare(
+		"SELECT id, username, email FROM MN_plugin_user
+		 WHERE id=? AND status=1 LIMIT 1",
+		[$user_id]
+	);
+	if (!$user) {
+		json_exit_error('目标用户不存在或已禁用');
+	}
+
+	$upIds = [];
+	if (isset($_POST['up_product_id']) && is_array($_POST['up_product_id'])) {
+		foreach ($_POST['up_product_id'] as $v) {
+			$v = (int)$v;
+			if ($v > 0) {
+				$upIds[] = $v;
+			}
+		}
+	}
+	if ($upIds === []) {
+		json_exit_error('请至少勾选一个产品');
+	}
+	// 周期可选：指定周期不存在时自动回退商品第一个可用周期
+	$cycle = trim((string)($_POST['cycle'] ?? ''));
+	if ($cycle !== '' && !isset(zjmf_cycles()[$cycle])) {
+		$cycle = '';
+	}
+
+	$results = [];
+	foreach ($upIds as $upId) {
+		$product = zjmf_product_get_by_up((int)$supplier['id'], $upId);
+		if (!$product) {
+			$sync = ZjmfUpstream::syncOneProductBySupplier($supplier, $upId);
+			if (empty($sync['ok'])) {
+				$results[] = [
+					'up_product_id' => $upId,
+					'name'          => '上游#' . $upId,
+					'ok'            => false,
+					'msg'           => '商品同步失败：' . (string)($sync['msg'] ?? ''),
+					'up_host_id'    => 0,
+				];
+				continue;
+			}
+			$product = zjmf_product_get_by_up((int)$supplier['id'], $upId);
+		}
+		if (!$product) {
+			$results[] = [
+				'up_product_id' => $upId,
+				'name'          => '上游#' . $upId,
+				'ok'            => false,
+				'msg'           => '商品入库后仍未找到',
+				'up_host_id'    => 0,
+			];
+			continue;
+		}
+
+		// 确定周期：管理员指定 > 商品第一个有价格的周期 > Monthly > 任意
+		$cycles = zjmf_product_cycles($product);
+		$pick = ($cycle !== '' && isset($cycles[$cycle])) ? $cycle : '';
+		if ($pick === '') {
+			foreach ($cycles as $k => $cfg) {
+				if ((int)($cfg['agent_price_cents'] ?? 0) > 0
+					|| (int)($cfg['price_cents'] ?? 0) > 0) {
+					$pick = $k;
+					break;
+				}
+			}
+		}
+		if ($pick === '') {
+			if (isset($cycles['Monthly'])) {
+				$pick = 'Monthly';
+			} else {
+				foreach ($cycles as $k => $v) {
+					$pick = $k;
+					break;
+				}
+			}
+		}
+		if ($pick === '') {
+			$results[] = [
+				'up_product_id' => $upId,
+				'name'          => (string)$product['name'],
+				'ok'            => false,
+				'msg'           => '商品无可用周期',
+				'up_host_id'    => 0,
+			];
+			continue;
+		}
+
+		// 管理员代开订单：金额 0，标记后直接开通（不扣用户本地余额）
+		$cycleCfg = [
+			'name'        => (string)($cycles[$pick]['name'] ?? $pick),
+			'price_cents' => 0,
+		];
+		$order = zjmf_order_create($user, $product, $pick, $cycleCfg, 'buy', [
+			'cost_cents'   => 0,
+			'order_params' => json_encode(['assign_by' => 'admin'], JSON_UNESCAPED_UNICODE),
+		]);
+		if (empty($order['ok'])) {
+			$results[] = [
+				'up_product_id' => $upId,
+				'name'          => (string)$product['name'],
+				'ok'            => false,
+				'msg'           => (string)($order['msg'] ?? '订单创建失败'),
+				'up_host_id'    => 0,
+			];
+			continue;
+		}
+		$order_id = (int)$order['order_id'];
+		zjmf_order_set_status($order_id, 'paid', '管理员代开');
+		$open = zjmf_open_host($order_id);
+
+		$results[] = [
+			'up_product_id' => $upId,
+			'name'          => (string)$product['name'],
+			'ok'            => !empty($open['ok']),
+			'msg'           => (string)($open['msg'] ?? '开通失败'),
+			'up_host_id'    => (int)($open['host_id'] ?? 0),
+		];
+	}
+	json_exit_success('处理完成', ['results' => $results]);
 });
 
 // 手动添加商品（供应商 + 上游商品 ID + 名称 + 描述）
@@ -641,16 +1042,22 @@ mnbt_register_route('GET', '/reserve/api/hosts', function ($params, $ctx) {
 	}
 	$hosts = [];
 	foreach (zjmf_host_list_by_user((int)$user['id']) as $h) {
+		// 缺失上游主机 ID 时尝试从上游主机列表补齐（同一次请求只拉一次上游列表）
+		$h = zjmf_backfill_host_upid($h);
+		$supplier = zjmf_supplier_get((int)$h['supplier_id']);
 		$hosts[] = [
 			'id'            => (int)$h['id'],
 			'up_host_id'    => (int)$h['up_host_id'],
+			'up_product_id' => (int)$h['up_product_id'],
 			'name'          => (string)$h['name'],
 			'username'      => (string)$h['username'],
 			'cycle'         => (string)$h['cycle'],
 			'status'        => (string)$h['status'],
-			'renew_date'    => (string)$h['renew_date'],
+			// 历史数据可能存了上游时间戳，统一归一化为 Y-m-d
+			'renew_date'    => zjmf_normalize_date((string)$h['renew_date']),
 			'created_at'    => (string)$h['created_at'],
 			'updated_at'    => (string)$h['updated_at'],
+			'supplier_name' => (string)($supplier['name'] ?? ''),
 		];
 	}
 	zjmf_json('ok', ['logged_in' => true, 'hosts' => $hosts]);
@@ -684,9 +1091,16 @@ mnbt_register_route('GET', '/reserve/orders', function ($params, $ctx) {
 // 我的主机列表
 mnbt_register_route('GET', '/reserve/hosts', function ($params, $ctx) {
 	$user = zjmf_require_user();
+	$hosts = zjmf_host_list_by_user((int)$user['id']);
+	// 列表页顺带补齐缺失的上游主机 ID（同一次请求只拉一次上游列表）
+	foreach ($hosts as $i => $h) {
+		$hosts[$i] = zjmf_backfill_host_upid($h);
+		// 历史数据可能存了上游时间戳，统一归一化为 Y-m-d
+		$hosts[$i]['renew_date'] = zjmf_normalize_date((string)$hosts[$i]['renew_date']);
+	}
 	zjmf_render('hosts', [
 		'page_title' => '我的主机',
-		'hosts'      => zjmf_host_list_by_user((int)$user['id']),
+		'hosts'      => $hosts,
 	]);
 });
 
@@ -701,25 +1115,75 @@ mnbt_register_route('GET', '/reserve/hosts/{host_id}', function ($params, $ctx) 
 		return;
 	}
 
+	// 缺失上游主机 ID 时尝试补齐（开通结算未解析出 ID 的历史数据）
+	$host = zjmf_backfill_host_upid($host);
+	// 历史数据可能存了上游时间戳，统一归一化为 Y-m-d
+	$host['renew_date'] = zjmf_normalize_date((string)$host['renew_date']);
+
 	// 实时信息（失败不致命，仅展示缓存）
 	$info = ['ok' => false, 'msg' => ''];
 	$traffic = ['ok' => false, 'data' => []];
+	$dcim = ['ok' => false, 'data' => []];
+	$osList = [];
+	$osGroups = [];
+	$osError = '';
 	$supplier = zjmf_supplier_get((int)$host['supplier_id']);
 	if ((int)$host['up_host_id'] > 0 && $supplier) {
-		$info = ZjmfUpstream::hostInfo($supplier, (int)$host['up_host_id']);
-		$traffic = ZjmfUpstream::hostTraffic($supplier, (int)$host['up_host_id']);
-		// 拉取成功后同步缓存状态
-		if (!empty($info['ok']) && $info['status'] !== $host['status']) {
-			zjmf_host_update_cache((int)$host['id'], ['status' => $info['status']]);
-			$host['status'] = $info['status'];
+		try {
+			$info = ZjmfUpstream::hostInfo($supplier, (int)$host['up_host_id']);
+			$traffic = ZjmfUpstream::hostTraffic($supplier, (int)$host['up_host_id']);
+			// DCIM 信息（交换机端口/电源状态/重装次数/任务进度），非 DCIM 产品为空，失败不致命
+			$dcim = ZjmfUpstream::hostDcimInfo($supplier, (int)$host['up_host_id']);
+			// 重装系统列表（GET host/dedicatedserver?host_id=，实测可返回 cloud_os），
+			// 失败回退 host/product 的 dcim.os
+			$osList = is_array($info['dcim']['os'] ?? null) ? $info['dcim']['os'] : [];
+			$osGroups = [];
+			$osError = '';
+			$co = ZjmfUpstream::hostDedicatedOs($supplier, (int)$host['up_host_id']);
+			if (!empty($co['ok']) && $co['os_list'] !== []) {
+				$osList = $co['os_list'];
+				$osGroups = $co['groups'];
+			} else {
+				$osError = (string)($co['msg'] ?? '获取系统列表失败');
+			}
+			// 详情端点取不到状态时，从 host/list（含 domainstatus）按 ID 匹配兜底
+			if (($info['status'] ?? '') === 'unknown') {
+				$lr = ZjmfUpstream::hostList($supplier, ['limit' => 100]);
+				if (!empty($lr['ok'])) {
+					foreach (($lr['data']['list'] ?? []) as $it) {
+						if ((int)($it['id'] ?? 0) === (int)$host['up_host_id']) {
+							$mapped = zjmf_map_upstream_status((string)($it['domainstatus'] ?? ''));
+							if ($mapped !== 'unknown') {
+								$info['status'] = $mapped;
+								$info['data'] = is_array($info['data']) ? $info['data'] : [];
+								$info['data'] = array_merge($info['data'], $it);
+							}
+							break;
+						}
+					}
+				}
+			}
+			// 拉取成功后同步缓存状态（unknown 不上写，避免误覆盖）
+			if (!empty($info['ok']) && $info['status'] !== 'unknown' && $info['status'] !== $host['status']) {
+				zjmf_host_update_cache((int)$host['id'], ['status' => $info['status']]);
+				$host['status'] = $info['status'];
+			}
+		} catch (Throwable $e) {
+			error_log('[zjmfmanager_reserve] host detail upstream: ' . $e->getMessage());
 		}
 	}
 
 	zjmf_render('host', [
-		'page_title' => '主机详情：' . $host['name'],
-		'host'       => $host,
-		'info'       => $info,
-		'traffic'    => $traffic,
+		'page_title'    => '主机详情：' . $host['name'],
+		'host'          => $host,
+		'info'          => $info,
+		'traffic'       => $traffic,
+		'dcim'          => $dcim,
+		'config_options'=> is_array($info['config_options'] ?? null) ? $info['config_options'] : [],
+		'custom_fields' => is_array($info['custom_fields'] ?? null) ? $info['custom_fields'] : [],
+		'os_list'       => $osList,
+		'os_groups'     => $osGroups,
+		'os_error'      => $osError,
 	]);
 });
 
@@ -741,6 +1205,53 @@ mnbt_register_route('POST', '/reserve/api/host_action', function ($params, $ctx)
 		zjmf_json('服务已停用，无法执行操作');
 	}
 	$supplier = zjmf_supplier_get((int)$host['supplier_id']);
+
+	// DCIM 专用操作（救援系统/重置BMC/取消任务）
+	$dcimActions = ['rescue', 'bmc', 'cancel_task'];
+	if (in_array($action, $dcimActions, true)) {
+		$extra = [];
+		$apiAction = $action;
+		if ($action === 'rescue') {
+			$system = (int)($_POST['system'] ?? 0);
+			if ($system !== 1 && $system !== 2) {
+				zjmf_json('请选择救援系统（1 Linux / 2 Windows）');
+			}
+			$extra['system'] = $system;
+		}
+		$result = ZjmfUpstream::hostDcimAction($supplier, (int)$host['up_host_id'], $apiAction, $extra);
+		$hostOrder = zjmf_order_get((int)$host['order_id']);
+		$orderNo = $hostOrder ? $hostOrder['order_no'] : '';
+		zjmf_log((int)$user['id'], $orderNo, 'host_action:' . $action,
+			empty($result['ok']) ? 'failed' : 'success', $result['msg'] ?? '',
+			(int)$host['supplier_id']);
+		if (empty($result['ok'])) {
+			zjmf_json($result['msg'] ?? '操作失败');
+		}
+		zjmf_json('ok', ['msg' => '操作成功']);
+	}
+
+	// 重装系统：POST /provision/default (func=reinstall)，只需 os 与 os_group，无需密码/端口
+	if ($action === 'dcim_reinstall') {
+		$os = (int)($_POST['os'] ?? 0);
+		if ($os <= 0) {
+			zjmf_json('请选择操作系统');
+		}
+		$extra = ['os' => $os, 'code' => 0];
+		$osGroup = trim((string)($_POST['os_group'] ?? ''));
+		if ($osGroup !== '') {
+			$extra['os_group'] = $osGroup;
+		}
+		$result = ZjmfUpstream::hostAction($supplier, (int)$host['up_host_id'], 'reinstall', $extra);
+		$hostOrder = zjmf_order_get((int)$host['order_id']);
+		$orderNo = $hostOrder ? $hostOrder['order_no'] : '';
+		zjmf_log((int)$user['id'], $orderNo, 'host_action:dcim_reinstall',
+			empty($result['ok']) ? 'failed' : 'success', $result['msg'] ?? '',
+			(int)$host['supplier_id']);
+		if (empty($result['ok'])) {
+			zjmf_json($result['msg'] ?? '操作失败');
+		}
+		zjmf_json('ok', ['msg' => '操作成功']);
+	}
 
 	$func = zjmf_action_func($action);
 	if ($func === '') {
@@ -931,7 +1442,9 @@ mnbt_register_route('POST', '/reserve/api/upgrade', function ($params, $ctx) {
 		$cache['up_product_id'] = (int)($_POST['newpid'] ?? 0);
 	}
 	$cache['cycle'] = (string)($_POST['billingcycle'] ?? $host['cycle']);
-	$cache['renew_date'] = (string)($preview['data']['renew_date'] ?? '');
+	$cache['renew_date'] = zjmf_normalize_date(
+		(string)($preview['data']['renew_date'] ?? '')
+	);
 	zjmf_host_update_cache((int)$host['id'], $cache);
 
 	zjmf_log((int)$user['id'], $order_no, $action, 'success',
@@ -966,11 +1479,116 @@ mnbt_register_ajax('admin', 'p_zjmf_admin_fetch_host', function () {
 	if (empty($info['ok'])) {
 		json_exit_error($info['msg'] ?? '查询失败');
 	}
-	$cache = ['status' => $info['status']];
-	if (isset($info['data']['renewdate']) || isset($info['data']['renew_date'])) {
-		$cache['renew_date'] = (string)($info['data']['renew_date']
-			?? $info['data']['renewdate'] ?? '');
+	$cache = [];
+	if ($info['status'] !== 'unknown') {
+		$cache['status'] = $info['status'];
 	}
-	zjmf_host_update_cache($id, $cache);
+	if (isset($info['data']['nextduedate']) || isset($info['data']['renewdate']) || isset($info['data']['renew_date'])) {
+		$cache['renew_date'] = zjmf_normalize_date(
+			(string)($info['data']['nextduedate'] ?? $info['data']['renew_date'] ?? $info['data']['renewdate'] ?? '')
+		);
+	}
+	if ($cache) {
+		zjmf_host_update_cache($id, $cache);
+	}
 	json_exit_success('已刷新', ['status' => $info['status']]);
+});
+
+// 全部刷新主机状态（管理员）：拉取 host/list 全量按 ID 匹配批量更新，
+// 修复存量 unknown/过期缓存（比逐台 hostInfo 快且可靠）
+mnbt_register_ajax('admin', 'p_zjmf_admin_fetch_all_hosts', function () {
+	mnbt_plugin_require_admin();
+
+	// 拉取本地全部主机
+	$hosts = [];
+	$page = 1;
+	$per = 200;
+	while (true) {
+		$res = zjmf_host_list_all($page, $per);
+		$list = $res['list'] ?? [];
+		if ($list === []) {
+			break;
+		}
+		foreach ($list as $h) {
+			$hosts[] = $h;
+		}
+		if ($page * $per >= (int)($res['total'] ?? 0)) {
+			break;
+		}
+		$page++;
+	}
+
+	// 按供应商拉取上游主机列表（分页全量）
+	$supplierIds = [];
+	foreach ($hosts as $h) {
+		$sid = (int)$h['supplier_id'];
+		if ($sid > 0) {
+			$supplierIds[$sid] = true;
+		}
+	}
+	$upMap = [];
+	foreach (array_keys($supplierIds) as $sid) {
+		$supplier = zjmf_supplier_get($sid);
+		if (!$supplier) {
+			continue;
+		}
+		$items = [];
+		$sum = 0;
+		$maxPage = 1;
+		$p = 1;
+		$safety = 30;
+		while ($p <= $maxPage && $safety-- > 0) {
+			$r = ZjmfUpstream::hostList($supplier, ['page' => $p, 'limit' => 100]);
+			if (empty($r['ok'])) {
+				break;
+			}
+			$d = $r['data'] ?? [];
+			foreach (($d['list'] ?? []) as $it) {
+				$items[(int)($it['id'] ?? 0)] = $it;
+			}
+			$sum = (int)($d['sum'] ?? count($items));
+			$maxPage = (int)($d['max_page'] ?? 1);
+			if ($maxPage <= 0) {
+				$maxPage = 1;
+			}
+			if ($sum > 0 && count($items) >= $sum) {
+				break;
+			}
+			$p++;
+		}
+		$upMap[$sid] = $items;
+	}
+
+	$stat = ['total' => count($hosts), 'ok' => 0, 'fail' => 0, 'no_up' => 0,
+		'missing' => 0, 'unknown' => 0, 'changed' => 0];
+	foreach ($hosts as $host) {
+		$upId = (int)$host['up_host_id'];
+		if ($upId <= 0) {
+			$stat['no_up']++;
+			continue;
+		}
+		$item = $upMap[(int)$host['supplier_id']][$upId] ?? null;
+		if (!$item) {
+			$stat['missing']++;
+			continue;
+		}
+		$status = zjmf_map_upstream_status((string)($item['domainstatus'] ?? ''));
+		$renew = zjmf_normalize_date((string)($item['nextduedate'] ?? ''));
+		$cache = [];
+		if ($status !== 'unknown' && $status !== (string)$host['status']) {
+			$cache['status'] = $status;
+			$stat['changed']++;
+		}
+		if ($renew !== '' && $renew !== (string)$host['renew_date']) {
+			$cache['renew_date'] = $renew;
+		}
+		if ($cache) {
+			zjmf_host_update_cache((int)$host['id'], $cache);
+		}
+		if ($status === 'unknown') {
+			$stat['unknown']++;
+		}
+		$stat['ok']++;
+	}
+	json_exit_success('刷新完成', $stat);
 });

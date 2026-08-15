@@ -49,7 +49,7 @@ ob_start();
                   <?= htmlspecialchars(zjmf_host_status_label($host['status'])) ?>
                 </span>
               </td>
-              <td class="zj-mono"><?= htmlspecialchars(zjmf_mask_account($host['username'])) ?></td>
+              <td class="zj-mono"><?= htmlspecialchars(($host['username'] ?: '-')) ?></td>
               <td><?= htmlspecialchars($host['cycle'] ?: '-') ?></td>
               <td><?= htmlspecialchars($host['renew_date'] ?: '-') ?></td>
               <td>

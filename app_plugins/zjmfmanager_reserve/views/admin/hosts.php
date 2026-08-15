@@ -10,22 +10,31 @@ mnbt_admin_include('head');
 $page = max(1, (int)($_GET['page_num'] ?? 1));
 $hosts = zjmf_host_list_all($page, 30);
 $status_labels = [
-	'active'  => '运行中',
-	'suspend' => '已暂停',
-	'unknown' => '未知',
+	'active'     => '运行中',
+	'suspend'    => '已暂停',
+	'pending'    => '待开通',
+	'terminated' => '已终止',
+	'unknown'    => '未知',
 ];
 $status_classes = [
-	'active'  => 'badge-success',
-	'suspend' => 'badge-danger',
-	'unknown' => 'badge-secondary',
+	'active'     => 'badge-success',
+	'suspend'    => 'badge-danger',
+	'pending'    => 'badge-warning',
+	'terminated' => 'badge-dark',
+	'unknown'    => 'badge-secondary',
 ];
 $title = $title ?? '主机管理';
 ?>
 <div class="container-fluid p-t-15">
   <div class="card">
-    <div class="card-header"><h4 style="display:inline-block">主机管理</h4></div>
+    <div class="card-header">
+      <h4 style="display:inline-block">主机管理</h4>
+      <button type="button" class="btn btn-primary btn-sm float-right" id="zjf-refresh-all">全部刷新状态</button>
+    </div>
     <div class="card-body">
-      <p class="text-muted">主机映射为开通成功的上游主机。可点击「刷新状态」同步上游实时状态。</p>
+      <p class="text-muted">主机映射为开通成功的上游主机。可点击「刷新状态」同步上游实时状态；
+        点「全部刷新状态」可批量修复存量未知/过期缓存（逐台上游查询）。</p>
+      <div id="zjf-refresh-all-msg" class="small mb-2" style="display:none;"></div>
       <div class="table-responsive">
         <table class="table table-bordered table-hover">
           <thead>
@@ -59,7 +68,7 @@ $title = $title ?? '主机管理';
                     </span>
                   </td>
                   <td><?= htmlspecialchars($h['cycle'] ?: '-') ?></td>
-                  <td><?= htmlspecialchars($h['renew_date'] ?: '-') ?></td>
+                  <td><?= htmlspecialchars(zjmf_normalize_date((string)$h['renew_date']) ?: '-') ?></td>
                   <td class="small"><?= htmlspecialchars($h['created_at']) ?></td>
                   <td>
                     <?php if ((int)$h['up_host_id'] > 0): ?>
@@ -122,6 +131,32 @@ document.querySelectorAll('.zjf-refresh').forEach(function (btn) {
       }
       setTimeout(function () { location.reload(); }, 600);
     });
+  });
+});
+document.getElementById('zjf-refresh-all').addEventListener('click', function () {
+  var self = this;
+  var msgBox = document.getElementById('zjf-refresh-all-msg');
+  self.disabled = true;
+  self.textContent = '刷新中，请稍候...';
+  msgBox.style.display = 'block';
+  msgBox.className = 'small mb-2 text-muted';
+  msgBox.textContent = '正在逐台上游查询，请勿关闭页面...';
+  $.post('ajax.php', {gn: 'p_zjmf_admin_fetch_all_hosts'}, function (res) {
+    var d;
+    try { d = typeof res === 'string' ? JSON.parse(res) : res; } catch (e) { d = {code: res}; }
+    self.disabled = false;
+    self.textContent = '全部刷新状态';
+    if (d.qk != 1 && !d.success) {
+      msgBox.className = 'small mb-2 text-danger';
+      msgBox.textContent = '刷新失败：' + (d.msg || d.code || '未知错误');
+      return;
+    }
+    var s = d.data || {};
+    msgBox.className = 'small mb-2 text-success';
+    msgBox.textContent = '刷新完成：共 ' + s.total + ' 台，成功 ' + s.ok
+      + '，失败 ' + s.fail + '，缺少上游ID ' + s.no_up
+      + '，状态变更 ' + s.changed + '，仍为未知 ' + s.unknown + '。';
+    setTimeout(function () { location.reload(); }, 1500);
   });
 });
 </script>

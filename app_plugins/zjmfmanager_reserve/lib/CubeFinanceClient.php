@@ -258,6 +258,65 @@ class CubeFinanceClient
 	}
 
 	/**
+	 * 购物车计算总价（官方价格计算接口）。
+	 * POST /cart/get_total
+	 *
+	 * @param array $params 通常含 pid、billingcycle、qty、configoption 等
+	 * @return array
+	 */
+	public function cartGetTotal(array $params)
+	{
+		return $this->post('cart/get_total', $params);
+	}
+
+	/**
+	 * 购物车产品配置（含该产品可选周期/价格，用于探测真实 billingcycle 键）。
+	 * GET /cart/get_product_config?pid={pid}
+	 *
+	 * @param int $productId
+	 * @return array
+	 */
+	public function cartGetProductConfig($productId)
+	{
+		return $this->get('cart/get_product_config', [
+			'pid' => (int)$productId,
+		]);
+	}
+
+	/**
+	 * 清空购物车。
+	 * POST /cart/clear
+	 *
+	 * @return array
+	 */
+	public function cartClear()
+	{
+		return $this->post('cart/clear', []);
+	}
+
+	/**
+	 * 购物车页面数据（含购物车产品列表，数组键/序号即位置 i）。
+	 * GET /cart/get_shop_data
+	 *
+	 * @return array
+	 */
+	public function cartGetShopData()
+	{
+		return $this->get('cart/get_shop_data');
+	}
+
+	/**
+	 * 前台首页数据（含客户余额 data.client[].credit）。
+	 * GET /index
+	 *
+	 * @return array
+	 */
+	public function homeIndex()
+	{
+		return $this->get('index');
+	}
+
+	/**
 	 * 账户信息 / 余额。
 	 * GET user_info
 	 *
@@ -277,7 +336,39 @@ class CubeFinanceClient
 	 */
 	public function hostHeader($hostId)
 	{
-		return $this->get('host/header', ['host_id' => intval($hostId)]);
+		return $this->get('host/header', ['host_id' => (int)$hostId]);
+	}
+
+	/** 产品内页数据（GET host/product），状态/账号等字段更稳定。 */
+	public function hostProduct($hostId)
+	{
+		return $this->get('host/product', ['host_id' => (int)$hostId]);
+	}
+
+	/**
+	 * 独服/云服务器详情（含重装可选系统列表 cloud_os / cloud_os_group）。
+	 * GET host/dedicatedserver?host_id={hostId}
+	 *
+	 * 实测 host/cloudos 无法返回系统列表，该端点是重装系统的可靠来源。
+	 *
+	 * @param int $hostId 上游主机 ID
+	 * @return array
+	 */
+	public function hostDedicatedServer($hostId)
+	{
+		return $this->get('host/dedicatedserver', ['host_id' => (int)$hostId]);
+	}
+
+	/**
+	 * 我的主机列表。
+	 * GET host/list
+	 *
+	 * @param array $extra 如 groupid/orderby/sort/show_type
+	 * @return array
+	 */
+	public function hostList(array $extra = [])
+	{
+		return $this->get('host/list', $extra);
 	}
 
 	/**
@@ -304,6 +395,56 @@ class CubeFinanceClient
 	public function provisionDefault(array $params)
 	{
 		return $this->post('provision/default', $params);
+	}
+
+	/* ============================================================
+	 *  DCIM 管理（服务器租用 / NAT 类产品）
+	 * ============================================================ */
+
+	/**
+	 * DCIM 模块操作（开机/关机/重启/重置BMC/救援/取消任务等）。
+	 * POST dcim/{action}?id={hostId}
+	 *
+	 * @param string $action 端点名（on/off/reboot/bmc/rescue/cancel_task/reinstall/crack_pass）
+	 * @param int    $hostId 上游主机 ID
+	 * @param array  $extra  额外参数
+	 * @return array
+	 */
+	public function dcimAction($action, $hostId, array $extra = [])
+	{
+		$data = array_merge(['id' => (int)$hostId], $extra);
+		return $this->post('dcim/' . $action, $data);
+	}
+
+	/** DCIM 产品详情（交换机/端口信息）。GET dcim/detail */
+	public function dcimDetail($hostId)
+	{
+		return $this->get('dcim/detail', ['id' => (int)$hostId]);
+	}
+
+	/** 单台电源状态。POST dcim/refresh_power_status */
+	public function dcimPowerStatus($hostId)
+	{
+		return $this->post('dcim/refresh_power_status', ['id' => (int)$hostId]);
+	}
+
+	/** 验证是否可以重装（本周次数/上限）。POST dcim/check_reinstall */
+	public function dcimCheckReinstall($hostId)
+	{
+		return $this->post('dcim/check_reinstall', ['id' => (int)$hostId]);
+	}
+
+	/** 重装/救援/重置密码进度。GET dcim/resintall_status */
+	public function dcimReinstallStatus($hostId)
+	{
+		return $this->get('dcim/resintall_status', ['id' => (int)$hostId]);
+	}
+
+	/** 用量信息。GET dcim/traffic_usage */
+	public function dcimTrafficUsage($hostId, array $extra = [])
+	{
+		$data = array_merge(['id' => (int)$hostId], $extra);
+		return $this->get('dcim/traffic_usage', $data);
 	}
 
 	/**
@@ -540,6 +681,17 @@ class CubeFinanceClient
 		if ($file && is_file($file)) {
 			@unlink($file);
 		}
+	}
+
+	/**
+	 * 修改请求超时秒数（用户端实时查询用较短超时，避免拖垮整页加载）。
+	 *
+	 * @param int $seconds
+	 * @return void
+	 */
+	public function setTimeout($seconds)
+	{
+		$this->timeout = max(1, (int)$seconds);
 	}
 }
 

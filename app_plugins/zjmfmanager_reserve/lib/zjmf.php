@@ -134,21 +134,24 @@ function zjmf_encrypt($plain)
 	return authcode((string)$plain, 'ENCODE', SYS_KEY);
 }
 
-/** 密文解密。 */
+/**
+ * 密文解密（防御式）。
+ * authcode 解密分支在 PHP 8 下对乱码密文会执行「前10位 - time()」并抛
+ * TypeError（Unsupported operand types: string - int），导致详情页 500。
+ * 这里对空/过短密文直接返回，异常兜底为空串。
+ */
 function zjmf_decrypt($cipher)
 {
-	return authcode((string)$cipher, 'DECODE', SYS_KEY);
-}
-
-/** 账号脱敏展示（保留前 3 后 2）。 */
-function zjmf_mask_account($username)
-{
-	$s = (string)$username;
-	$len = strlen($s);
-	if ($len <= 5) {
-		return substr($s, 0, 1) . '***';
+	$cipher = (string)$cipher;
+	if ($cipher === '' || strlen($cipher) <= 4) {
+		return ''; // 未设置密码或非 authcode 密文
 	}
-	return substr($s, 0, 3) . '***' . substr($s, -2);
+	try {
+		$out = authcode($cipher, 'DECODE', SYS_KEY);
+		return is_string($out) ? $out : '';
+	} catch (Throwable $e) {
+		return '';
+	}
 }
 
 /** 写操作日志。 */
@@ -363,6 +366,7 @@ function zjmf_product_cycles($product)
 			$cycle = (string)$raw[0];
 			$map[$cycle] = [
 				'cycle'             => $cycle,
+				'up_cycle'          => '',
 				'name'              => (string)$raw[1],
 				'price_cents'       => (int)$raw[2],
 				'agent_price_cents' => (int)$raw[2],
@@ -378,6 +382,7 @@ function zjmf_product_cycles($product)
 		}
 		$map[$cycle] = [
 			'cycle'             => $cycle,
+			'up_cycle'          => (string)($item['up_cycle'] ?? ''),
 			'name'              => (string)($item['name'] ?? $cycle),
 			'price_cents'       => (int)($item['price_cents'] ?? 0),
 			'agent_price_cents' => (int)($item['agent_price_cents'] ?? 0),
@@ -721,7 +726,9 @@ function zjmf_host_get_by_user($user_id, $host_id)
 {
 	global $DB;
 	return $DB->get_row_prepare(
-		"SELECT h.* FROM MN_plugin_zjmf_host h
+		"SELECT h.*, s.name AS supplier_name
+		 FROM MN_plugin_zjmf_host h
+		 LEFT JOIN MN_plugin_zjmf_supplier s ON s.id = h.supplier_id
 		 WHERE h.id=? AND h.user_id=? LIMIT 1",
 		[(int)$host_id, (int)$user_id]
 	) ?: null;
@@ -737,12 +744,14 @@ function zjmf_host_get_by_up($up_host_id)
 	) ?: null;
 }
 
-/** 用户主机列表。 */
+/** 用户主机列表（含供应商名）。 */
 function zjmf_host_list_by_user($user_id)
 {
 	global $DB;
 	return $DB->get_all_prepare(
-		"SELECT h.* FROM MN_plugin_zjmf_host h
+		"SELECT h.*, s.name AS supplier_name
+		 FROM MN_plugin_zjmf_host h
+		 LEFT JOIN MN_plugin_zjmf_supplier s ON s.id = h.supplier_id
 		 WHERE h.user_id=? ORDER BY h.id DESC",
 		[(int)$user_id]
 	) ?: [];
@@ -829,6 +838,151 @@ function zjmf_host_update_cache($host_id, $data)
 	);
 }
 
+/**
+ * 归一化上游返回的日期/时间戳为 Y-m-d H:i:s（精确到秒，与 created_at 展示一致）。
+ * 魔方财务部分版本接口返回 Unix 时间戳（秒/毫秒），部分返回 Y-m-d / Y-m-d H:i:s；
+ * 已含时分秒的标准串原样保留。
+ *
+ * @param mixed $val
+ * @return string
+ */
+function zjmf_normalize_date($val)
+{
+	$s = trim((string)$val);
+	if ($s === '') {
+		return '';
+	}
+	// 已是标准日期（时间）串：截断到秒粒度并保留
+	if (preg_match('/^\d{4}-\d{2}-\d{2}/', $s)) {
+		$s = preg_replace(
+			'/^(\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2}(?::\d{2})?)?).*$/',
+			'$1',
+			$s
+		);
+		return $s;
+	}
+	if (preg_match('/^\d+$/', $s)) {
+		$t = (int)$s;
+		if ($t > 100000000000) {
+			$t = (int)($t / 1000); // 毫秒时间戳
+		}
+		return $t > 0 ? date('Y-m-d H:i:s', $t) : '';
+	}
+	$t = strtotime($s);
+	return $t ? date('Y-m-d H:i:s', $t) : $s;
+}
+
+/**
+ * 补齐本地主机缺失的上游主机 ID（up_host_id<=0 时）。
+ *
+ * 开通/结算响应未能解析出主机 ID 时会落库 up_host_id=0，导致用户端
+ * 卡片按钮不可用、详情页无法拉取实时信息。此函数通过上游
+ * GET host/list（我的主机列表）按 产品名 + 开通日期 匹配回填。
+ * 同一次请求内只拉取一次上游列表（进程内静态缓存）。
+ *
+ * @param array $host MN_plugin_zjmf_host 行
+ * @return array 回填后的主机行（未匹配则原样返回）
+ */
+function zjmf_backfill_host_upid($host)
+{
+	global $DB, $date;
+	if (!is_array($host) || (int)($host['id'] ?? 0) <= 0 || (int)($host['up_host_id'] ?? 0) > 0) {
+		return $host;
+	}
+	$supplierId = (int)($host['supplier_id'] ?? 0);
+	if ($supplierId <= 0) {
+		return $host;
+	}
+	$supplier = zjmf_supplier_get($supplierId);
+	if (!$supplier || (int)$supplier['status'] !== 1) {
+		return $host;
+	}
+	// 进程内缓存：同一次请求（列表页/详情页）只向上游请求一次
+	static $cache = [];
+	if (!array_key_exists($supplierId, $cache)) {
+		$res = ZjmfUpstream::hostList($supplier, ['orderby' => 'id', 'sort' => 'DESC']);
+		$cache[$supplierId] = empty($res['ok']) ? [] : ($res['data']['list'] ?? []);
+	}
+	$list = $cache[$supplierId];
+	if (!is_array($list) || $list === []) {
+		return $host;
+	}
+	$name = (string)($host['name'] ?? '');
+	$created = substr((string)($host['created_at'] ?? ''), 0, 10);
+	$candidates = [];
+	foreach ($list as $item) {
+		if (!is_array($item)) {
+			continue;
+		}
+		$pn = (string)($item['productname'] ?? '');
+		if ($pn === '' || ($name !== '' && $pn !== $name
+			&& strpos($pn, $name) !== 0 && strpos($name, $pn) !== 0)) {
+			continue;
+		}
+		$candidates[] = $item;
+	}
+	if ($candidates === []) {
+		return $host;
+	}
+	// 多台同名主机时，按开通日期与本地创建日期最接近者匹配
+	$best = $candidates[0];
+	if ($created !== '') {
+		$bestDiff = PHP_INT_MAX;
+		$bestTime = strtotime($created) ?: 0;
+		foreach ($candidates as $item) {
+			// regdate 部分版本为 Unix 时间戳，先归一化为 Y-m-d 再比较
+			$rd = zjmf_normalize_date((string)($item['regdate'] ?? ''));
+			if ($rd === '') {
+				continue;
+			}
+			$rdTime = strtotime($rd) ?: 0;
+			$diff = $rdTime ? abs($rdTime - $bestTime) : PHP_INT_MAX;
+			if ($diff < $bestDiff) {
+				$bestDiff = $diff;
+				$best = $item;
+			}
+		}
+	}
+	$upId = (int)($best['id'] ?? 0);
+	if ($upId <= 0) {
+		return $host;
+	}
+	$status = function_exists('zjmf_map_upstream_status')
+		? zjmf_map_upstream_status((string)($best['domainstatus'] ?? ''))
+		: (string)($host['status'] ?? '');
+	// nextduedate 部分版本为 Unix 时间戳，统一归一化为 Y-m-d
+	$renew = zjmf_normalize_date((string)($best['nextduedate'] ?? $host['renew_date'] ?? ''));
+	$now = $date ?: date('Y-m-d H:i:s');
+	$DB->query_prepare(
+		"UPDATE MN_plugin_zjmf_host
+		 SET up_host_id=?, status=?, renew_date=?, updated_at=? WHERE id=?",
+		[$upId, $status, $renew, $now, (int)$host['id']]
+	);
+	$host['up_host_id'] = $upId;
+	$host['status'] = $status;
+	$host['renew_date'] = $renew;
+	return $host;
+}
+
+/** 上游 domainstatus → 本地展示状态（active/suspend/unknown）。 */
+function zjmf_map_upstream_status($status)
+{
+	$st = strtolower(trim((string)$status));
+	if (in_array($st, ['active', 'completed', '运行中'], true)) {
+		return 'active';
+	}
+	if (in_array($st, ['pending', 'wait', 'waiting', '待开通'], true)) {
+		return 'pending';
+	}
+	if (in_array($st, ['suspended', 'suspend', 'paused', '已暂停'], true)) {
+		return 'suspend';
+	}
+	if (in_array($st, ['cancelled', 'cancel', 'terminated', 'terminate', 'fraud', '已终止'], true)) {
+		return 'terminated';
+	}
+	return 'unknown';
+}
+
 /* ============================================================
  *  主机操作辅助
  * ============================================================ */
@@ -861,9 +1015,11 @@ function zjmf_action_status($action)
 function zjmf_host_status_label($status)
 {
 	$map = [
-		'active'  => '运行中',
-		'suspend' => '已暂停',
-		'unknown' => '未知',
+		'active'     => '运行中',
+		'suspend'    => '已暂停',
+		'pending'    => '待开通',
+		'terminated' => '已终止',
+		'unknown'    => '未知',
 	];
 	return $map[$status] ?? $status;
 }

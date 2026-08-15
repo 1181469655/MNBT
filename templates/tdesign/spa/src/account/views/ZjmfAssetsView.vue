@@ -25,6 +25,10 @@
 
         <div class="zjmf-asset-meta">
           <div class="meta-item">
+            <span>供应商</span>
+            <b>{{ h.supplier_name || '—' }}</b>
+          </div>
+          <div class="meta-item">
             <span>主机账号</span>
             <b class="mono">{{ h.username || '—' }}</b>
           </div>
@@ -132,7 +136,7 @@ const newPassword = ref('')
 const pwdSubmitting = ref(false)
 
 function statusText(status) {
-  return { active: '运行中', suspend: '已暂停', unknown: '未知' }[status] || status
+  return { active: '运行中', suspend: '已暂停', pending: '待开通', terminated: '已终止', unknown: '未知' }[status] || status
 }
 
 function cycleText(cycle) {
@@ -150,6 +154,8 @@ function cycleText(cycle) {
 function statusTheme(status) {
   if (status === 'active') return 'success'
   if (status === 'suspend') return 'warning'
+  if (status === 'pending') return 'warning'
+  if (status === 'terminated') return 'danger'
   return 'default'
 }
 

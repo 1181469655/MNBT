@@ -33,9 +33,10 @@ class ZjmfUpstream
 	 * JWT 缓存目录按供应商 ID 隔离，避免多供应商凭证串扰。
 	 *
 	 * @param array|null $supplier MN_plugin_zjmf_supplier 行
+	 * @param int|null   $timeout  覆盖超时秒数（null 用供应商配置 api_timeout）
 	 * @return CubeFinanceClient|null
 	 */
-	public static function client($supplier)
+	public static function client($supplier, $timeout = null)
 	{
 		if (!is_array($supplier)) {
 			return null;
@@ -46,6 +47,11 @@ class ZjmfUpstream
 		if ($apiUrl === '' || $username === '' || $password === '') {
 			return null;
 		}
+		$t = (int)($supplier['api_timeout'] ?? 30);
+		$t = $t > 0 ? $t : 30;
+		if ($timeout !== null && (int)$timeout > 0) {
+			$t = (int)$timeout;
+		}
 		$supplierId = (int)($supplier['id'] ?? 0);
 		$cacheDir = mnbt_plugin_path('zjmfmanager_reserve')
 			. 'runtime/cache/s' . $supplierId;
@@ -53,8 +59,7 @@ class ZjmfUpstream
 			'url'        => $apiUrl,
 			'username'   => $username,
 			'password'   => $password,
-			'timeout'    => (int)($supplier['api_timeout'] ?? 30) > 0
-				? (int)($supplier['api_timeout'] ?? 30) : 30,
+			'timeout'    => $t,
 			'cache_dir'  => $cacheDir,
 			'verify_ssl' => false,
 		]);
@@ -68,6 +73,67 @@ class ZjmfUpstream
 			return ['ok' => false, 'msg' => '供应商连接信息不完整'];
 		}
 		return $client->testConnection();
+	}
+
+	/**
+	 * 查询供应商上游账户余额（GET /index → data.client[].credit）。
+	 * user_info 的 data.credit 是信用卡信息而非余额，故优先取首页客户数据，
+	 * 失败再兜底 user_info。
+	 *
+	 * @param array $supplier 供应商行
+	 * @return array ['ok'=>bool, 'msg'=>string, 'credit'=>string, 'currency'=>string]
+	 */
+	public static function balance($supplier)
+	{
+		$client = self::client($supplier);
+		if (!$client) {
+			return ['ok' => false, 'msg' => '供应商连接信息不完整'];
+		}
+		try {
+			$res = $client->homeIndex();
+			if (self::respOk($res)) {
+				$clients = $res['data']['client'] ?? [];
+				// 兼容单对象（非数组）形态
+				if (is_array($clients) && !isset($clients[0]) && ($clients['credit'] ?? '') !== '') {
+					return [
+						'ok'       => true,
+						'msg'      => 'ok',
+						'credit'   => (string)$clients['credit'],
+						'currency' => (string)($clients['currency'] ?? ''),
+					];
+				}
+				if (is_array($clients)) {
+					foreach ($clients as $c) {
+						if (is_array($c) && ($c['credit'] ?? '') !== '') {
+							return [
+								'ok'       => true,
+								'msg'      => 'ok',
+								'credit'   => (string)$c['credit'],
+								'currency' => (string)($c['currency'] ?? ''),
+							];
+						}
+					}
+				}
+			}
+			// 兜底：GET /user_info（部分版本 credit 即余额）
+			$res = $client->userInfo();
+			if (!self::respOk($res)) {
+				return ['ok' => false, 'msg' => self::respErr('获取上游账户信息失败', $res)];
+			}
+			$data = $res['data'] ?? [];
+			$credit = $data['credit'] ?? null;
+			if ($credit === null || $credit === '') {
+				$credit = $data['credit_balance'] ?? null; // 兼容字段
+			}
+			return [
+				'ok'       => true,
+				'msg'      => 'ok',
+				'credit'   => (string)$credit,
+				'currency' => (string)($data['currency'] ?? ''),
+			];
+		} catch (CubeFinanceException $e) {
+			return ['ok' => false, 'msg' => $e->getMessage()];
+		}
 	}
 
 	/* ============================================================
@@ -102,14 +168,15 @@ class ZjmfUpstream
 	 */
 	public static function syncOneProductBySupplier($supplier, $upProductId)
 	{
+		@set_time_limit(0);
 		$client = self::client($supplier);
 		if (!$client) {
 			return ['ok' => false, 'msg' => '供应商连接信息不完整'];
 		}
 		try {
 			$upId = (int)$upProductId;
-			// 优先从列表取真实条目（含 billingcycle/price 等周期信息），失败再退回详情
-			$item = null;
+			// 优先从列表取真实条目（含 billingcycle/price 等周期信息，同 pid 可能每周期一行），失败再退回详情
+			$rows = [];
 			$currency = '';
 			try {
 				$res = $client->productList();
@@ -117,26 +184,25 @@ class ZjmfUpstream
 					$currency = (string)($res['data']['currency_code'] ?? '');
 					foreach ($res['data']['list'] as $row) {
 						if ((int)($row['id'] ?? 0) === $upId) {
-							$item = $row;
-							break;
+							$rows[] = $row;
 						}
 					}
 				}
 			} catch (CubeFinanceException $e) {
 				// 列表失败忽略，退回详情
 			}
-			if (!$item) {
+			if ($rows === []) {
 				$detail = $client->productDetail($upId, 'agent');
 				$prod = $detail['data']['product'] ?? ($detail['data'] ?? []);
-				$item = [
+				$rows = [[
 					'id'          => $upId,
 					'name'        => (string)($prod['name'] ?? ''),
 					'description' => (string)($prod['description'] ?? ''),
-				];
+				]];
 				$currency = (string)($detail['data']['currency_code'] ?? $currency);
 			}
 			$ok = self::syncOneProduct(
-				$client, (int)($supplier['id'] ?? 0), $upId, $item, $currency
+				$client, (int)($supplier['id'] ?? 0), $upId, $rows, $currency
 			);
 			return $ok
 				? ['ok' => true, 'msg' => '商品价格已同步']
@@ -176,6 +242,7 @@ class ZjmfUpstream
 	 */
 	public static function syncProducts($supplier, array $upIds = [])
 	{
+		@set_time_limit(0);
 		$client = self::client($supplier);
 		if (!$client) {
 			return ['ok' => false, 'msg' => '供应商连接信息不完整'];
@@ -190,6 +257,8 @@ class ZjmfUpstream
 			$count = 0;
 			$fail = 0;
 			$skip = 0;
+			// 上游列表可能每个周期一行（同 pid 多行），按 pid 分组后合并周期，避免相互覆盖
+			$grouped = [];
 			foreach ($res['data']['list'] as $item) {
 				$upId = (int)($item['id'] ?? 0);
 				if ($upId <= 0) {
@@ -199,7 +268,10 @@ class ZjmfUpstream
 					$skip++;
 					continue;
 				}
-				if (self::syncOneProduct($client, $supplierId, $upId, $item, $currency)) {
+				$grouped[$upId][] = $item;
+			}
+			foreach ($grouped as $upId => $rows) {
+				if (self::syncOneProduct($client, $supplierId, (int)$upId, $rows, $currency)) {
 					$count++;
 				} else {
 					$fail++;
@@ -215,11 +287,12 @@ class ZjmfUpstream
 		}
 	}
 
-	/** 同步单个商品。 */
-	protected static function syncOneProduct($client, $supplierId, $upId, $item, $currency)
+	/** 同步单个商品（rows 为同一 pid 的列表行，可能每周期一行）。 */
+	protected static function syncOneProduct($client, $supplierId, $upId, array $rows, $currency)
 	{
 		global $DB, $date;
 		$now = $date ?: date('Y-m-d H:i:s');
+		$item = $rows[0] ?? [];
 
 		// 代理价（详情接口，失败回退列表项 price）
 		$agentCents = 0;
@@ -232,29 +305,77 @@ class ZjmfUpstream
 			// 详情失败不致命，仅代理价缺失
 		}
 		if ($agentCents <= 0) {
-			$agentCents = self::itemPrice($item);
+			foreach ($rows as $row) {
+				$agentCents = self::itemPrice($row);
+				if ($agentCents > 0) {
+					break;
+				}
+			}
 		}
 
-		// 各周期价：优先读上游返回的 cycle 字段（列表项 → 详情），均无则回退购物车试算
-		$cycles = self::parseItemCycles($item);
-		if ($cycles === []) {
-			$cycles = $detail ? self::parseDetailCycles($detail) : [];
-		}
-		if ($cycles === []) {
-			foreach (zjmf_cycles() as $cycle => $cfg) {
-				try {
-					$trial = $client->cartSetConfig(['pid' => $upId, 'billingcycle' => $cycle]);
-					$price = self::parseTrialPrice($trial);
-					if ($price > 0) {
-						$cycles[$cycle] = [
-							'cycle'             => $cycle,
-							'name'              => $cfg['name'],
-							'agent_price_cents' => $price,
-						];
-					}
-				} catch (CubeFinanceException $e) {
-					continue;
+		// 各周期价：列表行 → 详情 → 购物车算价，逐级补充合并（列表常只有单周期字段）
+		$cycles = [];
+		foreach ($rows as $row) {
+			foreach (self::parseItemCycles($row) as $k => $entry) {
+				if (!isset($cycles[$k])) {
+					$cycles[$k] = $entry;
 				}
+			}
+		}
+		if ($detail) {
+			foreach (self::parseDetailCycles($detail) as $k => $entry) {
+				if (!isset($cycles[$k])) {
+					$cycles[$k] = $entry;
+				}
+			}
+		}
+		// 探测购物车配置接口：一次请求拿到全部可选周期的真实 billingcycle 键与价格。
+		// 列表/详情已有周期保持不变；仅补充缺失周期，并给缺失 up_cycle 的条目补上真实键。
+		$probedKeys = [];
+		foreach (self::probeCycles($client, $upId, $detail) as $key => $cfg) {
+			$entry = self::cycleEntry($key, (int)($cfg['price_cents'] ?? 0), (string)($cfg['name'] ?? ''));
+			$k = $entry['cycle'];
+			$probedKeys[$k] = (string)$key;
+			if (isset($cycles[$k])) {
+				if ((string)($cycles[$k]['up_cycle'] ?? '') === '') {
+					$cycles[$k]['up_cycle'] = (string)$key;
+				}
+				continue;
+			}
+			if ($entry['agent_price_cents'] <= 0) {
+				continue;
+			}
+			$cycles[$k] = $entry;
+		}
+		// 兜底：购物车算价补充缺失周期。先探测一个周期，失败即放弃该商品试算
+		//（避免对每个缺失周期都发请求，商品多时同步被拖垮）
+		$trialOn = false;
+		foreach (zjmf_cycles() as $cycle => $cfg) {
+			if (isset($cycles[$cycle])) {
+				continue;
+			}
+			if (!$trialOn) {
+				$probe = self::trialPrice($client, $upId, $cycle);
+				if ($probe <= 0) {
+					break;
+				}
+				$trialOn = true;
+				$cycles[$cycle] = [
+					'cycle'             => $cycle,
+					'up_cycle'          => $probedKeys[$cycle] ?? strtolower($cycle),
+					'name'              => $cfg['name'],
+					'agent_price_cents' => $probe,
+				];
+				continue;
+			}
+			$price = self::trialPrice($client, $upId, $cycle);
+			if ($price > 0) {
+				$cycles[$cycle] = [
+					'cycle'             => $cycle,
+					'up_cycle'          => $probedKeys[$cycle] ?? strtolower($cycle),
+					'name'              => $cfg['name'],
+					'agent_price_cents' => $price,
+				];
 			}
 		}
 		$cyclesJson = json_encode(array_values($cycles), JSON_UNESCAPED_UNICODE);
@@ -367,31 +488,79 @@ class ZjmfUpstream
 		}
 
 		try {
+			// 0. 清空购物车：该版本 settle(checkout=1) 会结算整辆购物车，
+			//    若残留历史测试商品会把多件一起结算开通（曾实测一次开出多台机器）。
+			//    先清空保证本次结算只涉及刚添加的这一件商品。
+			try {
+				$client->cartClear();
+			} catch (CubeFinanceException $e) {
+				// 清空失败不致命，继续尝试（可能购物车本就为空）
+			}
+
 			// 1. 添加产品至购物车（官方：POST /cart/add_to_shop）→ data.i 购物车位置
+			$upCycle = self::upstreamCycle((int)($order['supplier_id'] ?? 0), $upProductId, $cycle);
 			$addParams = [
 				'pid'          => $upProductId,
-				'billingcycle' => $cycle,
+				'billingcycle' => $upCycle,
 				'qty'          => 1,
 				'host'         => (string)($extra['host'] ?? self::randHost()),
 				'password'     => (string)($extra['password'] ?? self::randPassword()),
 			];
-			foreach (['configoption', 'customfield', 'serverid', 'os'] as $k) {
-				if (isset($extra[$k])) {
+			foreach (['configoption', 'customfield', 'serverid', 'os', 'currencyid'] as $k) {
+				if (isset($extra[$k]) && $extra[$k] !== '') {
 					$addParams[$k] = $extra[$k];
+				}
+			}
+			// 缺少 currencyid / configoption 时探测上游默认配置：
+			// 有配置项的商品必须传 configoption（子项ID/数量），否则计价失败报
+			// "此周期未配置价格或价格错误，请重新选择周期"（实测上游前台抓包确认）
+			if (!isset($addParams['currencyid']) || !isset($addParams['configoption'])) {
+				$cfgDefaults = self::probeConfigDefaults($client, $upProductId);
+				if (!isset($addParams['currencyid']) && !empty($cfgDefaults['currencyid'])) {
+					$addParams['currencyid'] = (int)$cfgDefaults['currencyid'];
+				}
+				if (!isset($addParams['configoption']) && !empty($cfgDefaults['configoption'])) {
+					$addParams['configoption'] = $cfgDefaults['configoption'];
 				}
 			}
 			$res = $client->post('cart/add_to_shop', $addParams);
 			if (!self::respOk($res)) {
-				return ['ok' => false, 'msg' => self::respErr('上游添加购物车失败', $res)];
+				// 上游拒绝（多为"此周期未配置价格"）：探测商品真实周期键，命中则重试一次，
+				// 并把正确键写回商品周期（后续购买直接可用）
+				$avail = [];
+				if (self::isCyclePriceError($res)) {
+					$avail = self::probeCycles($client, $upProductId);
+					$matched = self::matchUpCycle($cycle, $avail);
+					if ($matched !== '' && $matched !== $upCycle) {
+						$addParams['billingcycle'] = $matched;
+						self::persistUpCycle(
+							(int)($order['supplier_id'] ?? 0),
+							$upProductId,
+							$cycle,
+							$matched
+						);
+						$upCycle = $matched;
+						$res = $client->post('cart/add_to_shop', $addParams);
+					}
+				}
+				if (!self::respOk($res)) {
+					$msg = self::respErr('上游添加购物车失败（周期: ' . $upCycle . '）', $res);
+					if ($avail !== []) {
+						$msg .= self::formatAvailable($avail);
+					}
+					return ['ok' => false, 'msg' => $msg];
+				}
 			}
-			$position = -1;
-			if (is_array($res['data'] ?? null)) {
-				$position = (int)($res['data']['i'] ?? -1);
-			} elseif (is_numeric($res['data'] ?? null)) {
-				$position = (int)$res['data'];
+			$position = self::findPosition($res);
+			if ($position < 0) {
+				// 该版本 add_to_shop 不返回位置（响应仅 status/msg/is_aff）：
+				// 从购物车数据（GET /cart/get_shop_data，数组键/序号即位置 i）定位刚添加的产品
+				$position = self::cartPosition($client, $upProductId, $upCycle);
 			}
 			if ($position < 0) {
-				return ['ok' => false, 'msg' => '上游添加购物车未返回位置，无法结算'];
+				$raw = json_encode($res['data'] ?? $res, JSON_UNESCAPED_UNICODE);
+				return ['ok' => false, 'msg' => '上游添加购物车后无法定位购物车位置（响应: '
+					. self::truncate((string)$raw, 300) . '）'];
 			}
 
 			// 2. 结算购物车（官方：POST /cart/settle，checkout=1 直接结算）→ data.invoiceid
@@ -469,30 +638,61 @@ class ZjmfUpstream
 	 *  主机查询与操作
 	 * ============================================================ */
 
-	/** 主机头信息（状态/账号/到期），按主机所属供应商。 */
-	public static function hostInfo($supplier, $upHostId)
+	/** 拉取上游我的主机列表（GET host/list），按供应商。用户端读取用短超时，避免拖垮页面。 */
+	public static function hostList($supplier, array $extra = [])
 	{
-		$client = self::client($supplier);
+		$client = self::client($supplier, 8);
 		if (!$client) {
 			return ['ok' => false, 'msg' => '供应商连接信息不完整'];
 		}
 		try {
-			$res = $client->hostHeader((int)$upHostId);
-			if (($res['status'] ?? 0) != 200) {
-				return ['ok' => false, 'msg' => (string)($res['msg'] ?? '查询失败')];
+			$res = $client->hostList($extra);
+			if (!self::respOk($res)) {
+				return ['ok' => false, 'msg' => self::respErr('获取上游主机列表失败', $res)];
 			}
-			$data = $res['data'] ?? [];
-			$data = self::pickHostData($data);
-			return ['ok' => true, 'data' => $data, 'status' => self::mapHostStatus($data)];
+			return ['ok' => true, 'data' => $res['data'] ?? []];
 		} catch (CubeFinanceException $e) {
 			return ['ok' => false, 'msg' => $e->getMessage()];
 		}
 	}
 
-	/** 流量使用，按主机所属供应商。 */
+	/** 主机头信息（状态/账号/到期），按主机所属供应商。用户端读取用短超时，避免拖垮页面。 */
+	public static function hostInfo($supplier, $upHostId)
+	{
+		$client = self::client($supplier, 8);
+		if (!$client) {
+			return ['ok' => false, 'msg' => '供应商连接信息不完整'];
+		}
+		// host/product 优先（状态等字段更稳定），失败回退 host/header
+		foreach (['hostProduct', 'hostHeader'] as $method) {
+			try {
+				$res = $client->{$method}((int)$upHostId);
+				if (($res['status'] ?? 0) == 200) {
+					$resData = $res['data'] ?? [];
+					$data = self::pickHostData($resData);
+					return [
+						'ok'             => true,
+						'data'           => $data,
+						'config_options' => isset($resData['config_options']) && is_array($resData['config_options'])
+							? $resData['config_options'] : [],
+						'custom_fields'  => isset($resData['custom_field_data']) && is_array($resData['custom_field_data'])
+							? $resData['custom_field_data'] : [],
+						'dcim'           => isset($resData['dcim']) && is_array($resData['dcim'])
+							? $resData['dcim'] : [],
+						'status'         => self::mapHostStatus($data),
+					];
+				}
+			} catch (CubeFinanceException $e) {
+				// 尝试下一个端点
+			}
+		}
+		return ['ok' => false, 'msg' => '查询失败'];
+	}
+
+	/** 流量使用，按主机所属供应商。用户端读取用短超时，避免拖垮页面。 */
 	public static function hostTraffic($supplier, $upHostId)
 	{
-		$client = self::client($supplier);
+		$client = self::client($supplier, 8);
 		if (!$client) {
 			return ['ok' => false, 'msg' => '供应商连接信息不完整'];
 		}
@@ -530,9 +730,93 @@ class ZjmfUpstream
 		}
 	}
 
-	/* ============================================================
-	 *  升级（配置升级 / 产品升降级）
-	 * ============================================================ */
+	/**
+	 * DCIM 综合信息（交换机端口 / 电源状态 / 重装次数 / 任务进度）。
+	 * 单项失败不致命，仅用于展示；非 DCIM 产品会全部为空。
+	 */
+	public static function hostDcimInfo($supplier, $upHostId)
+	{
+		// 短超时，避免叠加请求拖慢详情页
+		$client = self::client($supplier, 5);
+		if (!$client) {
+			return ['ok' => false, 'msg' => '供应商连接信息不完整'];
+		}
+		$out = [
+			'detail'    => [],
+			'power'     => '',
+			'power_msg' => '',
+			'reinstall' => [],
+			'task'      => [],
+		];
+		$tasks = [
+			'detail'    => function () use ($client, $upHostId) { return $client->dcimDetail((int)$upHostId); },
+			'power'     => function () use ($client, $upHostId) { return $client->dcimPowerStatus((int)$upHostId); },
+			'reinstall' => function () use ($client, $upHostId) { return $client->dcimCheckReinstall((int)$upHostId); },
+			'task'      => function () use ($client, $upHostId) { return $client->dcimReinstallStatus((int)$upHostId); },
+		];
+		foreach ($tasks as $k => $fn) {
+			try {
+				$res = $fn();
+				if (($res['status'] ?? 0) == 200) {
+					$d = $res['data'] ?? [];
+					if ($k === 'power') {
+						$out['power']     = (string)($d['power'] ?? '');
+						$out['power_msg'] = (string)($d['msg'] ?? '');
+					} else {
+						$out[$k] = $d;
+					}
+				}
+			} catch (CubeFinanceException $e) {
+				// 单项失败忽略
+			}
+		}
+		return ['ok' => true, 'data' => $out];
+	}
+
+	/** DCIM 专用操作（rescue/bmc/cancel_task/reinstall/crack_pass 等）。 */
+	public static function hostDcimAction($supplier, $upHostId, $action, $extra = [])
+	{
+		$client = self::client($supplier);
+		if (!$client) {
+			return ['ok' => false, 'msg' => '供应商连接信息不完整'];
+		}
+		try {
+			$res = $client->dcimAction($action, (int)$upHostId, $extra);
+			if (($res['status'] ?? 0) == 200) {
+				return ['ok' => true, 'msg' => (string)($res['msg'] ?? '操作成功')];
+			}
+			return ['ok' => false, 'msg' => (string)($res['msg'] ?? '操作失败')];
+		} catch (CubeFinanceException $e) {
+			return ['ok' => false, 'msg' => $e->getMessage()];
+		}
+	}
+
+	/** 重装可选系统列表（GET host/dedicatedserver），按上游主机 ID 获取。 */
+	public static function hostDedicatedOs($supplier, $upHostId)
+	{
+		$client = self::client($supplier, 8);
+		if (!$client) {
+			return ['ok' => false, 'msg' => '供应商连接信息不完整'];
+		}
+		try {
+			$res = $client->hostDedicatedServer((int)$upHostId);
+			if (($res['status'] ?? 0) != 200) {
+				error_log('[zjmfmanager_reserve] hostDedicatedServer failed: '
+					. 'host_id=' . (int)$upHostId . ' status=' . ($res['status'] ?? '')
+					. ' msg=' . ($res['msg'] ?? ''));
+				return ['ok' => false, 'msg' => (string)($res['msg'] ?? '获取系统列表失败')];
+			}
+			$data = $res['data'] ?? [];
+			return [
+				'ok'      => true,
+				'os_list' => is_array($data['cloud_os'] ?? null) ? $data['cloud_os'] : [],
+				'groups'  => is_array($data['cloud_os_group'] ?? null) ? $data['cloud_os_group'] : [],
+			];
+		} catch (CubeFinanceException $e) {
+			error_log('[zjmfmanager_reserve] hostDedicatedServer exception: ' . $e->getMessage());
+			return ['ok' => false, 'msg' => $e->getMessage()];
+		}
+	}
 
 	/** 只读获取升级选项（配置项或可升降级产品列表）。 */
 	public static function upgradeOptions($supplier, $upHostId, $kind)
@@ -637,12 +921,56 @@ class ZjmfUpstream
 	 *  响应解析辅助（防御式，字段以实际上游返回为准）
 	 * ============================================================ */
 
-	/** 从响应 data 中提取金额（分），常见字段/嵌套结构兜底。 */
+	/**
+	 * 购物车算价：优先官方价格计算接口 POST /cart/get_total，
+	 * 失败回退配置页 GET /cart/set_config。
+	 */
+	protected static function trialPrice($client, $upId, $cycle)
+	{
+		$bc = strtolower($cycle);
+		try {
+			$price = self::parseTrialPrice($client->cartGetTotal([
+				'pid'          => $upId,
+				'billingcycle' => $bc,
+				'qty'          => 1,
+			]));
+			if ($price > 0) {
+				return $price;
+			}
+		} catch (CubeFinanceException $e) {
+			// 忽略，走回退
+		}
+		try {
+			return self::parseTrialPrice($client->cartSetConfig([
+				'pid'          => $upId,
+				'billingcycle' => $bc,
+			]));
+		} catch (CubeFinanceException $e) {
+			return 0;
+		}
+	}
+
 	protected static function parseTrialPrice($res)
 	{
 		$data = $res['data'] ?? [];
 		if (!is_array($data)) {
 			return 0;
+		}
+		// 官方 get_total 响应：data.products[]（signal_price 为单个产品周期费用）
+		if (isset($data['products']) && is_array($data['products'])) {
+			foreach ($data['products'] as $p) {
+				if (!is_array($p)) {
+					continue;
+				}
+				foreach (['signal_price', 'product_price', 'price_total', 'total', 'amount', 'subtotal'] as $k) {
+					if (isset($p[$k]) && $p[$k] !== '' && $p[$k] !== null) {
+						$c = self::toCents($p[$k]);
+						if ($c > 0) {
+							return $c;
+						}
+					}
+				}
+			}
 		}
 		foreach (['price', 'money', 'total', 'amount', 'subtotal', 'renewal_price'] as $k) {
 			if (isset($data[$k]) && $data[$k] !== '' && $data[$k] !== null) {
@@ -678,16 +1006,36 @@ class ZjmfUpstream
 	}
 
 	/**
-	 * 从列表项提取各周期价格（分）。
-	 * 魔方财务列表项为「单周期」结构：billingcycle + price + billingcycle_zh（cycle 只是标签字符串）。
-	 * 兼容完整周期结构（cycle/pricing 为数组或映射），解析失败返回空数组。
+	 * 从列表行提取各周期价格（分）。
+	 * 兼容三种结构（优先完整结构，避免单周期字段提前返回漏掉其余周期）：
+	 *   a. 完整周期：cycle/pricing 为数组或映射
+	 *   b. 并行数组：billingcycle[] + billingcycle_price[]（+ billingcycle_zh[]）
+	 *   c. 单周期：billingcycle + price + billingcycle_zh（仅作最后兜底）
+	 * 解析失败返回空数组。
 	 */
 	protected static function parseItemCycles($item)
 	{
 		if (!is_array($item)) {
 			return [];
 		}
-		// 单周期结构：billingcycle + price + billingcycle_zh
+		// a. 完整周期结构：cycle/pricing 为数组或映射
+		$raw = $item['cycle'] ?? $item['pricing'] ?? null;
+		if (is_string($raw)) {
+			$decoded = json_decode($raw, true);
+			$raw = is_array($decoded) ? $decoded : null;
+		}
+		if (is_array($raw) && $raw !== []) {
+			$out = self::parseCycleMap($raw);
+			if ($out !== []) {
+				return $out;
+			}
+		}
+		// b. 并行数组结构：billingcycle[] + billingcycle_price[]（v10 列表常见）
+		$out = self::parseParallelCycles($item);
+		if ($out !== []) {
+			return $out;
+		}
+		// c. 单周期结构：billingcycle + price + billingcycle_zh
 		$key = (string)($item['billingcycle'] ?? '');
 		if ($key !== '') {
 			$cents = self::toCents(self::pickPrice($item));
@@ -696,16 +1044,41 @@ class ZjmfUpstream
 				return [$entry['cycle'] => $entry];
 			}
 		}
-		// 兼容完整周期结构：cycle/pricing 为数组或映射
-		$raw = $item['cycle'] ?? $item['pricing'] ?? null;
-		if (is_string($raw)) {
-			$decoded = json_decode($raw, true);
-			$raw = is_array($decoded) ? $decoded : null;
-		}
-		if (is_array($raw) && $raw !== []) {
-			return self::parseCycleMap($raw);
-		}
 		return [];
+	}
+
+	/**
+	 * 并行数组结构：billingcycle[] + billingcycle_price[]（+ billingcycle_zh[]）。
+	 * 若任一数组缺失或长度不一致，返回空数组。
+	 */
+	protected static function parseParallelCycles($item)
+	{
+		$keys = $item['billingcycle'] ?? null;
+		$prices = $item['billingcycle_price'] ?? $item['billingcycleprices'] ?? null;
+		if (!is_array($keys) || $keys === [] || !is_array($prices)) {
+			return [];
+		}
+		$names = $item['billingcycle_zh'] ?? null;
+		if (!is_array($names)) {
+			$names = null;
+		}
+		$out = [];
+		foreach ($keys as $i => $k) {
+			$k = (string)$k;
+			if ($k === '' || !isset($prices[$i])) {
+				continue;
+			}
+			$cents = self::toCents($prices[$i]);
+			if ($cents <= 0) {
+				continue;
+			}
+			$name = $names ? (string)($names[$i] ?? '') : '';
+			$entry = self::cycleEntry($k, $cents, $name);
+			if (!isset($out[$entry['cycle']])) {
+				$out[$entry['cycle']] = $entry;
+			}
+		}
+		return $out;
 	}
 
 	/**
@@ -719,6 +1092,10 @@ class ZjmfUpstream
 			return [];
 		}
 		$prod = is_array($data['product'] ?? null) ? $data['product'] : $data;
+		$out = self::parseParallelCycles($prod);
+		if ($out !== []) {
+			return $out;
+		}
 		$raw = $prod['cycle'] ?? $data['cycle'] ?? null;
 		if (is_string($raw)) {
 			$decoded = json_decode($raw, true);
@@ -730,6 +1107,449 @@ class ZjmfUpstream
 		return self::parseCycleMap($raw);
 	}
 
+	/* ============================================================
+	 *  周期键探测（add_to_shop 失败时定位上游真实 billingcycle 键）
+	 * ============================================================ */
+
+	/**
+	 * 探测上游商品可选周期（真实 billingcycle 键 + 中文名 + 价格）。
+	 * 优先 GET /cart/get_product_config（含该产品可选周期数据），
+	 * 失败回退商品详情。返回 [billingcycle键 => ['name'=>, 'price_cents'=>]]；
+	 * 无结果返回 []。
+	 *
+	 * @param CubeFinanceClient $client
+	 * @param int               $upId
+	 * @param array|null        $detail 已抓取的详情响应（避免重复请求）
+	 */
+	protected static function probeCycles($client, $upId, $detail = null)
+	{
+		$out = [];
+		try {
+			$res = $client->cartGetProductConfig((int)$upId);
+			if (self::respOk($res)) {
+				$out = self::parseConfigCycles($res);
+			}
+		} catch (CubeFinanceException $e) {
+			$out = [];
+		}
+		if ($out !== []) {
+			return $out;
+		}
+		if ($detail === null) {
+			try {
+				$detail = $client->productDetail((int)$upId, 'agent');
+			} catch (CubeFinanceException $e) {
+				return [];
+			}
+		}
+		return self::parseDetailCycleList($detail);
+	}
+
+	/**
+	 * 解析购物车配置接口响应中的周期列表。
+	 * 兼容 data.products（数组或单产品）与 data.product 两种外壳；
+	 * 周期可来自 cycle（JSON 串/数组/映射）、pricing 映射、并行数组。
+	 */
+	protected static function parseConfigCycles($res)
+	{
+		$data = $res['data'] ?? [];
+		if (!is_array($data)) {
+			return [];
+		}
+		$products = $data['products'] ?? $data['product'] ?? null;
+		if (!is_array($products)) {
+			return [];
+		}
+		if (isset($products['cycle']) || isset($products['pricing'])
+			|| isset($products['billingcycle']) || isset($products['id'])) {
+			$products = [$products];
+		}
+		$out = [];
+		foreach ($products as $prod) {
+			if (!is_array($prod)) {
+				continue;
+			}
+			foreach (self::cycleSourceCandidates($prod) as $item) {
+				$key = (string)($item['billingcycle'] ?? '');
+				if ($key === '') {
+					continue;
+				}
+				$cents = self::toCents(
+					$item['price'] ?? $item['product_price'] ?? $item['price_total'] ?? 0
+				);
+				$name = (string)($item['billingcycle_zh'] ?? '');
+				if (!isset($out[$key])) {
+					$out[$key] = ['name' => $name, 'price_cents' => max(0, $cents)];
+				} elseif ($cents > 0 && $out[$key]['price_cents'] <= 0) {
+					$out[$key]['price_cents'] = max(0, $cents);
+				}
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * 从单个产品数据提取周期条目数组 [{billingcycle, billingcycle_zh, price}]。
+	 * 优先完整周期（cycle/pricing），其次并行数组（billingcycle[]+billingcycle_price[]）。
+	 */
+	protected static function cycleSourceCandidates($prod)
+	{
+		$items = [];
+		$raw = $prod['cycle'] ?? $prod['pricing'] ?? null;
+		if (is_string($raw)) {
+			$decoded = json_decode($raw, true);
+			$raw = is_array($decoded) ? $decoded : null;
+		}
+		if (is_array($raw)) {
+			if (isset($raw[0]) && is_array($raw[0])) {
+				// 数组形式：[{billingcycle, price, billingcycle_zh}]
+				foreach ($raw as $it) {
+					if (is_array($it) && (string)($it['billingcycle'] ?? '') !== '') {
+						$items[] = $it;
+					}
+				}
+			} else {
+				// 映射形式：{cycle: 价格 或 {price:...}}
+				foreach ($raw as $k => $v) {
+					$items[] = is_array($v)
+						? array_merge($v, ['billingcycle' => (string)$k])
+						: ['billingcycle' => (string)$k, 'price' => $v];
+				}
+			}
+		}
+		if ($items !== []) {
+			return $items;
+		}
+		// 并行数组形式
+		$keys = $prod['billingcycle'] ?? null;
+		$prices = $prod['billingcycle_price'] ?? $prod['billingcycleprices'] ?? null;
+		if (is_array($keys) && is_array($prices)) {
+			$names = is_array($prod['billingcycle_zh'] ?? null) ? $prod['billingcycle_zh'] : null;
+			foreach ($keys as $i => $k) {
+				$items[] = [
+					'billingcycle'    => (string)$k,
+					'billingcycle_zh' => $names ? (string)($names[$i] ?? '') : '',
+					'price'           => $prices[$i] ?? 0,
+				];
+			}
+		}
+		return $items;
+	}
+
+	/** 详情响应 → [billingcycle键 => ['name'=>, 'price_cents'=>]]。 */
+	protected static function parseDetailCycleList($detail)
+	{
+		$out = [];
+		foreach (self::parseDetailCycles($detail) as $entry) {
+			$key = (string)($entry['up_cycle'] ?? '');
+			if ($key === '') {
+				continue;
+			}
+			$out[$key] = [
+				'name'        => (string)($entry['name'] ?? ''),
+				'price_cents' => (int)($entry['agent_price_cents'] ?? 0),
+			];
+		}
+		return $out;
+	}
+
+	/* ============================================================
+	 *  配置项默认值探测（add_to_shop 需要 currencyid + configoption）
+	 * ============================================================ */
+
+	/**
+	 * 探测商品默认配置（货币ID + 配置项默认选择），用于 add_to_shop 计价。
+	 * 优先 GET /cart/get_product_config，失败回退商品详情。
+	 * 返回 ['currencyid'=>int, 'configoption'=>[optionId=>子项ID或数量]]；
+	 * 探测不到 configoption 时至少带回 currencyid。
+	 *
+	 * @param CubeFinanceClient $client
+	 * @param int               $upId
+	 * @param array|null        $detail 已抓取的详情响应（避免重复请求）
+	 */
+	protected static function probeConfigDefaults($client, $upId, $detail = null)
+	{
+		try {
+			$res = $client->cartGetProductConfig((int)$upId);
+			if (self::respOk($res)) {
+				$out = self::parseConfigDefaults($res);
+				if (!empty($out['configoption'])) {
+					return $out;
+				}
+			}
+		} catch (CubeFinanceException $e) {
+			// 忽略，走详情回退
+		}
+		if ($detail === null) {
+			try {
+				$detail = $client->productDetail((int)$upId, 'agent');
+			} catch (CubeFinanceException $e) {
+				return ['currencyid' => 0, 'configoption' => []];
+			}
+		}
+		return self::parseConfigDefaults($detail);
+	}
+
+	/**
+	 * 从响应中解析 currencyid 与 configoption 默认选择。
+	 * 兼容 data.products（数组/单产品）与 data.product 外壳；
+	 * 配置项结构兼容数组组/映射组/扁平默认值/数量型多种形态。
+	 */
+	protected static function parseConfigDefaults($res)
+	{
+		$data = $res['data'] ?? [];
+		if (!is_array($data)) {
+			return ['currencyid' => 0, 'configoption' => []];
+		}
+		$out = ['currencyid' => 0, 'configoption' => []];
+		if (isset($data['default_currency']) && is_numeric($data['default_currency'])) {
+			$out['currencyid'] = (int)$data['default_currency'];
+		}
+		$currencies = $data['currencies'] ?? null;
+		if (is_array($currencies)) {
+			foreach ($currencies as $c) {
+				if (is_array($c) && isset($c['id']) && is_numeric($c['id'])) {
+					if ($out['currencyid'] <= 0) {
+						$out['currencyid'] = (int)$c['id'];
+					}
+					break;
+				}
+			}
+		}
+		$products = $data['products'] ?? $data['product'] ?? null;
+		if (!is_array($products)) {
+			if ($out['currencyid'] <= 0) {
+				$out['currencyid'] = 1;
+			}
+			return $out;
+		}
+		if (isset($products['id']) || isset($products['pid'])
+			|| isset($products['configoption']) || isset($products['config_option'])) {
+			$products = [$products];
+		}
+		$groups = [];
+		foreach ($products as $prod) {
+			if (!is_array($prod)) {
+				continue;
+			}
+			// 产品级 currencyid（映射形式取首个键）
+			if ($out['currencyid'] <= 0 && isset($prod['currencyid']) && is_array($prod['currencyid'])) {
+				foreach ($prod['currencyid'] as $cid => $cfg) {
+					if (is_numeric($cid) && (int)$cid > 0) {
+						$out['currencyid'] = (int)$cid;
+						break;
+					}
+				}
+			}
+			$co = $prod['configoption'] ?? $prod['config_option'] ?? null;
+			if (is_array($co)) {
+				$groups = array_merge($groups, self::normalizeConfigGroups($co));
+			}
+		}
+		foreach ($groups as $g) {
+			if (!is_array($g)) {
+				continue;
+			}
+			$oid = (int)($g['id'] ?? $g['configoption_id'] ?? 0);
+			if ($oid <= 0) {
+				continue;
+			}
+			$val = self::pickConfigDefault($g);
+			if ($val !== null && $val !== '') {
+				$out['configoption'][(string)$oid] = (string)$val;
+			}
+		}
+		if ($out['currencyid'] <= 0) {
+			$out['currencyid'] = 1; // 兜底默认货币
+		}
+		return $out;
+	}
+
+	/** 将 configoption 数据规范化为配置组列表。 */
+	protected static function normalizeConfigGroups($co)
+	{
+		$groups = [];
+		if (isset($co[0]) && is_array($co[0])) {
+			return $co; // 数组组形式
+		}
+		foreach ($co as $k => $v) {
+			if (!is_array($v)) {
+				// 扁平：optionId => 默认值
+				$groups[] = ['id' => is_numeric($k) ? $k : 0, '_flat_value' => $v];
+				continue;
+			}
+			if (isset($v['option']) || isset($v['options']) || isset($v['id']) || isset($v['configoption_id'])) {
+				if (!isset($v['id']) && !isset($v['configoption_id']) && is_numeric($k)) {
+					$v['id'] = (int)$k;
+				}
+				$groups[] = $v;
+				continue;
+			}
+			// 映射：optionId => 子项数组
+			$groups[] = ['id' => is_numeric($k) ? (int)$k : 0, 'option' => $v];
+		}
+		return $groups;
+	}
+
+	/**
+	 * 从单个配置组取默认子项值（子项ID或数量）。
+	 * 优先 checked/selected/default 标记，否则取第一个子项。
+	 */
+	protected static function pickConfigDefault($g)
+	{
+		if (array_key_exists('_flat_value', $g)) {
+			return (string)$g['_flat_value'];
+		}
+		$type = strtolower((string)($g['type'] ?? ''));
+		if (in_array($type, ['qty', 'quantity', 'number'], true)) {
+			$q = $g['qty'] ?? $g['quantity'] ?? $g['value'] ?? 1;
+			return (string)$q;
+		}
+		$subs = $g['option'] ?? $g['options'] ?? $g['sub_option']
+			?? $g['suboption'] ?? $g['child'] ?? $g['values'] ?? null;
+		if (!is_array($subs)) {
+			return null;
+		}
+		$first = null;
+		foreach ($subs as $s) {
+			if (!is_array($s)) {
+				continue;
+			}
+			if ($first === null) {
+				$first = $s;
+			}
+			foreach (['checked', 'selected', 'default', 'is_check', 'is_default'] as $f) {
+				if (isset($s[$f]) && ((int)$s[$f] === 1 || (string)$s[$f] === '1')) {
+					$first = $s;
+					break 2;
+				}
+			}
+		}
+		if ($first === null) {
+			return null;
+		}
+		$id = $first['id'] ?? $first['suboption_id'] ?? $first['value'] ?? null;
+		return $id === null ? null : (string)$id;
+	}
+
+	/** 上游失败信息是否与周期/价格相关（命中才触发探测重试）。 */
+	protected static function isCyclePriceError($res)
+	{
+		$msg = (string)($res['msg'] ?? '');
+		return $msg !== '' && (
+			strpos($msg, '未配置价格') !== false
+			|| strpos($msg, '价格错误') !== false
+			|| strpos($msg, '周期') !== false
+			|| stripos($msg, 'cycle') !== false
+		);
+	}
+
+	/**
+	 * 本地周期键 → 上游真实 billingcycle 键。
+	 * 忽略大小写并按别名（monthly/month、quarterly/quarter 等）匹配，
+	 * 也匹配中文名（月付/月/季付…）；找不到返回原键。
+	 */
+	protected static function matchUpCycle($localCycle, array $available)
+	{
+		$localCycle = (string)$localCycle;
+		if ($localCycle === '' || $available === []) {
+			return $localCycle;
+		}
+		$aliases = self::cycleAliases($localCycle);
+		foreach ($available as $key => $cfg) {
+			$candidate = (string)$key;
+			if (in_array(self::normKey($candidate), $aliases, true)) {
+				return $candidate;
+			}
+			$name = (string)($cfg['name'] ?? '');
+			if ($name !== '' && in_array(self::normKey($name), $aliases, true)) {
+				return $candidate;
+			}
+		}
+		$normLocal = self::normKey($localCycle);
+		foreach ($available as $key => $cfg) {
+			if (self::normKey((string)$key) === $normLocal) {
+				return (string)$key;
+			}
+		}
+		return $localCycle;
+	}
+
+	/** 本地周期键的别名集合（归一化后，含中文名）。 */
+	protected static function cycleAliases($localCycle)
+	{
+		$norm = self::normKey($localCycle);
+		$map = [
+			'monthly'      => ['monthly', 'month', 'm', '月', '月付'],
+			'quarterly'    => ['quarterly', 'quarter', 'q', '季', '季付'],
+			'semiannually' => ['semiannually', 'semiannual', 'halfyear', 'half_year', 'half', 'semi', '半年', '半年付'],
+			'annually'     => ['annually', 'annual', 'yearly', 'year', 'y', '年', '年付'],
+			'biennially'   => ['biennially', 'biennial', 'biennium', 'twoyear', 'two_year', '两年', '两年付'],
+			'triennially'  => ['triennially', 'triennial', 'triennium', 'threeyear', 'three_year', '三年', '三年付'],
+		];
+		foreach ($map as $k => $list) {
+			if ($norm === $k || in_array($norm, $list, true)) {
+				return $list;
+			}
+		}
+		return [$norm];
+	}
+
+	/** 键归一化：小写 + 去非字母数字（保留中文）。 */
+	protected static function normKey($key)
+	{
+		return strtolower(preg_replace('/[^a-z0-9\x{4e00}-\x{9fa5}]/iu', '', (string)$key));
+	}
+
+	/** 可用周期列表渲染为可读文案（供失败信息展示）。 */
+	protected static function formatAvailable(array $avail)
+	{
+		$parts = [];
+		foreach ($avail as $key => $cfg) {
+			$name = (string)($cfg['name'] ?? '');
+			$parts[] = $name !== '' ? $key . '(' . $name . ')' : $key;
+		}
+		return $parts === [] ? '' : '；上游可用周期：' . implode('、', $parts);
+	}
+
+	/**
+	 * 将本地周期对应的上游键写回商品 cycles JSON（后续购买直接使用）。
+	 */
+	protected static function persistUpCycle($supplierId, $upProductId, $localCycle, $upCycle)
+	{
+		global $DB;
+		$product = zjmf_product_get_by_up((int)$supplierId, (int)$upProductId);
+		if (!$product) {
+			return;
+		}
+		$cycles = json_decode((string)($product['cycles'] ?? ''), true);
+		if (!is_array($cycles)) {
+			return;
+		}
+		$changed = false;
+		foreach ($cycles as &$cfg) {
+			if (is_array($cfg) && (string)($cfg['cycle'] ?? '') === (string)$localCycle) {
+				if ((string)($cfg['up_cycle'] ?? '') !== (string)$upCycle) {
+					$cfg['up_cycle'] = (string)$upCycle;
+					$changed = true;
+				}
+				break;
+			}
+		}
+		unset($cfg);
+		if ($changed) {
+			$DB->query_prepare(
+				"UPDATE MN_plugin_zjmf_product SET cycles=?, updated_at=?
+				 WHERE id=?",
+				[
+					json_encode($cycles, JSON_UNESCAPED_UNICODE),
+					date('Y-m-d H:i:s'),
+					(int)$product['id'],
+				]
+			);
+		}
+	}
+
 	/** 构建单个周期条目（键归一化 + 名称兜底）。 */
 	protected static function cycleEntry($key, $cents, $name = '')
 	{
@@ -737,6 +1557,8 @@ class ZjmfUpstream
 		$known = zjmf_cycles();
 		return [
 			'cycle'             => $norm,
+			// 上游原始 billingcycle 值（如 monthly），购买时原样回传
+			'up_cycle'          => (string)$key,
 			'name'              => $name !== '' ? $name : ($known[$norm]['name'] ?? $norm),
 			'agent_price_cents' => max(0, (int)$cents),
 		];
@@ -829,6 +1651,102 @@ class ZjmfUpstream
 		return (string)($item['type'] ?? $item['module'] ?? $item['module_name'] ?? '');
 	}
 
+	/**
+	 * 从购物车数据中定位刚添加产品的购物车位置。
+	 * 部分版本 add_to_shop 不返回位置 i，需 GET /cart/get_shop_data 后
+	 * 按 productid 匹配（购物车数组的键/序号即位置 i；同商品取最后一项，即刚添加的）。
+	 *
+	 * @param CubeFinanceClient $client
+	 * @param int               $upProductId
+	 * @param string            $upCycle 上游 billingcycle 键
+	 * @return int 位置，找不到返回 -1
+	 */
+	protected static function cartPosition($client, $upProductId, $upCycle)
+	{
+		try {
+			$res = $client->cartGetShopData();
+		} catch (CubeFinanceException $e) {
+			return -1;
+		}
+		if (!self::respOk($res)) {
+			return -1;
+		}
+		$products = $res['data']['cart_products'] ?? null;
+		if (!is_array($products)) {
+			return -1;
+		}
+		$wantPid = (string)$upProductId;
+		$wantCycle = strtolower((string)$upCycle);
+		$lastPid = -1;
+		$lastMatch = -1;
+		foreach ($products as $i => $p) {
+			if (!is_array($p)) {
+				continue;
+			}
+			$pid = (string)($p['productid'] ?? $p['pid'] ?? $p['id'] ?? '');
+			if ($pid !== $wantPid) {
+				continue;
+			}
+			$lastPid = (int)$i;
+			$cycle = strtolower((string)($p['billingcycle'] ?? ''));
+			if ($cycle === $wantCycle || $cycle === '') {
+				$lastMatch = (int)$i; // 周期匹配（或未知）的最后一个即刚添加项
+			}
+		}
+		if ($lastMatch >= 0) {
+			return $lastMatch;
+		}
+		return $lastPid; // 仅 pid 匹配的最后一个
+	}
+
+	/**
+	 * 从加购响应中取购物车位置 data.i（兼容字符串 data、其他位置键、一层嵌套）。
+	 *
+	 * @param array $res 响应数组
+	 * @return int 位置，找不到返回 -1
+	 */
+	protected static function findPosition($res)
+	{
+		$d = $res['data'] ?? null;
+		if (is_string($d)) {
+			if (is_numeric($d)) {
+				return (int)$d;
+			}
+			$decoded = json_decode($d, true);
+			if (is_array($decoded)) {
+				$d = $decoded;
+			}
+		}
+		if (is_numeric($d)) {
+			return (int)$d;
+		}
+		if (!is_array($d)) {
+			return -1;
+		}
+		foreach (['i', 'position', 'pos', 'cart_i', 'key', 'id'] as $k) {
+			if (!array_key_exists($k, $d)) {
+				continue;
+			}
+			$v = $d[$k];
+			if (is_array($v)) {
+				$v = reset($v);
+			}
+			if (is_numeric($v)) {
+				return (int)$v;
+			}
+		}
+		// 一层嵌套深搜（如 data.products[].i）
+		foreach ($d as $v) {
+			if (is_array($v)) {
+				$sub = self::findPosition(['data' => $v]);
+				if ($sub >= 0) {
+					return $sub;
+				}
+			}
+		}
+		return -1;
+	}
+
 	/** 上游返回是否成功（200 常规成功；1001 购买成功/支付完成，无需继续支付）。 */
 	protected static function respOk($res)
 	{
@@ -916,6 +1834,26 @@ class ZjmfUpstream
 	}
 
 	/**
+	 * 插件周期键 → 上游 billingcycle 值。
+	 * 优先取同步时保留的上游原始值（up_cycle），未同步/旧数据回退小写（官方周期如 monthly、day、hour）。
+	 */
+	protected static function upstreamCycle($supplierId, $upProductId, $cycle)
+	{
+		$cycle = (string)$cycle;
+		if ($cycle !== '') {
+			$product = zjmf_product_get_by_up((int)$supplierId, (int)$upProductId);
+			if ($product) {
+				$cycles = zjmf_product_cycles($product);
+				$entry = $cycles[$cycle] ?? null;
+				if (is_array($entry) && (string)($entry['up_cycle'] ?? '') !== '') {
+					return (string)$entry['up_cycle'];
+				}
+			}
+		}
+		return strtolower($cycle);
+	}
+
+	/**
 	 * 查询账单详情并轮询主机 ID（主机创建可能异步）。
 	 * 官方：GET /invoices/{id} → data.invoices[].status（支付状态）+
 	 *      data.host[].num（账单项目关联的产品 ID，兼容标量/数组）。
@@ -979,13 +1917,13 @@ class ZjmfUpstream
 		return in_array($st, ['paid', '已支付', 'completed', 'complete', 'success', 'payment'], true);
 	}
 
-	/** 从主机详情响应提取主机数据（兼容 host_data/host 键与单对象/数组结构）。 */
+	/** 从主机详情响应提取主机数据（兼容 host_data/host/info/list/data 键与单对象/数组结构）。 */
 	protected static function pickHostData($data)
 	{
 		if (!is_array($data)) {
 			return [];
 		}
-		foreach (['host_data', 'host', 'info'] as $k) {
+		foreach (['host_data', 'host', 'info', 'list', 'data'] as $k) {
 			if (isset($data[$k]) && is_array($data[$k])) {
 				$v = $data[$k];
 				if (isset($v[0]) && is_array($v[0])) {
@@ -1007,29 +1945,41 @@ class ZjmfUpstream
 				'username'   => (string)($host['username'] ?? ''),
 				'password'   => (string)($host['password'] ?? ''),
 				'name'       => (string)($host['productname'] ?? $host['name'] ?? ''),
-				'renew_date' => (string)($host['nextduedate'] ?? $host['renew_date'] ?? $host['renewdate'] ?? ''),
+				// 上游部分版本 nextduedate 为 Unix 时间戳，统一归一化为 Y-m-d
+				'renew_date' => zjmf_normalize_date(
+					(string)($host['nextduedate'] ?? $host['renew_date'] ?? $host['renewdate'] ?? '')
+				),
 			];
 		} catch (CubeFinanceException $e) {
 			return ['username' => '', 'password' => '', 'name' => '', 'renew_date' => ''];
 		}
 	}
 
-	/** 上游主机状态 → 本地展示状态（active/suspend/unknown）。 */
+	/** 上游主机状态 → 本地展示状态（active/suspend/pending/terminated/unknown）。 */
 	public static function mapHostStatus($data)
 	{
 		if (!is_array($data)) {
 			return 'unknown';
 		}
+		$st = strtolower(trim((string)($data['status'] ?? $data['domainstatus'] ?? '')));
+		if ($st !== '') {
+			if (in_array($st, ['active', 'on', 'true', 'completed', '运行中'], true)) {
+				return 'active';
+			}
+			if (in_array($st, ['pending', 'wait', 'waiting', '待开通'], true)) {
+				return 'pending';
+			}
+			if (in_array($st, ['suspended', 'suspend', 'paused', 'off', '已暂停'], true)) {
+				return 'suspend';
+			}
+			if (in_array($st, ['cancelled', 'cancel', 'terminated', 'terminate', 'fraud', '已终止'], true)) {
+				return 'terminated';
+			}
+			return 'unknown';
+		}
+		// 无状态字段时用 qk 兜底（false 视为不可用）
 		$qk = $data['qk'] ?? null;
 		if ($qk !== null && in_array((string)$qk, ['false', '0', ''], true)) {
-			return 'suspend';
-		}
-		$st = (string)($data['status'] ?? $data['domainstatus'] ?? '');
-		$st = strtolower($st);
-		if (in_array($st, ['active', 'on', 'true', '运行中'], true)) {
-			return 'active';
-		}
-		if (in_array($st, ['suspended', 'suspend', 'paused', 'off'], true)) {
 			return 'suspend';
 		}
 		return 'unknown';

@@ -103,6 +103,7 @@ $suppliers = zjmf_supplier_list_all();
               <th>站点</th>
               <th>加价</th>
               <th>超时</th>
+              <th>上游余额</th>
               <th>状态</th>
               <th>排序</th>
               <th>备注</th>
@@ -112,7 +113,7 @@ $suppliers = zjmf_supplier_list_all();
           </thead>
           <tbody>
             <?php if (empty($suppliers)): ?>
-              <tr><td colspan="10" class="text-center text-muted">
+              <tr><td colspan="11" class="text-center text-muted">
                 暂无供应商，请点击右上角「新增供应商」
               </td></tr>
             <?php else: ?>
@@ -125,6 +126,11 @@ $suppliers = zjmf_supplier_list_all();
                     htmlspecialchars(zjmf_supplier_markup_label($s), ENT_QUOTES)
                   ?></td>
                   <td><?= (int)$s['api_timeout'] ?>s</td>
+                  <td class="small text-nowrap">
+                    <span class="zjf-balance" data-id="<?= (int)$s['id'] ?>">-</span>
+                    <button type="button" class="btn btn-sm btn-outline-primary zjf-balance-refresh"
+                            data-id="<?= (int)$s['id'] ?>">刷新</button>
+                  </td>
                   <td>
                     <span class="badge <?= $s['status'] == 1 ? 'badge-success' : 'badge-secondary' ?>">
                       <?= $s['status'] == 1 ? '启用' : '停用' ?>
@@ -264,6 +270,39 @@ $suppliers = zjmf_supplier_list_all();
           b.textContent = old;
         });
     });
+  });
+
+  function formatCredit(v) {
+    if (v === undefined || v === null || v === '') return '-';
+    var n = Number(v);
+    return isNaN(n) ? String(v) : n.toFixed(2);
+  }
+
+  function loadBalance(id, btn) {
+    $.post('ajax.php', {gn: 'p_zjmf_admin_supplier_balance', id: id}, function (r) {
+      var d = res(r);
+      var ok = d.qk == 1 || d.success;
+      var cell = document.querySelector('.zjf-balance[data-id="' + id + '"]');
+      if (cell) {
+        cell.textContent = ok ? formatCredit(d.credit) : '获取失败';
+        cell.title = ok ? '上游余额（响应字段 credit）' : (d.msg || '获取失败');
+      }
+      if (btn) { btn.disabled = false; btn.textContent = '刷新'; }
+    });
+  }
+
+  document.querySelectorAll('.zjf-balance-refresh').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var id = btn.getAttribute('data-id');
+      btn.disabled = true;
+      btn.textContent = '获取中...';
+      loadBalance(id, btn);
+    });
+  });
+
+  // 页面加载后自动拉取各供应商上游余额
+  document.querySelectorAll('.zjf-balance-refresh').forEach(function (btn) {
+    loadBalance(btn.getAttribute('data-id'), null);
   });
 
   document.querySelectorAll('.zjf-toggle').forEach(function (btn) {
