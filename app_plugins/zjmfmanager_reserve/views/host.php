@@ -16,7 +16,8 @@ $os_list = $os_list ?? [];
 $os_groups = $os_groups ?? [];
 $os_error = $os_error ?? '';
 
-$password = zjmf_decrypt((string)$host['password']);
+// 密码默认掩码展示，点击"显示"后经 /reserve/api/host_password 按需解密
+// （服务端记日志），页面不再无条件渲染明文密码
 $hasUpId = (int)$host['up_host_id'] > 0;
 
 // 上游详情字段（label => [显示名, 分组]）。价格 / 付款相关字段一律不展示。
@@ -30,7 +31,7 @@ $up_fields = [
 	'ip_num'                   => ['IP 数量', '网络信息'],
 	'port'                     => ['端口', '网络信息'],
 	'username'                 => ['服务器用户名', '账号信息'],
-	'password'                 => ['服务器密码', '账号信息'],
+	// 上游密码不在详情面板展示（脱敏收敛，仅在"显示密码"后经 AJAX 获取）
 	'regdate'                  => ['开通时间', '生命周期'],
 	'nextduedate'              => ['到期时间', '生命周期'],
 	'domainstatus'             => ['产品状态', '生命周期'],
@@ -74,10 +75,6 @@ if (is_array($info['data']) && $info['data'] !== []) {
 		// 状态转中文
 		if ($k === 'domainstatus') {
 			$v = zjmf_host_status_label(zjmf_map_upstream_status((string)$v));
-		}
-		// 上游 password 为明文，直接展示（存本地库时才加密）
-		if ($k === 'password') {
-			$v = (string)$v === '' ? '(空)' : $v;
 		}
 		if (is_array($v)) {
 			$v = json_encode($v, JSON_UNESCAPED_UNICODE);
@@ -253,8 +250,10 @@ ob_start();
     <div class="zj-stat-value zj-mono"><?= htmlspecialchars($host['username'] ?: '-') ?></div>
   </div>
   <div class="zj-stat">
-    <div class="zj-stat-label">密码</div>
-    <div class="zj-stat-value zj-mono"><?= htmlspecialchars($password ?: '-') ?></div>
+    <div class="zj-stat-label">密码
+      <a href="javascript:;" id="zjf-pw-toggle" style="margin-left:6px;">显示</a>
+    </div>
+    <div class="zj-stat-value zj-mono" id="zjf-pw-value">••••••••</div>
   </div>
   <div class="zj-stat">
     <div class="zj-stat-label">周期</div>
@@ -413,7 +412,7 @@ $taskTypeMap = ['0' => '重装系统', '1' => '救援系统', '2' => '重置密�
     <?php if (!empty($traffic['ok'])): ?>
       <div class="zj-desc2"><?= zjmf_view_show_traffic($traffic['data']) ?></div>
     <?php else: ?>
-      <span class="zj-tip"><?= (($traffic['msg'] ?? '') ?: '流量查询失败') ?></span>
+      <span class="zj-tip"><?= htmlspecialchars((string)(($traffic['msg'] ?? '') ?: '流量查询失败')) ?></span>
     <?php endif; ?>
   </div>
 </div>
@@ -498,8 +497,48 @@ $taskTypeMap = ['0' => '重装系统', '1' => '救援系统', '2' => '重置密�
   var reinstallPanel = document.getElementById('zjf-reinstall-panel');
   var rescuePanel = document.getElementById('zjf-rescue-panel');
   var osCount = <?= is_array($os_list) ? count($os_list) : 0 ?>;
-  var osError = <?= json_encode((string)$os_error, JSON_UNESCAPED_UNICODE) ?>;
+  var osError = <?= json_encode((string)$os_error, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
   var pendingAction = '';
+
+  // 密码显示/隐藏：点击"显示"后经 AJAX 获取一次解密值，再次点击恢复掩码
+  var pwValue = document.getElementById('zjf-pw-value');
+  var pwToggle = document.getElementById('zjf-pw-toggle');
+  var pwFetched = '';
+  if (pwToggle) {
+    pwToggle.addEventListener('click', function () {
+      if (pwToggle.textContent === '隐藏') {
+        pwValue.textContent = '••••••••';
+        pwToggle.textContent = '显示';
+        return;
+      }
+      if (pwFetched !== '') {
+        pwValue.textContent = pwFetched;
+        pwToggle.textContent = '隐藏';
+        return;
+      }
+      pwToggle.textContent = '…';
+      var body = new URLSearchParams();
+      body.append('host_id', '<?= (int)$host['id'] ?>');
+      fetch('<?= zjmf_url('reserve/api/host_password') ?>', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: body.toString()
+      }).then(function (r) { return r.json(); }).then(function (res) {
+        if (res.code === 'ok' && typeof res.password !== 'undefined' && res.password !== '') {
+          pwFetched = res.password;
+          pwValue.textContent = pwFetched;
+          pwToggle.textContent = '隐藏';
+        } else {
+          pwValue.textContent = '-';
+          pwToggle.textContent = '显示';
+          show(res.msg || res.code || '密码获取失败', false);
+        }
+      }).catch(function () {
+        pwToggle.textContent = '显示';
+        show('网络错误，请重试', false);
+      });
+    });
+  }
 
   function show(text, ok) {
     msg.textContent = text;

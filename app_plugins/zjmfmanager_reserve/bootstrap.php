@@ -19,13 +19,21 @@ if (!defined('IN_CRONLITE')) {
 require_once __DIR__ . '/lib/zjmf.php';
 require_once __DIR__ . '/lib/upstream.php';
 
-// 确保插件数据表存在：修复历史版本安装时 install.sql 首段（注释 + CREATE TABLE）
-// 被 mnbt_plugin_run_sql_file 整体跳过导致缺表（如 MN_plugin_zjmf_supplier）的问题。
-// install.sql 全部为 IF NOT EXISTS 建表，幂等，可安全重复执行。
+// 确保插件数据表存在：用 option 标记一次性执行，避免每请求都跑一遍 install.sql。
+// 建表语句全部 IF NOT EXISTS，幂等；schema 版本变更时调大
+// ZJMF_SCHEMA_VERSION 即会重跑一次（对齐仓库插件 option 标记惯例）。
+define('ZJMF_SCHEMA_VERSION', '1');
 static $zjmf_tables_ready = false;
 if (!$zjmf_tables_ready && function_exists('mnbt_plugin_run_sql_file')) {
 	$zjmf_tables_ready = true;
-	mnbt_plugin_run_sql_file(__DIR__ . '/install.sql');
+	$doneVer = function_exists('mnbt_plugin_option_get')
+		? (string)mnbt_plugin_option_get('zjmfmanager_reserve', 'schema_version', '') : '';
+	if ($doneVer !== ZJMF_SCHEMA_VERSION) {
+		mnbt_plugin_run_sql_file(__DIR__ . '/install.sql');
+		if (function_exists('mnbt_plugin_option_set')) {
+			mnbt_plugin_option_set('zjmfmanager_reserve', 'schema_version', ZJMF_SCHEMA_VERSION);
+		}
+	}
 }
 
 mnbt_plugin_register('zjmfmanager_reserve', [
@@ -141,6 +149,11 @@ mnbt_register_ajax('admin', 'p_zjmf_admin_save_supplier', function () {
 	if (mb_strlen($url) > 255) {
 		json_exit_error('站点 URL 过长');
 	}
+	// http:// 上游为明文传输，凭据可被截获，落一条管理员可见的告警日志
+	if ($url !== '' && stripos($url, 'http://') === 0) {
+		@error_log('[zjmfmanager_reserve] 警告：供应商「' . $name . '」使用不加密的'
+			. ' http:// 上游地址，API 凭据可能被明文传输，建议改用 https://');
+	}
 	if ($url !== '' && $username === '') {
 		json_exit_error('请填写 API 用户名');
 	}
@@ -162,7 +175,8 @@ mnbt_register_ajax('admin', 'p_zjmf_admin_save_supplier', function () {
 		         $status, $sort, $remark, $now];
 		if ($password !== '') {
 			$sql .= ", api_password=?";
-			$args[] = $password;
+			// API 密钥加密入库（读取处 ZjmfUpstream::client 统一解密）
+			$args[] = zjmf_encrypt($password);
 		}
 		$sql .= " WHERE id=?";
 		$args[] = $id;
@@ -176,7 +190,7 @@ mnbt_register_ajax('admin', 'p_zjmf_admin_save_supplier', function () {
 			 (name, api_url, api_username, api_password, api_timeout,
 			  markup_type, markup_value, status, sort, remark, created_at, updated_at)
 			 VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-			[$name, $url, $username, $password, $timeout, $markupType,
+			[$name, $url, $username, zjmf_encrypt($password), $timeout, $markupType,
 			 $markupValue, $status, $sort, $remark, $now, $now]
 		);
 		if (!$ok) {
@@ -471,10 +485,9 @@ mnbt_register_ajax('admin', 'p_zjmf_admin_assign_host', function () {
 			continue;
 		}
 		$order_id = (int)$order['order_id'];
-		zjmf_order_fill_opened($order_id, 0, $upHostId, $account);
-		zjmf_order_set_status($order_id, 'opened', '管理员指派');
 
-		// 写本地主机映射（绑定该上游机器）
+		// 写本地主机映射（绑定该上游机器）——先建主机，成功后再标记订单
+		// opened，避免主机写入失败时订单停留在已开通的中间态
 		$hostId = zjmf_host_create([
 			'supplier_id'   => (int)$supplier['id'],
 			'user_id'       => (int)$user['id'],
@@ -489,6 +502,7 @@ mnbt_register_ajax('admin', 'p_zjmf_admin_assign_host', function () {
 			'renew_date'    => zjmf_normalize_date($renew),
 		]);
 		if ($hostId <= 0) {
+			zjmf_order_set_status($order_id, 'failed', '本地主机映射写入失败');
 			$results[] = [
 				'up_host_id' => $upHostId,
 				'domain'     => (string)($upRow['domain'] ?? ''),
@@ -498,6 +512,10 @@ mnbt_register_ajax('admin', 'p_zjmf_admin_assign_host', function () {
 			];
 			continue;
 		}
+
+		// 主机映射写入成功后再回填订单并标记 opened
+		zjmf_order_fill_opened($order_id, 0, $upHostId, $account);
+		zjmf_order_set_status($order_id, 'opened', '管理员指派');
 
 		zjmf_log((int)$user['id'], (string)($order['order_no'] ?? ''), 'assign', 'success',
 			json_encode(['up_host_id' => $upHostId, 'assign_by' => 'admin'], JSON_UNESCAPED_UNICODE),
@@ -1042,8 +1060,8 @@ mnbt_register_route('GET', '/reserve/api/hosts', function ($params, $ctx) {
 	}
 	$hosts = [];
 	foreach (zjmf_host_list_by_user((int)$user['id']) as $h) {
-		// 缺失上游主机 ID 时尝试从上游主机列表补齐（同一次请求只拉一次上游列表）
-		$h = zjmf_backfill_host_upid($h);
+		// 注：缺失上游主机 ID 时的回填已收敛到开通流程内/管理端，
+		// 用户端 GET 请求不再触发任何自动写库
 		$supplier = zjmf_supplier_get((int)$h['supplier_id']);
 		$hosts[] = [
 			'id'            => (int)$h['id'],
@@ -1092,11 +1110,10 @@ mnbt_register_route('GET', '/reserve/orders', function ($params, $ctx) {
 mnbt_register_route('GET', '/reserve/hosts', function ($params, $ctx) {
 	$user = zjmf_require_user();
 	$hosts = zjmf_host_list_by_user((int)$user['id']);
-	// 列表页顺带补齐缺失的上游主机 ID（同一次请求只拉一次上游列表）
+	// 历史数据可能存了上游时间戳，统一归一化为 Y-m-d
+	// （回填上游主机 ID 已收敛到开通流程内/管理端，GET 请求不写库）
 	foreach ($hosts as $i => $h) {
-		$hosts[$i] = zjmf_backfill_host_upid($h);
-		// 历史数据可能存了上游时间戳，统一归一化为 Y-m-d
-		$hosts[$i]['renew_date'] = zjmf_normalize_date((string)$hosts[$i]['renew_date']);
+		$hosts[$i]['renew_date'] = zjmf_normalize_date((string)$h['renew_date']);
 	}
 	zjmf_render('hosts', [
 		'page_title' => '我的主机',
@@ -1115,9 +1132,8 @@ mnbt_register_route('GET', '/reserve/hosts/{host_id}', function ($params, $ctx) 
 		return;
 	}
 
-	// 缺失上游主机 ID 时尝试补齐（开通结算未解析出 ID 的历史数据）
-	$host = zjmf_backfill_host_upid($host);
 	// 历史数据可能存了上游时间戳，统一归一化为 Y-m-d
+	// （回填上游主机 ID 已收敛到开通流程内/管理端，GET 请求不写库）
 	$host['renew_date'] = zjmf_normalize_date((string)$host['renew_date']);
 
 	// 实时信息（失败不致命，仅展示缓存）
@@ -1284,6 +1300,15 @@ mnbt_register_route('POST', '/reserve/api/host_action', function ($params, $ctx)
 	if ($status !== '') {
 		zjmf_host_update_cache((int)$host['id'], ['status' => $status]);
 	}
+	// 电源类操作后主动刷新上游真实状态回写：本地主机表无独立电源字段，
+	// 关机不写 suspend（避免缓存状态与上游 domainstatus 脱节），以上游为准
+	if (in_array($action, ['on', 'off', 'reboot'], true)) {
+		$fresh = ZjmfUpstream::hostInfo($supplier, (int)$host['up_host_id']);
+		if (!empty($fresh['ok']) && $fresh['status'] !== 'unknown'
+			&& $fresh['status'] !== $host['status']) {
+			zjmf_host_update_cache((int)$host['id'], ['status' => $fresh['status']]);
+		}
+	}
 	if ($action === 'reset_password' && $extra['password'] !== '') {
 		global $DB, $date;
 		$now = $date ?: date('Y-m-d H:i:s');
@@ -1294,6 +1319,44 @@ mnbt_register_route('POST', '/reserve/api/host_action', function ($params, $ctx)
 	}
 
 	zjmf_json('ok', ['msg' => '操作成功']);
+});
+
+// 主机密码查看：详情页默认仅展示掩码，用户点击"显示密码"后经本路由
+// 按需解密返回（每次查看记录操作日志），页面不再无条件渲染明文密码
+mnbt_register_route('POST', '/reserve/api/host_password', function ($params, $ctx) {
+	$user = zjmf_require_user();
+
+	$host_id = (int)($_POST['host_id'] ?? 0);
+	$host = zjmf_host_get_by_user((int)$user['id'], $host_id);
+	if (!$host) {
+		zjmf_json('主机不存在');
+	}
+
+	$password = zjmf_decrypt((string)$host['password']);
+	$source = 'local';
+	// 本地未存密码（历史数据）且可查上游时，回退拉取上游实时密码
+	if ($password === '' && (int)$host['up_host_id'] > 0) {
+		$supplier = zjmf_supplier_get((int)$host['supplier_id']);
+		if ($supplier) {
+			try {
+				$info = ZjmfUpstream::hostInfo($supplier, (int)$host['up_host_id']);
+				if (!empty($info['ok'])) {
+					$password = (string)($info['data']['password'] ?? '');
+					$source = 'upstream';
+				}
+			} catch (Throwable $e) {
+				// 上游查询失败按无密码处理
+			}
+		}
+	}
+
+	$hostOrder = zjmf_order_get((int)$host['order_id']);
+	zjmf_log((int)$user['id'], $hostOrder ? $hostOrder['order_no'] : '',
+		'view_password', 'success',
+		json_encode(['host_id' => (int)$host['id'], 'source' => $source], JSON_UNESCAPED_UNICODE),
+		(int)$host['supplier_id']);
+
+	zjmf_json('ok', ['password' => $password]);
 });
 
 /* ============================================================

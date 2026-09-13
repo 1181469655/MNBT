@@ -128,22 +128,118 @@ function zjmf_json($code, $extra = [])
 	exit;
 }
 
-/** 明文加密（authcode，用于上游主机密码入库）。 */
+/**
+ * 获取 AES-256 加密密钥（32 字节原始密钥，不可用时返回 null）。
+ * 来源优先级：
+ *   1. 环境变量 / 常量 MNBT_SECRET_KEY（任意字符串，sha256 派生 32 字节）
+ *   2. 站点根 runtime/zjmf/zjmf_secret.key 密钥文件（插件目录之外，
+ *      runtime/ 为仓库既有数据目录惯例并带 .htaccess 禁止 Web 访问；
+ *      不存在时自动生成 64 hex 字符随机密钥并尝试 chmod 600）
+ * 两者均不可用时返回 null（调用方退回旧 authcode 并记日志）。
+ */
+function zjmf_secret_key_raw()
+{
+	static $cached = null;
+	if ($cached !== null) {
+		return $cached['key'] ?? null;
+	}
+	$cached = ['key' => null];
+	// 1. 环境变量 / 常量
+	$secret = getenv('MNBT_SECRET_KEY');
+	if ($secret === '' || $secret === false) {
+		$secret = defined('MNBT_SECRET_KEY') ? (string)constant('MNBT_SECRET_KEY') : '';
+	}
+	if ($secret !== '') {
+		$cached['key'] = hash('sha256', (string)$secret, true);
+		return $cached['key'];
+	}
+	// 2. 密钥文件（站点根 runtime/zjmf/，插件 data 目录之外）
+	$base = defined('ROOT') ? ROOT : dirname(dirname(dirname(__DIR__))) . '/';
+	$dir = $base . 'runtime/zjmf';
+	$file = $dir . '/zjmf_secret.key';
+	$secret = '';
+	if (is_file($file)) {
+		$secret = trim((string)@file_get_contents($file));
+	}
+	if ($secret === '') {
+		// 自动生成 64 hex 字符随机密钥并落盘
+		if (!is_dir($dir) && !@mkdir($dir, 0755, true) && !is_dir($dir)) {
+			@error_log('[zjmfmanager_reserve] 加密密钥目录创建失败：' . $dir);
+			return null;
+		}
+		// 目录防 Web 直接访问（.htaccess 拒绝 + 空 index.html 防目录列举）
+		$ht = $dir . '/.htaccess';
+		if (!is_file($ht)) {
+			@file_put_contents($ht, "Deny from all\n");
+		}
+		$ix = $dir . '/index.html';
+		if (!is_file($ix)) {
+			@file_put_contents($ix, '');
+		}
+		$secret = bin2hex(random_bytes(32));
+		if (@file_put_contents($file, $secret) === false) {
+			@error_log('[zjmfmanager_reserve] 加密密钥文件写入失败：' . $file
+				. '，退回旧 authcode 加密');
+			return null;
+		}
+		@chmod($file, 0600);
+	}
+	$cached['key'] = hash('sha256', $secret, true);
+	return $cached['key'];
+}
+
+/**
+ * 加密上游主机密码等敏感信息。
+ * 密钥可用时 AES-256-GCM，密文格式 'v2:' + base64(nonce.tag.ciphertext)；
+ * 密钥不可用时退回旧 authcode（记日志）。
+ */
 function zjmf_encrypt($plain)
 {
-	return authcode((string)$plain, 'ENCODE', SYS_KEY);
+	$plain = (string)$plain;
+	if ($plain === '') {
+		return '';
+	}
+	$key = zjmf_secret_key_raw();
+	if ($key !== null) {
+		$nonce = random_bytes(12);
+		$tag = '';
+		$cipher = openssl_encrypt($plain, 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $nonce, $tag);
+		if ($cipher !== false) {
+			return 'v2:' . base64_encode($nonce . $tag . $cipher);
+		}
+		@error_log('[zjmfmanager_reserve] AES-256-GCM 加密失败，退回旧 authcode');
+	}
+	return authcode($plain, 'ENCODE', SYS_KEY);
 }
 
 /**
  * 密文解密（防御式）。
- * authcode 解密分支在 PHP 8 下对乱码密文会执行「前10位 - time()」并抛
- * TypeError（Unsupported operand types: string - int），导致详情页 500。
- * 这里对空/过短密文直接返回，异常兜底为空串。
+ * 'v2:' 前缀走 AES-256-GCM（与 zjmf_encrypt 对称）；无前缀走旧 authcode
+ * 解密以兼容存量数据。authcode 解密分支在 PHP 8 下对乱码密文会抛
+ * TypeError，这里对空/过短密文直接返回，异常兜底为空串。
  */
 function zjmf_decrypt($cipher)
 {
 	$cipher = (string)$cipher;
-	if ($cipher === '' || strlen($cipher) <= 4) {
+	if ($cipher === '') {
+		return '';
+	}
+	if (strpos($cipher, 'v2:') === 0) {
+		$key = zjmf_secret_key_raw();
+		if ($key === null) {
+			return ''; // 密钥不可用（如密钥文件被删），无法解密
+		}
+		$raw = base64_decode(substr($cipher, 3), true);
+		if ($raw === false || strlen($raw) <= 12 + 16) {
+			return '';
+		}
+		$nonce = substr($raw, 0, 12);
+		$tag = substr($raw, 12, 16);
+		$ct = substr($raw, 28);
+		$plain = openssl_decrypt($ct, 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $nonce, $tag);
+		return $plain === false ? '' : $plain;
+	}
+	if (strlen($cipher) <= 4) {
 		return ''; // 未设置密码或非 authcode 密文
 	}
 	try {
@@ -207,8 +303,10 @@ function zjmf_cycles()
 /**
  * 渲染商品简介为规范的展示 HTML。
  * 上游常见 `&lt;li&gt;CPU：4核&lt;/li&gt; &lt;li&gt;内存：4G&lt;/li&gt;...` 格式：
- *   解码实体 → 压缩标签间空白 → 外层包裹 <ul> 渲染成列表。
- * 非 <li> 内容（含管理员手写 HTML）仅解码实体后原样输出。
+ *   解码实体 → 白名单过滤标签 → 压缩标签间空白 → 外层包裹 <ul> 渲染成列表。
+ * 白名单：p/br/b/strong/em/i/ul/ol/li/a[href|target]/span，
+ * a 的 href 仅允许 http/https 协议，其余标签的全部属性（含 style/on*、
+ * script/iframe 等危险标签）一律剥除，防上游描述注入 XSS。
  */
 function zjmf_render_description($raw)
 {
@@ -223,6 +321,34 @@ function zjmf_render_description($raw)
 		$html = html_entity_decode($html, ENT_QUOTES | ENT_HTML5, 'UTF-8');
 		$i++;
 	} while ($html !== $prev && $i < 3);
+	// 第一步：仅保留白名单标签（script/iframe 等连同标签一并剥除）
+	$html = strip_tags(
+		$html,
+		'<p><br><b><strong><em><i><ul><ol><li><a><span>'
+	);
+	// 第二步：逐标签重建，白名单外的属性全部剥除；a 仅恢复安全的 href/target
+	$html = preg_replace_callback(
+		'/<([a-zA-Z0-9]+)((?:\s+[^<>]*?)?)(\/?)>/u',
+		function ($m) {
+			$tag = strtolower($m[1]);
+			$attrs = $m[2] ?? '';
+			$selfClose = $m[3] ?? '';
+			if ($tag === 'a') {
+				$out = '<a';
+				// href 仅 http/https 协议，杜绝 javascript:/data: 等协议注入
+				if (preg_match('/href\s*=\s*(?:"|\')?\s*((?:https?:\/\/)[^"\'\s>]+)/iu', $attrs, $am)) {
+					$out .= ' href="' . htmlspecialchars($am[1], ENT_QUOTES) . '"';
+				}
+				if (preg_match('/target\s*=\s*(?:"|\')?_blank(?:"|\')?/iu', $attrs)) {
+					$out .= ' target="_blank" rel="noopener"';
+				}
+				return $out . '>';
+			}
+			// 其余标签剥除全部属性（<br/>、<br> 统一输出为 <br>）
+			return '<' . $tag . '>';
+		},
+		$html
+	);
 	if (stripos($html, '<li') === false) {
 		return $html;
 	}
@@ -328,12 +454,13 @@ function zjmf_product_get_by_up($supplier_id, $up_product_id)
 	) ?: null;
 }
 
-/** 上架商品列表（用户端，仅所属供应商启用时可见）。 */
+/** 上架商品列表（用户端，仅所属供应商启用时可见；带供应商名供分组展示）。 */
 function zjmf_product_list_active()
 {
 	global $DB;
 	return $DB->get_all_prepare(
-		"SELECT p.* FROM MN_plugin_zjmf_product p
+		"SELECT p.*, s.name AS supplier_name
+		 FROM MN_plugin_zjmf_product p
 		 LEFT JOIN MN_plugin_zjmf_supplier s ON s.id = p.supplier_id
 		 WHERE p.status=1 AND s.status=1
 		 ORDER BY s.sort ASC, p.sort ASC, p.id ASC"
@@ -873,12 +1000,15 @@ function zjmf_normalize_date($val)
 }
 
 /**
- * 补齐本地主机缺失的上游主机 ID（up_host_id<=0 时）。
+ * 补齐本地主机缺失的上游主机 ID（up_host_id<=0 时），确定性匹配。
  *
- * 开通/结算响应未能解析出主机 ID 时会落库 up_host_id=0，导致用户端
- * 卡片按钮不可用、详情页无法拉取实时信息。此函数通过上游
- * GET host/list（我的主机列表）按 产品名 + 开通日期 匹配回填。
- * 同一次请求内只拉取一次上游列表（进程内静态缓存）。
+ * 匹配键：开通流程保存在订单 order_params.up_host 的本地生成主机标识
+ * （upstream.php purchase() add_to_shop 时的 host 参数），与上游
+ * host/list 返回的 domain 精确相等才绑定；已带 up_host_id 的正常路径
+ * 不会进入本函数。不再做"产品名前缀 + 日期最近"的猜测匹配（曾发生
+ * 误绑上游他人主机的越权风险）。
+ * 匹配不到不写库（保持 up_host_id=0），仅记一条告警日志提示人工绑定。
+ * 本函数只应在开通流程内或管理端调用，用户端 GET 请求不得触发写库。
  *
  * @param array $host MN_plugin_zjmf_host 行
  * @return array 回填后的主机行（未匹配则原样返回）
@@ -897,61 +1027,58 @@ function zjmf_backfill_host_upid($host)
 	if (!$supplier || (int)$supplier['status'] !== 1) {
 		return $host;
 	}
-	// 进程内缓存：同一次请求（列表页/详情页）只向上游请求一次
-	static $cache = [];
-	if (!array_key_exists($supplierId, $cache)) {
-		$res = ZjmfUpstream::hostList($supplier, ['orderby' => 'id', 'sort' => 'DESC']);
-		$cache[$supplierId] = empty($res['ok']) ? [] : ($res['data']['list'] ?? []);
+	// 确定性匹配键：订单参数中保存的本地生成 host 标识
+	$wantDomain = '';
+	$orderNo = '';
+	$order = zjmf_order_get((int)($host['order_id'] ?? 0));
+	if ($order) {
+		$orderNo = (string)($order['order_no'] ?? '');
+		$params = json_decode((string)($order['order_params'] ?? ''), true);
+		if (is_array($params) && isset($params['up_host'])) {
+			$wantDomain = trim((string)$params['up_host']);
+		}
 	}
-	$list = $cache[$supplierId];
-	if (!is_array($list) || $list === []) {
+	if ($wantDomain === '') {
+		// 无匹配键（历史数据/指派单等）：不猜测，提示人工绑定
+		zjmf_log((int)($host['user_id'] ?? 0), $orderNo, 'backfill', 'failed',
+			'主机 #' . (int)$host['id'] . ' 缺少上游主机 ID 且无可用的确定性匹配键，'
+			. '已放弃自动回填，请管理员人工绑定', $supplierId);
 		return $host;
 	}
-	$name = (string)($host['name'] ?? '');
-	$created = substr((string)($host['created_at'] ?? ''), 0, 10);
-	$candidates = [];
-	foreach ($list as $item) {
-		if (!is_array($item)) {
-			continue;
+	$res = ZjmfUpstream::hostList($supplier, ['orderby' => 'id', 'sort' => 'DESC']);
+	$list = empty($res['ok']) ? [] : ($res['data']['list'] ?? []);
+	$matched = null;
+	foreach ((array)$list as $item) {
+		if (is_array($item) && trim((string)($item['domain'] ?? '')) === $wantDomain) {
+			$matched = $item;
+			break;
 		}
-		$pn = (string)($item['productname'] ?? '');
-		if ($pn === '' || ($name !== '' && $pn !== $name
-			&& strpos($pn, $name) !== 0 && strpos($name, $pn) !== 0)) {
-			continue;
-		}
-		$candidates[] = $item;
 	}
-	if ($candidates === []) {
+	if (!$matched || (int)($matched['id'] ?? 0) <= 0) {
+		// 上游列表中无该 domain（主机可能仍在异步创建）：不写库
+		zjmf_log((int)($host['user_id'] ?? 0), $orderNo, 'backfill', 'failed',
+			'主机 #' . (int)$host['id'] . ' 未能按 host=' . $wantDomain
+			. ' 在上游主机列表中确定性匹配，保持 up_host_id=0，请人工核对绑定', $supplierId);
 		return $host;
 	}
-	// 多台同名主机时，按开通日期与本地创建日期最接近者匹配
-	$best = $candidates[0];
-	if ($created !== '') {
-		$bestDiff = PHP_INT_MAX;
-		$bestTime = strtotime($created) ?: 0;
-		foreach ($candidates as $item) {
-			// regdate 部分版本为 Unix 时间戳，先归一化为 Y-m-d 再比较
-			$rd = zjmf_normalize_date((string)($item['regdate'] ?? ''));
-			if ($rd === '') {
-				continue;
-			}
-			$rdTime = strtotime($rd) ?: 0;
-			$diff = $rdTime ? abs($rdTime - $bestTime) : PHP_INT_MAX;
-			if ($diff < $bestDiff) {
-				$bestDiff = $diff;
-				$best = $item;
-			}
-		}
-	}
-	$upId = (int)($best['id'] ?? 0);
-	if ($upId <= 0) {
+	$upId = (int)$matched['id'];
+	// 代码级防重：该上游主机已被其他本地主机绑定时不重复写库
+	$dup = $DB->get_row_prepare(
+		"SELECT id FROM MN_plugin_zjmf_host
+		 WHERE supplier_id=? AND up_host_id=? AND id<>? LIMIT 1",
+		[$supplierId, $upId, (int)$host['id']]
+	);
+	if ($dup) {
+		zjmf_log((int)($host['user_id'] ?? 0), $orderNo, 'backfill', 'failed',
+			'上游主机 #' . $upId . ' 已被本地主机 #' . (int)$dup['id'] . ' 绑定，'
+			. '主机 #' . (int)$host['id'] . ' 放弃自动回填，请人工核对', $supplierId);
 		return $host;
 	}
 	$status = function_exists('zjmf_map_upstream_status')
-		? zjmf_map_upstream_status((string)($best['domainstatus'] ?? ''))
+		? zjmf_map_upstream_status((string)($matched['domainstatus'] ?? ''))
 		: (string)($host['status'] ?? '');
 	// nextduedate 部分版本为 Unix 时间戳，统一归一化为 Y-m-d
-	$renew = zjmf_normalize_date((string)($best['nextduedate'] ?? $host['renew_date'] ?? ''));
+	$renew = zjmf_normalize_date((string)($matched['nextduedate'] ?? $host['renew_date'] ?? ''));
 	$now = $date ?: date('Y-m-d H:i:s');
 	$DB->query_prepare(
 		"UPDATE MN_plugin_zjmf_host
@@ -964,20 +1091,25 @@ function zjmf_backfill_host_upid($host)
 	return $host;
 }
 
-/** 上游 domainstatus → 本地展示状态（active/suspend/unknown）。 */
+/**
+ * 上游状态 → 本地展示状态（统一映射表，主实现）。
+ * ZjmfUpstream::mapHostStatus 委托调用本函数；除常规 domainstatus 外
+ * 补充 off/true/false/deleted/Unpaid 等分支（true/false/off 多见于
+ * DCIM/云主机开关机状态，deleted/Unpaid 见于部分上游版本）。
+ */
 function zjmf_map_upstream_status($status)
 {
 	$st = strtolower(trim((string)$status));
-	if (in_array($st, ['active', 'completed', '运行中'], true)) {
+	if (in_array($st, ['active', 'on', 'true', 'completed', '运行中'], true)) {
 		return 'active';
 	}
-	if (in_array($st, ['pending', 'wait', 'waiting', '待开通'], true)) {
+	if (in_array($st, ['pending', 'wait', 'waiting', 'unpaid', '待开通', '未付款'], true)) {
 		return 'pending';
 	}
-	if (in_array($st, ['suspended', 'suspend', 'paused', '已暂停'], true)) {
+	if (in_array($st, ['suspended', 'suspend', 'paused', 'off', 'false', '已暂停', '已关机'], true)) {
 		return 'suspend';
 	}
-	if (in_array($st, ['cancelled', 'cancel', 'terminated', 'terminate', 'fraud', '已终止'], true)) {
+	if (in_array($st, ['cancelled', 'cancel', 'terminated', 'terminate', 'deleted', 'delete', 'fraud', '已终止', '已删除'], true)) {
 		return 'terminated';
 	}
 	return 'unknown';
@@ -1005,8 +1137,11 @@ function zjmf_action_status($action)
 {
 	$map = [
 		'on'     => 'active',
-		'off'    => 'suspend',
 		'reboot' => 'active',
+		// 关机不写 suspend：本地主机表无独立电源字段，写入 suspend 会与
+		// 上游真实状态（domainstatus 仍为 active）脱节，由调用方刷新上游
+		// 状态回写真实状态
+		'off'    => '',
 	];
 	return $map[$action] ?? '';
 }
@@ -1092,11 +1227,25 @@ function zjmf_open_host($order_id)
 	$password = (string)($result['password'] ?? '');
 	$upOrderId = (int)($result['up_order_id'] ?? 0);
 
-	// 回填订单
-	zjmf_order_fill_opened($order_id, $upOrderId, $upHostId, $username);
-	zjmf_order_set_status($order_id, 'opened', '主机已开通');
+	// 保存本次开通使用的本地生成主机标识（add_to_shop 的 host 参数），
+	// 供开通响应未带主机 ID 时的确定性回填匹配（S2，避免猜测匹配越权）
+	$genHost = trim((string)($result['host'] ?? ''));
+	if ($genHost !== '') {
+		$params = json_decode((string)($order['order_params'] ?? ''), true);
+		if (!is_array($params)) {
+			$params = [];
+		}
+		if ((string)($params['up_host'] ?? '') !== $genHost) {
+			$params['up_host'] = $genHost;
+			$DB->query_prepare(
+				"UPDATE MN_plugin_zjmf_order SET order_params=? WHERE id=?",
+				[json_encode($params, JSON_UNESCAPED_UNICODE), (int)$order_id]
+			);
+		}
+	}
 
-	// 写主机映射
+	// 写主机映射（先建主机，成功后再标记订单 opened，避免中间态）：
+	// 主机映射写入失败时订单保持 paid 可人工重试，不得标 opened
 	$hostId = zjmf_host_create([
 		'supplier_id'    => (int)$order['supplier_id'],
 		'user_id'        => (int)$order['user_id'],
@@ -1110,6 +1259,26 @@ function zjmf_open_host($order_id)
 		'status'         => 'active',
 		'renew_date'     => (string)($result['renew_date'] ?? ''),
 	]);
+	if ($hostId <= 0) {
+		@error_log('[zjmfmanager_reserve] host create failed, order stays paid: order_id='
+			. (int)$order_id . ' up_host_id=' . $upHostId);
+		zjmf_log((int)$order['user_id'], $order['order_no'], 'purchase', 'failed',
+			'上游开通成功但本地主机映射写入失败，订单保持已支付待人工处理'
+			. '（up_host_id=' . $upHostId . '）', (int)$order['supplier_id']);
+		return ['ok' => false, 'msg' => '上游开通成功但本地主机映射写入失败，请人工处理', 'host_id' => 0];
+	}
+
+	// 回填订单并标记 opened
+	zjmf_order_fill_opened($order_id, $upOrderId, $upHostId, $username);
+	zjmf_order_set_status($order_id, 'opened', '主机已开通');
+
+	// 开通响应未带主机 ID 时，在开通流程内同步做一次确定性回填（失败不阻断）
+	if ($upHostId <= 0) {
+		$hostRow = zjmf_host_get($hostId);
+		if ($hostRow) {
+			zjmf_backfill_host_upid($hostRow);
+		}
+	}
 
 	zjmf_log((int)$order['user_id'], $order['order_no'],
 		'purchase', 'success',

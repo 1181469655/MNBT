@@ -55,13 +55,30 @@ class ZjmfUpstream
 		$supplierId = (int)($supplier['id'] ?? 0);
 		$cacheDir = mnbt_plugin_path('zjmfmanager_reserve')
 			. 'runtime/cache/s' . $supplierId;
+		// JWT 缓存目录防 Web 直接访问：.htaccess 拒绝 + 空 index.html 防目录列举
+		if (!is_dir($cacheDir)) {
+			@mkdir($cacheDir, 0755, true);
+		}
+		$ht = $cacheDir . '/.htaccess';
+		if (!is_file($ht)) {
+			@file_put_contents($ht, "Deny from all\n");
+		}
+		$ix = $cacheDir . '/index.html';
+		if (!is_file($ix)) {
+			@file_put_contents($ix, '');
+		}
+		// 解密 API 密钥：新数据为 v2: AES 密文；历史数据为明文直取
+		// （不经 authcode 解密，避免把明文误当乱码密文解出无效值）
+		$apiPassword = strpos($password, 'v2:') === 0 ? zjmf_decrypt($password) : $password;
 		return new CubeFinanceClient([
 			'url'        => $apiUrl,
 			'username'   => $username,
-			'password'   => $password,
+			'password'   => $apiPassword,
 			'timeout'    => $t,
 			'cache_dir'  => $cacheDir,
-			'verify_ssl' => false,
+			// TODO: install.sql 供应商表暂无 verify_ssl 配置字段，先默认强制
+			// 校验证书；后续加字段后改为按供应商配置读取（默认 true）
+			'verify_ssl' => true,
 		]);
 	}
 
@@ -490,20 +507,26 @@ class ZjmfUpstream
 		try {
 			// 0. 清空购物车：该版本 settle(checkout=1) 会结算整辆购物车，
 			//    若残留历史测试商品会把多件一起结算开通（曾实测一次开出多台机器）。
-			//    先清空保证本次结算只涉及刚添加的这一件商品。
+			//    清空失败时确认购物车为空或仅含本次商品才继续，否则中断开通，
+			//    避免残留项被一起结算。
 			try {
 				$client->cartClear();
 			} catch (CubeFinanceException $e) {
-				// 清空失败不致命，继续尝试（可能购物车本就为空）
+				if (!self::cartSafeForSettle($client, $upProductId)) {
+					return ['ok' => false, 'msg' => '上游购物车清空失败且无法确认购物车为空，'
+						. '为避免残留商品被一起结算已中断本次开通：' . $e->getMessage()];
+				}
 			}
 
 			// 1. 添加产品至购物车（官方：POST /cart/add_to_shop）→ data.i 购物车位置
 			$upCycle = self::upstreamCycle((int)($order['supplier_id'] ?? 0), $upProductId, $cycle);
+			$genHost = (string)($extra['host'] ?? '') !== ''
+				? (string)$extra['host'] : self::randHost();
 			$addParams = [
 				'pid'          => $upProductId,
 				'billingcycle' => $upCycle,
 				'qty'          => 1,
-				'host'         => (string)($extra['host'] ?? self::randHost()),
+				'host'         => $genHost,
 				'password'     => (string)($extra['password'] ?? self::randPassword()),
 			];
 			foreach (['configoption', 'customfield', 'serverid', 'os', 'currencyid'] as $k) {
@@ -575,8 +598,18 @@ class ZjmfUpstream
 			$invoiceId = self::findId($checkoutData);
 			$hostId = self::findHostId($checkoutData);
 
-			// 3. 使用余额支付账单（官方：POST /apply_credit）
+			// 3. 使用余额支付账单（官方：POST /apply_credit）。
+			//    仅当账单确认已支付且已生成主机记录时才跳过支付，防止把结算
+			//    响应中其他 ID 误判为主机 ID 而漏付；确认失败则正常走支付。
+			$skipPay = false;
 			if ($invoiceId > 0 && $hostId <= 0) {
+				$paid = self::invoiceInfo($client, $invoiceId, 1);
+				if ($paid && self::isPaidStatus($paid['status']) && (int)$paid['host_id'] > 0) {
+					$skipPay = true;
+					$hostId = (int)$paid['host_id'];
+				}
+			}
+			if ($invoiceId > 0 && !$skipPay) {
 				$credit = $client->post('apply_credit', [
 					'invoiceid' => $invoiceId,
 					'use_credit' => 1,
@@ -586,6 +619,7 @@ class ZjmfUpstream
 					// 账单可能已被自动扣款，确认已支付后再继续
 					$info = self::invoiceInfo($client, $invoiceId, 1);
 					if (!$info || !self::isPaidStatus($info['status'])) {
+						// 支付未确认：明确失败（订单将被标 failed），不得继续当作开通成功
 						return ['ok' => false, 'msg' => self::respErr('上游余额支付失败', $credit)];
 					}
 				}
@@ -607,6 +641,8 @@ class ZjmfUpstream
 					'msg'         => '开通成功',
 					'up_order_id' => $invoiceId,
 					'up_host_id'  => $hostId,
+					// 本次开通使用的本地生成主机标识（host 参数，供确定性回填）
+					'host'        => $genHost,
 					'username'    => $header['username'],
 					'password'    => $header['password'],
 					'name'        => $header['name'],
@@ -620,6 +656,8 @@ class ZjmfUpstream
 				'msg'         => '上游订单已创建，但未返回主机 ID，请到上游后台核对',
 				'up_order_id' => $invoiceId,
 				'up_host_id'  => 0,
+				// 同上，保存主机标识供回填确定性匹配
+				'host'        => $genHost,
 				'username'    => '',
 				'password'    => '',
 				'name'        => (string)($order['product_name'] ?? ''),
@@ -1700,6 +1738,40 @@ class ZjmfUpstream
 	}
 
 	/**
+	 * 购物车是否可安全结算：为空或仅含本次商品。
+	 * 用于 cartClear 失败后的兜底确认；购物车数据拉取失败视为不可确认。
+	 *
+	 * @param CubeFinanceClient $client
+	 * @param int               $upProductId 本次开通的上游商品 ID
+	 * @return bool true=可继续结算
+	 */
+	protected static function cartSafeForSettle($client, $upProductId)
+	{
+		try {
+			$res = $client->cartGetShopData();
+		} catch (CubeFinanceException $e) {
+			return false; // 无法确认购物车内容，不可继续
+		}
+		if (!self::respOk($res)) {
+			return false;
+		}
+		$products = $res['data']['cart_products'] ?? null;
+		if (!is_array($products)) {
+			return false; // 结构异常，无法确认
+		}
+		foreach ($products as $p) {
+			if (!is_array($p)) {
+				continue;
+			}
+			$pid = (string)($p['productid'] ?? $p['pid'] ?? $p['id'] ?? '');
+			if ($pid !== (string)$upProductId) {
+				return false; // 含本次商品之外的项目，不可继续
+			}
+		}
+		return true;
+	}
+
+	/**
 	 * 从加购响应中取购物车位置 data.i（兼容字符串 data、其他位置键、一层嵌套）。
 	 *
 	 * @param array $res 响应数组
@@ -1754,20 +1826,46 @@ class ZjmfUpstream
 		return in_array($st, [200, 1001], true);
 	}
 
-	/** 组装上游失败详情（msg + data 截断），避免日志里只有泛化文案。 */
+	/** 组装上游失败详情（msg + data 截断），避免日志里只有泛化文案。
+	 *  data 中 password/pass/pwd/token/secret 等键的值脱敏后再入日志。 */
 	protected static function respErr($prefix, $res)
 	{
 		$msg = (string)($res['msg'] ?? '');
 		$data = $res['data'] ?? null;
 		$detail = '';
 		if (is_array($data) || is_scalar($data)) {
-			$json = json_encode($data, JSON_UNESCAPED_UNICODE);
+			$safeData = is_array($data) ? self::maskSecrets($data) : $data;
+			$json = json_encode($safeData, JSON_UNESCAPED_UNICODE);
 			if (is_string($json)) {
 				$detail = ' data=' . self::truncate($json, 300);
 			}
 		}
 		$out = trim($prefix . '：' . $msg . $detail, '：');
 		return $out !== '' ? $out : $prefix;
+	}
+
+	/** 递归脱敏：键名含 password/pass/pwd/token/secret 的值替换为 ***。 */
+	protected static function maskSecrets(array $data)
+	{
+		$out = [];
+		foreach ($data as $k => $v) {
+			$lk = strtolower((string)$k);
+			$sensitive = $lk !== '' && (
+				strpos($lk, 'password') !== false
+				|| strpos($lk, 'pass') !== false
+				|| strpos($lk, 'pwd') !== false
+				|| strpos($lk, 'token') !== false
+				|| strpos($lk, 'secret') !== false
+			);
+			if ($sensitive) {
+				$out[$k] = '***';
+			} elseif (is_array($v)) {
+				$out[$k] = self::maskSecrets($v);
+			} else {
+				$out[$k] = $v;
+			}
+		}
+		return $out;
 	}
 
 	/** 截断字符串（mb_substr 不可用时回退 substr）。 */
@@ -1810,13 +1908,15 @@ class ZjmfUpstream
 		return 0;
 	}
 
-	/** 从 data 中找主机 ID（支持嵌套 host 与 hostid 数组）。 */
+	/** 从 data 中找主机 ID（支持嵌套 host 与 hostid 数组）。
+	 *  不含 'id' 兜底键：结算响应 data.id 通常是账单/订单 ID，曾被误判
+	 *  为主机 ID 导致跳过支付（M3 误判）。 */
 	protected static function findHostId($arr)
 	{
 		if (!is_array($arr)) {
 			return 0;
 		}
-		foreach (['host_id', 'hostid', 'hid', 'id'] as $k) {
+		foreach (['host_id', 'hostid', 'hid'] as $k) {
 			if (isset($arr[$k])) {
 				$v = $arr[$k];
 				if (is_array($v)) {
@@ -1955,7 +2055,11 @@ class ZjmfUpstream
 		}
 	}
 
-	/** 上游主机状态 → 本地展示状态（active/suspend/pending/terminated/unknown）。 */
+	/**
+	 * 上游主机数据 → 本地展示状态（active/suspend/pending/terminated/unknown）。
+	 * 状态映射委托统一实现 zjmf_map_upstream_status（lib/zjmf.php，主表），
+	 * 无状态字段时用 qk 兜底（false 视为不可用）。
+	 */
 	public static function mapHostStatus($data)
 	{
 		if (!is_array($data)) {
@@ -1963,19 +2067,7 @@ class ZjmfUpstream
 		}
 		$st = strtolower(trim((string)($data['status'] ?? $data['domainstatus'] ?? '')));
 		if ($st !== '') {
-			if (in_array($st, ['active', 'on', 'true', 'completed', '运行中'], true)) {
-				return 'active';
-			}
-			if (in_array($st, ['pending', 'wait', 'waiting', '待开通'], true)) {
-				return 'pending';
-			}
-			if (in_array($st, ['suspended', 'suspend', 'paused', 'off', '已暂停'], true)) {
-				return 'suspend';
-			}
-			if (in_array($st, ['cancelled', 'cancel', 'terminated', 'terminate', 'fraud', '已终止'], true)) {
-				return 'terminated';
-			}
-			return 'unknown';
+			return zjmf_map_upstream_status($st);
 		}
 		// 无状态字段时用 qk 兜底（false 视为不可用）
 		$qk = $data['qk'] ?? null;
