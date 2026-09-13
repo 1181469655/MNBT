@@ -31,23 +31,19 @@
 
 产品关联模块后只需填写可选配置（如 `plan_id`），其余从服务器字段自动解析。
 
-### 方式二：模块配置选项（精确控制）
+**注意**：`api_url` / `api_key` / `node_id` / `call_key` 不支持通过配置选项填写，必须使用上述服务器字段。
 
-产品配置选项中填写：
+产品可配置选项（configoptions）仅支持以下两个：
 
-| key | 说明 |
+| 配置选项 | 说明 |
 |-----|------|
-| `api_url` | `https://mnbt.example.com/api/docker.php` |
-| `api_key` | 系统 API 密钥 |
-| `node_id` | 节点编号 |
-| `call_key` | `md5(节点ktmy . 节点qmk)` |
-| `plan_id` | 默认套餐 ID（可选） |
-| `console_url` | `https://mnbt.example.com/docker/login.php` |
+| `configoption1`（默认套餐 ID） | 开通时绑定的默认套餐（`MN_docker_plan.id`，可选） |
+| `configoption2`（控制台地址） | Docker 控制台入口 URL（可选，留空则按服务器地址自动拼接 `/docker/login.php`） |
 
 ## 产品关联
 
 1. 后台「产品 → 添加产品」→ 类型：**服务器产品** → 模块：**梦奈宝塔Docker对接插件**
-2. 可配置选项添加「套餐 ID」字段，映射 key 为 `plan_id`（可选，用于升降级）
+2. 可配置选项添加「套餐 ID」字段（即 `configoption1`，可选，用于升降级；变更套餐时以此处的值为新套餐）
 3. 上架后即可前台购买
 
 ## 模块方法说明
@@ -74,4 +70,5 @@
 
 - **单容器模型**：每个账号仅一个容器；开通后用户需在 MNBT 控制台的应用商店自行创建容器
 - **双登录体系**：魔方登录态 ≠ 梦奈宝塔Docker对接插件_token，用户需用 Docker 账号二次登录控制台
+- **用量查询（gn=sy）**：本插件未实现用量查询功能，前台不展示磁盘用量
 - **P1 自动登录**：下期通过 `gn=dl` 一次性票据实现免登录跳转

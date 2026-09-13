@@ -79,7 +79,7 @@ function mnbthost_ConfigOptions()
  *   server_password          → 调用密钥 md5(ktmy.qmk)，空则默认 md5('')
  *   accesshash               → 系统 API 密钥（$conf['api']）
  *
- * @return array [api_url, api_key, node_id, call_key, plan_id, console_url]
+ * @return array [api_url, api_key, node_id, call_key, console_url]
  */
 function _mnbthost_resolve_params($params)
 {
@@ -126,6 +126,24 @@ function _mnbthost_resolve_params($params)
 }
 
 /**
+ * 将魔方的到期时间统一转换为 'Y-m-d' 格式
+ * 魔方 nextduedate 可能是纯时间戳或 'Y-m-d H:i:s' 字符串；
+ * 空 / '0000-00-00' 返回 '0'（后端约定 0 = 永不到期）
+ */
+function _mnbthost_format_duedate($nextduedate)
+{
+    $nextduedate = trim((string)$nextduedate);
+    if ($nextduedate === '' || $nextduedate == '0000-00-00' || $nextduedate == '0000-00-00 00:00:00') {
+        return '0';
+    }
+    if (ctype_digit($nextduedate)) {
+        return date('Y-m-d', (int)$nextduedate);
+    }
+    $ts = strtotime($nextduedate);
+    return $ts ? date('Y-m-d', $ts) : '0';
+}
+
+/**
  * 调用 MNBT 虚拟主机 API
  *
  * @param array  $params  魔方传入的 $params
@@ -155,10 +173,17 @@ function _mnbthost_api_call($params, $gn, $extra = [], $timeout = 30)
         'username' => $username,
     ], $extra);
 
-    // DEBUG：打印请求参数摘要（定位鉴权问题用，确认后可删除）
-    $dbg = "gn={$gn} | mn_bh=[{$post['mn_bh']}] | mn_key_len=" . strlen($post['mn_key'])
-        . " | mn_keye=[" . substr($post['mn_keye'], 0, 6) . '***' . substr($post['mn_keye'], -4) . '](len=' . strlen($post['mn_keye']) . ')'
-        . " | username=[{$post['username']}]";
+    // DEBUG：打印请求参数摘要（仅当定义了 MNBT_DEBUG 且为真时附加，避免生产环境泄露敏感信息）
+    $dbg = '';
+    if (defined('MNBT_DEBUG') && MNBT_DEBUG) {
+        $dbg = "gn={$gn} | mn_bh=[{$post['mn_bh']}] | mn_key_len=" . strlen($post['mn_key'])
+            . " | mn_keye=[" . substr($post['mn_keye'], 0, 6) . '***' . substr($post['mn_keye'], -4) . '](len=' . strlen($post['mn_keye']) . ')'
+            . " | username=[{$post['username']}]";
+    }
+
+    // SSL 证书校验开关：默认关闭以兼容自签名证书环境；
+    // 需要开启时在魔方入口文件定义 define('MNBT_SSL_VERIFY', true) 即可
+    $ssl_verify = defined('MNBT_SSL_VERIFY') ? MNBT_SSL_VERIFY : false;
 
     $url = $api_url . '?gn=' . urlencode($gn);
 
@@ -169,8 +194,8 @@ function _mnbthost_api_call($params, $gn, $extra = [], $timeout = 30)
         CURLOPT_POSTFIELDS     => http_build_query($post),
         CURLOPT_TIMEOUT        => $timeout,
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_SSL_VERIFYHOST => false,
-        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_SSL_VERIFYPEER => (bool)$ssl_verify,
+        CURLOPT_SSL_VERIFYHOST => $ssl_verify ? 2 : 0,
         CURLOPT_HTTPHEADER     => ['Content-Type: application/x-www-form-urlencoded; charset=UTF-8'],
     ]);
     $resp = curl_exec($ch);
@@ -187,8 +212,10 @@ function _mnbthost_api_call($params, $gn, $extra = [], $timeout = 30)
         return ['success' => false, 'code' => 0, 'msg' => '[mnbthost] 响应解析失败：' . substr($resp, 0, 200)];
     }
 
-    // 附加调试摘要到响应
-    $decoded['_debug'] = $dbg;
+    // 附加调试摘要到响应（仅 MNBT_DEBUG 开启时）
+    if ($dbg !== '') {
+        $decoded['_debug'] = $dbg;
+    }
     return $decoded;
 }
 
@@ -246,10 +273,7 @@ function mnbthost_CreateAccount($params)
         $password = substr(md5(uniqid(mt_rand(), true)), 0, 12);
     }
 
-    $dqtime = $params['nextduedate'] ?? '';
-    if (empty($dqtime) || $dqtime == '0000-00-00') {
-        $dqtime = '0';
-    }
+    $dqtime = _mnbthost_format_duedate($params['nextduedate'] ?? '');
 
     $co = $params['configoptions'] ?? [];
     $extra = [
@@ -290,40 +314,33 @@ function mnbthost_TerminateAccount($params)
 /** 续费 */
 function mnbthost_Renew($params)
 {
-    $dqtime = $params['nextduedate'] ?? '';
-    if (empty($dqtime) || $dqtime == '0000-00-00') {
-        $dqtime = '0';
-    }
+    $dqtime = _mnbthost_format_duedate($params['nextduedate'] ?? '');
     $r = _mnbthost_api_call($params, 'xf', ['setdate' => $dqtime]);
     return _mnbthost_return($r);
 }
 
-/** 升降级（更新空间/数据库/流量配额，仅传变更项） */
+/** 升降级（更新空间/数据库/流量配额，全量传三项配额，用现有配置值兜底） */
 function mnbthost_ChangePackage($params)
 {
-    $upgrade = $params['configoptions_upgrade'] ?? [];
     $co = $params['configoptions'] ?? [];
 
-    $extra = [];
-    if (isset($upgrade['webdx']))   $extra['websize'] = $co['webdx'];
-    if (isset($upgrade['sqldx']))   $extra['sqlsize'] = $co['sqldx'];
-    if (isset($upgrade['sizemax'])) $extra['ll'] = $co['sizemax'];
-
-    if (empty($extra)) {
-        // 无配额变更时仍调用一次确保同步（zjmode 需传全量，用现有值兜底）
-        $extra = [
-            'websize' => $co['webdx'] ?? 0,
-            'sqlsize' => $co['sqldx'] ?? 0,
-            'll'      => $co['sizemax'] ?? 0,
-        ];
-    }
+    // 后端 zjmode 按传参覆盖对应配额，为保持三项配额一致，这里全量传三项
+    $extra = [
+        'websize' => $co['webdx'] ?? 0,
+        'sqlsize' => $co['sqldx'] ?? 0,
+        'll'      => $co['sizemax'] ?? 0,
+    ];
     $r = _mnbthost_api_call($params, 'zjmode', $extra);
     return _mnbthost_return($r);
 }
 
-/** 重置密码（idcsmart 将新密码作为第二参数传入） */
+/** 重置密码（idcsmart 将新密码作为第二参数传入，部分版本仅放在 $params['password']） */
 function mnbthost_CrackPassword($params, $new_pass = '')
 {
+    // 优先取第二参数，为空则回退到 $params['password']（兼容魔方部分版本）
+    if (empty($new_pass)) {
+        $new_pass = $params['password'] ?? '';
+    }
     if (empty($new_pass)) return '缺少新密码';
     $r = _mnbthost_api_call($params, 'czmm', ['password' => $new_pass]);
     return _mnbthost_return($r);
@@ -439,11 +456,13 @@ function mnbthost_ClientAreaOutput($params, $key)
     return [
         'template' => 'templates/console.html',
         'vars'     => [
-            'status_text'  => $status_info['des'],
-            'status_class' => $status_class,
-            'console_url'  => $console_url,
-            'username'     => $params['domain'] ?? ($params['username'] ?? ''),
-            'password'     => $params['password'] ?? '',
+            'status_text'  => htmlspecialchars($status_info['des'] ?? '', ENT_QUOTES),
+            'status_class' => htmlspecialchars($status_class, ENT_QUOTES),
+            'console_url'  => htmlspecialchars($console_url ?? '', ENT_QUOTES),
+            'username'     => htmlspecialchars($params['domain'] ?? ($params['username'] ?? ''), ENT_QUOTES),
+            'password'     => htmlspecialchars($params['password'] ?? '', ENT_QUOTES),
+            // 密码默认展示掩码，点击"显示"后再展示明文
+            'password_mask' => !empty($params['password']) ? str_repeat('•', 8) : '',
             'quota'        => $quota,
             'quota_pct'    => $quota_pct,
         ],

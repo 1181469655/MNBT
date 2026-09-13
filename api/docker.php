@@ -185,7 +185,8 @@ if ($gn === 'xf') {
 		api_json_exit(100, '错误！该 Docker 账号不存在');
 	}
 	$old_datae = $urow['datae'];
-	$updates = "datae='" . $new_datae . "'";
+	$updates = "datae=?";
+	$bind = [$new_datae];
 	// 若原 expired 且新到期时间未过 → 恢复 active
 	if ($urow['qk'] === 'expired') {
 		if ($new_datae === '0000-00-00' || strtotime($date) - strtotime($new_datae) < 0) {
@@ -200,7 +201,8 @@ if ($gn === 'xf') {
 			}
 		}
 	}
-	$DB->query("UPDATE MN_docker_user SET {$updates} WHERE id=" . intval($urow['id']));
+	$bind[] = $urow['id'];
+	$DB->query_prepare("UPDATE MN_docker_user SET {$updates} WHERE id=?", $bind);
 	api_lifecycle_log('API续费Docker', '续费 ' . $user . ' ' . $old_datae . '=>' . $new_datae, '续费成功');
 	if (function_exists('mnbt_do_action')) {
 		mnbt_do_action('docker.user.renewed', array_merge($urow, ['datae' => $new_datae]), ['source' => 'api', 'old_date' => $old_datae, 'new_date' => $new_datae]);

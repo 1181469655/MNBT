@@ -31,14 +31,14 @@
                 <div class="info-label">控制台地址</div>
                 <div class="info-value">
                     {if condition="!empty($console_url)"}
-                    <a href="{$console_url}" target="_blank">{$console_url}</a>
+                    <a href="{$console_url|htmlspecialchars}" target="_blank" rel="noopener noreferrer">{$console_url|htmlspecialchars}</a>
                     {else /}
                     <span style="color:#999">未配置</span>
                     {/if}
                 </div>
             </div>
             {if condition="!empty($console_url)"}
-            <button class="copy-btn" onclick="dockerCopy(this,'{$console_url}')" title="复制">📋</button>
+            <button class="copy-btn" data-text="{$console_url|htmlspecialchars}" title="复制">📋</button>
             {/if}
         </div>
 
@@ -46,10 +46,10 @@
             <div class="info-icon user">👤</div>
             <div class="info-body">
                 <div class="info-label">登录账号</div>
-                <div class="info-value"><code>{$username|default='—'}</code></div>
+                <div class="info-value"><code>{$username|default='—'|htmlspecialchars}</code></div>
             </div>
             {if condition="!empty($username)"}
-            <button class="copy-btn" onclick="dockerCopy(this,'{$username}')" title="复制">📋</button>
+            <button class="copy-btn" data-text="{$username|htmlspecialchars}" title="复制">📋</button>
             {/if}
         </div>
 
@@ -57,24 +57,24 @@
             <div class="info-icon pwd">🔑</div>
             <div class="info-body">
                 <div class="info-label">登录密码</div>
-                <div class="info-value"><code>{$password|default='—'}</code></div>
+                <div class="info-value"><code>{$password|default='—'|htmlspecialchars}</code></div>
             </div>
             {if condition="!empty($password)"}
-            <button class="copy-btn" onclick="dockerCopy(this,'{$password}')" title="复制">📋</button>
+            <button class="copy-btn" data-text="{$password|htmlspecialchars}" title="复制">📋</button>
             {/if}
         </div>
 
         <div class="info-row">
-            <div class="info-icon stat {$status_class}">📊</div>
+            <div class="info-icon stat {$status_class|htmlspecialchars}">📊</div>
             <div class="info-body">
                 <div class="info-label">容器状态</div>
-                <div class="status-text">{$status_text}</div>
+                <div class="status-text">{$status_text|htmlspecialchars}</div>
             </div>
         </div>
 
         {if condition="!empty($console_url)"}
         <div class="btn-area">
-            <a href="{$console_url}" target="_blank" class="btn btn-primary btn-sm">前往控制台</a>
+            <a href="{$console_url|htmlspecialchars}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm">前往控制台</a>
         </div>
         {/if}
 
@@ -82,6 +82,7 @@
 </div>
 
 <script>
+// 通过 data-* 属性安全传参，避免将变量直接拼入 JS 字符串
 function dockerCopy(btn, text) {
     var ta = document.createElement('textarea');
     ta.value = text;
@@ -93,4 +94,9 @@ function dockerCopy(btn, text) {
     btn.innerHTML = '✓';
     setTimeout(function(){ btn.classList.remove('copied'); btn.innerHTML = '📋'; }, 1500);
 }
+document.addEventListener('click', function(e) {
+    var btn = e.target.closest ? e.target.closest('.copy-btn') : null;
+    if (!btn) return;
+    dockerCopy(btn, btn.getAttribute('data-text') || '');
+});
 </script>

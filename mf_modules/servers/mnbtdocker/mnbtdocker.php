@@ -125,8 +125,11 @@ function _mnbtdocker_api_call($params, $gn, $extra = [], $timeout = 30)
         'username' => $username,
     ], $extra);
 
-    // DEBUG：打印请求参数（部署确认问题后可删除此段）
-    $debug_info = "gn={$gn}, mn_bh=[{$post['mn_bh']}], mn_key=[len=" . strlen($post['mn_key']) . "], mn_keye=[len=" . strlen($post['mn_keye']) . "], mn_vs=[{$post['mn_vs']}], username=[{$post['username']}]";
+    // DEBUG：仅在 MNBT_DEBUG 为 true 时打印请求参数
+    $debug_info = '';
+    if (defined('MNBT_DEBUG') && MNBT_DEBUG) {
+        $debug_info = "gn={$gn}, mn_bh=[{$post['mn_bh']}], mn_key=[len=" . strlen($post['mn_key']) . "], mn_keye=[len=" . strlen($post['mn_keye']) . "], mn_vs=[{$post['mn_vs']}], username=[{$post['username']}]";
+    }
 
     $url = $api_url . '?gn=' . urlencode($gn);
 
@@ -155,8 +158,10 @@ function _mnbtdocker_api_call($params, $gn, $extra = [], $timeout = 30)
         return ['success' => false, 'code' => 0, 'msg' => '[mnbtdocker] 响应解析失败：' . substr($resp, 0, 200)];
     }
 
-    // 附加调试信息到响应中
-    $decoded['_debug'] = $debug_info;
+    // 附加调试信息到响应中（仅 MNBT_DEBUG 开启时）
+    if ($debug_info !== '') {
+        $decoded['_debug'] = $debug_info;
+    }
     return $decoded;
 }
 
@@ -208,6 +213,25 @@ function mnbtdocker_TestLink($params)
 // ========================================================================
 
 /**
+ * 统一把 nextduedate 转为 'Y-m-d'（后端 dqtime/setdate 期望格式）
+ * 纯数字时间戳先转日期；空值/'0000-00-00' 返回 '0'（永久）
+ */
+function _mnbtdocker_format_dqtime($nextduedate)
+{
+    $dqtime = trim((string)($nextduedate ?? ''));
+    if ($dqtime === '' || $dqtime === '0000-00-00' || $dqtime === '0000-00-00 00:00:00') {
+        return '0';
+    }
+    if (ctype_digit($dqtime)) {
+        $dqtime = date('Y-m-d', (int)$dqtime);
+    } else {
+        $ts = strtotime($dqtime);
+        $dqtime = $ts ? date('Y-m-d', $ts) : '0';
+    }
+    return $dqtime ?: '0';
+}
+
+/**
  * 开通账户
  * 只开通账号，不创建容器（容器由用户登录控制台后在应用商店创建）
  */
@@ -223,10 +247,7 @@ function mnbtdocker_CreateAccount($params)
         $password = substr(md5(uniqid(mt_rand(), true)), 0, 12);
     }
 
-    $dqtime = $params['nextduedate'] ?? '';
-    if (empty($dqtime) || $dqtime == '0000-00-00') {
-        $dqtime = '0';
-    }
+    $dqtime = _mnbtdocker_format_dqtime($params['nextduedate'] ?? '');
 
     $extra = [
         'username' => $username,
@@ -241,9 +262,18 @@ function mnbtdocker_CreateAccount($params)
     $r = _mnbtdocker_api_call($params, 'kt', $extra);
     $result = _mnbtdocker_return($r);
 
-    if ($result === 'success' && !empty($password)) {
-        // 尝试回写密码到产品表
-        // idcsmart 可能通过返回值中的 password 字段自动更新
+    // 开通成功后把真实密码回写到魔方产品表，确保用户可在产品详情中看到密码
+    if ($result === 'success' && !empty($password) && !empty($params['hostid'])) {
+        try {
+            if (class_exists('\think\facade\Db')) {
+                // 魔方财务（ThinkPHP 6）环境：更新 host 表 password 字段
+                \think\facade\Db::name('host')
+                    ->where('id', (int)$params['hostid'])
+                    ->update(['password' => $password]);
+            }
+        } catch (\Throwable $e) {
+            // 回写失败不影响开通结果（如非 TP 环境或字段不存在）
+        }
     }
 
     return $result;
@@ -273,10 +303,7 @@ function mnbtdocker_TerminateAccount($params)
 /** 续费 */
 function mnbtdocker_Renew($params)
 {
-    $dqtime = $params['nextduedate'] ?? '';
-    if (empty($dqtime) || $dqtime == '0000-00-00') {
-        $dqtime = '0';
-    }
+    $dqtime = _mnbtdocker_format_dqtime($params['nextduedate'] ?? '');
     $r = _mnbtdocker_api_call($params, 'xf', ['setdate' => $dqtime]);
     return _mnbtdocker_return($r);
 }
@@ -287,11 +314,13 @@ function mnbtdocker_ChangePackage($params)
     // 从可配置选项中获取新的 plan_id
     // 魔方升降级时 old_configoptions / configoptions 会有新旧值
     $new_plan_id = $params['configoptions']['plan_id'] ?? $params['config_options']['plan_id'] ?? 0;
-    if (empty($new_plan_id)) {
-        // 兼容：某些魔方版本 key 在 configoptionX 直接覆盖
-        list(, , , , $new_plan_id) = _mnbtdocker_resolve_params($params);
+    $new_plan_id = is_array($new_plan_id) ? '' : trim((string)$new_plan_id);
+    if ($new_plan_id === '') {
+        // 兼容：某些魔方版本 key 在 configoptionX 直接覆盖（此时 configoption1 即新套餐）
+        $new_plan_id = trim((string)($params['configoption1'] ?? ''));
     }
-    if (empty($new_plan_id)) {
+    if ($new_plan_id === '' || (int)$new_plan_id <= 0) {
+        // 解析不到新套餐 ID 时明确报错，避免静默重复提交原套餐
         return '未找到新套餐 ID，请确认产品可配置选项中已设置 plan_id 字段';
     }
     $r = _mnbtdocker_api_call($params, 'bg', ['plan_id' => $new_plan_id]);
@@ -315,7 +344,7 @@ function mnbtdocker_CrackPassword($params, $new_pass = '')
  */
 function mnbtdocker_Status($params)
 {
-    $r = _mnbtdocker_api_call($params, 'ztcx', [], 60);
+    $r = _mnbtdocker_api_call($params, 'ztcx', [], 25);
     if (!($r['success'] ?? false) || ($r['code'] ?? 0) != 200) {
         return [
             'status' => 'error',
@@ -349,7 +378,7 @@ function mnbtdocker_Status($params)
     }
 
     // 附加容器信息
-    if ($container && !empty($container['port'])) {
+    if ($container && !empty($container['port']) && is_array($container['port'])) {
         $des .= ' | 端口：' . implode(', ', $container['port']);
     }
 

@@ -37,8 +37,9 @@ $et_zj=$DB->get_row_prepare("SELECT * FROM MN_zj WHERE user=? limit 1", [$user])
 if($cert=='' || $cert['qk']=='false')api_json_exit(100, '错误！该宝塔不存在或该宝塔已经被关闭');
 $adyjm=$cert['ktmy'].$cert['qmk'];$mdjm=md5($adyjm);
 if($keye!=$mdjm){
-    mnbt_log('外部API','API鉴权','API-'.$bh.' '.$user.' 宝塔调用密钥错误(发送:'.substr($keye,0,8).',期望:'.substr($mdjm,0,8).',btdh='.$bh.')','鉴权失败',$DB);
-    api_json_exit(100, '调用密钥不匹配！正确的调用密钥为：'.$mdjm);
+    // 不回显正确密钥，避免密钥泄露
+    mnbt_log('外部API','API鉴权','API-'.$bh.' '.$user.' 宝塔调用密钥错误(发送:'.substr($keye,0,8).',btdh='.$bh.')','鉴权失败',$DB);
+    api_json_exit(100, '调用密钥不匹配！');
 }
 $btipe=($cert['ptl']=='true'?'https':'http').'://'.$cert['btip'].':'.$cert['btdk'];
 $btkeye=$cert['btmy'];
@@ -52,7 +53,8 @@ if($gn=='cfif'){
     $webdx=json_encode(array('max'=>daddslashes($_POST['webdx'] ?? 0),'dq'=>0));
     $sqldx=json_encode(array('max'=>daddslashes($_POST['sqldx'] ?? 0),'dq'=>0));
     $ymbds=daddslashes($_POST['ymbds'] ?? 0);
-    if($et_zj!='' || $et_zj!=false){
+    // 直接真值判断：已存在则报错
+    if($et_zj){
         api_lifecycle_log('API开通主机','开通'.$user.'失败：主机已存在','开通失败');
         api_json_exit(100, '错误！该主机已经存在，请重新开通！');
     }
@@ -87,12 +89,11 @@ if($gn=='cfif'){
         api_lifecycle_log('API开通主机','开通'.$user.'失败：账号重复','开通失败');
         api_json_exit(100, '错误！该账号已存在！请更换账号！');
     }
-    $rowe=$DB->get_row_prepare("SELECT * FROM MN_zj WHERE 1 order by id desc limit 1");
-    $id=$rowe['id']+1;
+    // max(id)+1 并发下可能重复导致插入失败，失败时重新取号重试几次
     $hskr=mt_rand(4,10);
     $rqsj=md5($date.$user);
     $wjler=substr($rqsj, $hskr , 3);
-    $btserw='mnbt.'.$id.mt_rand(1,999).$wjler;
+    $btserw='mnbt.'.mt_rand(1,999).$wjler;
     $mrwww=$cert['btos']=='1' ? $conf['hxi'].'/'.$btserw : $conf['hxo'].'/'.$btserw;
     $r_data = $api->webkt($user,$pass,$btserw,'主机','true','true',$phpVersion,$mrwww);
     $cjqk=$r_data['siteStatus'] ?? false;
@@ -111,7 +112,17 @@ if($gn=='cfif'){
         $aedfs = '0'; $sqlfs = '0';
         foreach(($r_datn['data'] ?? []) as $val){ if($val['name']===$user){ $aedfs=$val['id']; break; } }
         foreach(($r_datp['data'] ?? []) as $val){ if($val['name']===$user){ $sqlfs=$val['id']; break; } }
-        if($DB->query_prepare("INSERT INTO `MN_zj` (`id`, `ssbt`, `user`, `pass`, `sqluser`, `sqlpass`, `data`, `datae`, `qk`, `btid`, `sqldz`, `ftpid`, `ymbds`, `hxa`, `hxb`, `hxc`, `hxd`, `llmax`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", [$id, $bh, $user, $pass, $user, $pass, $date, $datae, 'true', $zdide, $btserw, $aedfs, $ymbds, $webdx, $sqldx, '2', $sqlfs, $flowratemax])){
+        // 写入主机记录：max(id)+1 在并发下可能重复导致插入失败，失败时重新取号重试几次
+        $insert_ok = false;
+        for($tryi = 0; $tryi < 3; $tryi++){
+            $rowe=$DB->get_row_prepare("SELECT id FROM MN_zj WHERE 1 order by id desc limit 1");
+            $id=($rowe['id'] ?? 0)+1;
+            if($DB->query_prepare("INSERT INTO `MN_zj` (`id`, `ssbt`, `user`, `pass`, `sqluser`, `sqlpass`, `data`, `datae`, `qk`, `btid`, `sqldz`, `ftpid`, `ymbds`, `hxa`, `hxb`, `hxc`, `hxd`, `llmax`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", [$id, $bh, $user, $pass, $user, $pass, $date, $datae, 'true', $zdide, $btserw, $aedfs, $ymbds, $webdx, $sqldx, '2', $sqlfs, $flowratemax])){
+                $insert_ok = true;
+                break;
+            }
+        }
+        if($insert_ok){
             api_lifecycle_log('API开通主机','开通'.$user.'成功，站点'.$btserw,'开通成功');
             $host_row = $DB->get_row_prepare("SELECT * FROM MN_zj WHERE id=? limit 1", [$id]);
             if (function_exists('mnbt_do_action')) {
@@ -128,6 +139,7 @@ if($gn=='cfif'){
         api_json_exit(100, '错误！网站创建失败！宝塔返回信息：'.($r_data['msg'] ?? '未知错误'));
     }
 }elseif($gn=='zt'){
+    if(empty($et_zj)) api_json_exit(100, '不存在主机用户名');
     $api = new bt_api($btipe,$btkeye);
     $api->siteqt($et_zj['btid'],$et_zj['sqldz'],false);
     $api->setftpzt($et_zj['ftpid'],$et_zj['user'],'0');
@@ -137,11 +149,13 @@ if($gn=='cfif'){
     }
     api_json_exit(200, '主机暂停成功！');
 }elseif($gn=='xf'){
+    if(empty($et_zj)) api_json_exit(100, '不存在主机用户名');
     $x_dq_date=($_POST['setdate'] ?? '0')=='0' ? '0000-00-00' : $_POST['setdate'];
     $old_date=$et_zj['datae'] ?? '';
     $api = new bt_api($btipe,$btkeye);
     $r_data = $api->setdqsj($et_zj['btid'],$x_dq_date);
-    if(strtotime($date)-strtotime($x_dq_date)<0 && $x_dq_date!='0000-00-00' && $et_zj['qk']){
+    // qk 为字符串 'true'/'false'，需显式比较；未到期且已暂停时续费解停
+    if(strtotime($date)-strtotime($x_dq_date)<0 && $x_dq_date!='0000-00-00' && $et_zj['qk']=='true'){
         $api->siteqt($et_zj['btid'],$et_zj['sqldz'],true);
         $api->setftpzt($et_zj['ftpid'],$et_zj['user'],'1');
     }
@@ -156,6 +170,7 @@ if($gn=='cfif'){
     api_lifecycle_log('API续费主机','续费'.$user.'数据库写入失败','续费失败');
     api_json_exit(100, '主机续费失败，数据库写入失败！');
 }elseif($gn=='jc'){
+    if(empty($et_zj)) api_json_exit(100, '不存在主机用户名');
     $api = new bt_api($btipe,$btkeye);
     $api->siteqt($et_zj['btid'],$et_zj['sqldz'],true);
     $api->setftpzt($et_zj['ftpid'],$et_zj['user'],'1');
@@ -167,6 +182,7 @@ if($gn=='cfif'){
     }
     else api_json_exit(100, '主机暂停解除成功！但是写入数据库时出现错误！请站长排查！');
 }elseif($gn=='tz'){
+    if(empty($et_zj)) api_json_exit(100, '不存在主机用户名');
     $api = new bt_api($btipe,$btkeye);
     $r_data = $api->delsite($et_zj['btid'],$et_zj['sqldz']);
     if($r_data['status']){
@@ -184,7 +200,9 @@ if($gn=='cfif'){
         api_json_exit(100, '主机删除失败！因为'.($r_data['msg'] ?? '未知错误'));
     }
 }elseif($gn=='czmm'){
-    $x_up_pass=$_POST['password'];
+    if(empty($et_zj)) api_json_exit(100, '不存在主机用户名');
+    if(!isset($_POST['password']) || $_POST['password']==='')api_json_exit(100, '错误！缺少新密码参数 password！');
+    $x_up_pass=daddslashes($_POST['password']);
     $api = new bt_api($btipe,$btkeye);
     $api->setftppass($et_zj['ftpid'],$user,$x_up_pass);
     if($DB->query_prepare("update `MN_zj` set `pass` =? where `user`=?", [$x_up_pass, $user]))api_json_exit(200, '主机FTP及控制面板登陆密码重置成功！');
@@ -195,9 +213,10 @@ if($gn=='cfif'){
     $hxa_array = json_decode($zjdata['hxa'],true);
     $hxb_array = json_decode($zjdata['hxb'],true);
     $llmax_array = json_decode($zjdata['llmax'],true);
-    $hxa_array['max'] = $_POST['websize'];
-    $hxb_array['max'] = $_POST['sqlsize'];
-    $llmax_array['max'] = $_POST['ll'];
+    // 有传参才覆盖对应配额，三项相互独立，避免缺参导致配额被清零
+    if(isset($_POST['websize']) && $_POST['websize']!=='') $hxa_array['max'] = $_POST['websize'];
+    if(isset($_POST['sqlsize']) && $_POST['sqlsize']!=='') $hxb_array['max'] = $_POST['sqlsize'];
+    if(isset($_POST['ll']) && $_POST['ll']!=='') $llmax_array['max'] = $_POST['ll'];
     if($DB->query_prepare("UPDATE `MN_zj` SET `hxa` = ?, `hxb` = ?, `llmax` = ? WHERE `user` = ?", [json_encode($hxa_array), json_encode($hxb_array), json_encode($llmax_array), $user])) api_json_exit(200, '主机修改成功');
     api_json_exit(100, '主机修改失败我也不知道什么问题，请联系开发者');
 }elseif($gn == 'start'){

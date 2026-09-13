@@ -46,7 +46,7 @@
                 </div>
             </div>
             {if condition="!empty($console_url)"}
-            <button class="copy-btn" onclick="hostCopy(this,'{$console_url}')" title="复制">📋</button>
+            <button class="copy-btn" data-copy="{$console_url}" onclick="hostCopy(this)" title="复制">📋</button>
             {/if}
         </div>
 
@@ -57,7 +57,7 @@
                 <div class="info-value"><code>{$username|default='—'}</code></div>
             </div>
             {if condition="!empty($username)"}
-            <button class="copy-btn" onclick="hostCopy(this,'{$username}')" title="复制">📋</button>
+            <button class="copy-btn" data-copy="{$username}" onclick="hostCopy(this)" title="复制">📋</button>
             {/if}
         </div>
 
@@ -65,10 +65,15 @@
             <div class="info-icon pwd">🔑</div>
             <div class="info-body">
                 <div class="info-label">登录密码</div>
-                <div class="info-value"><code>{$password|default='—'}</code></div>
+                <div class="info-value"><input type="hidden" id="hostPasswordPlain" value="{$password}">
+<code id="hostPassword" style="user-select:none">{$password_mask|default='—'}</code>
+                    {if condition="!empty($password)"}
+                    <a href="javascript:void(0)" onclick="hostTogglePwd(this)" style="margin-left:6px;font-size:12px;">显示</a>
+                    {/if}
+                </div>
             </div>
             {if condition="!empty($password)"}
-            <button class="copy-btn" onclick="hostCopy(this,'{$password}')" title="复制">📋</button>
+            <button class="copy-btn" data-copy="{$password}" onclick="hostCopy(this)" title="复制">📋</button>
             {/if}
         </div>
 
@@ -138,7 +143,9 @@
 </div>
 
 <script>
-function hostCopy(btn, text) {
+// 复制：从 data-copy 属性取值，避免将值拼进 JS 字符串导致注入
+function hostCopy(btn) {
+    var text = btn.getAttribute('data-copy') || '';
     var ta = document.createElement('textarea');
     ta.value = text;
     ta.style.position = 'fixed'; ta.style.left = '-9999px';
@@ -148,5 +155,20 @@ function hostCopy(btn, text) {
     btn.classList.add('copied');
     btn.innerHTML = '✓';
     setTimeout(function(){ btn.classList.remove('copied'); btn.innerHTML = '📋'; }, 1500);
+}
+
+// 密码显示/隐藏切换
+function hostTogglePwd(link) {
+    var el = document.getElementById('hostPassword');
+    if (!el) return;
+    if (el.dataset.show !== '1') {
+        el.dataset.plain = el.textContent = document.getElementById('hostPasswordPlain').value;
+        el.dataset.show = '1';
+        link.textContent = '隐藏';
+    } else {
+        el.textContent = '••••••••';
+        el.dataset.show = '0';
+        link.textContent = '显示';
+    }
 }
 </script>
