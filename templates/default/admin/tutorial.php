@@ -184,17 +184,30 @@ if($_GET['gn']=='' || !isset($_GET['gn'])){?>
             
         <div class="tab-pane fade" id="djm-fill" >
               <p>
-					1.下载对接插件<br/>
-					2.上传到搭建IDC网站目录：<code>/public/plugins/servers</code><br/>
-					3.然后解压刚才上传的文件然后删除压缩包即可<br/>
-					4.进入后台填写服务器信息<br/>
-					5.IP地址：<code class="mnbt-tmp-btdh">宝塔编号</code><br/>
-					6.服务器模块：梦奈宝塔对接模块<br/>
-					7.主机名：<code><?=$_SERVER['HTTP_HOST']?></code><br/>
-					8.用户名：<code class="mnbt-tmp-ktmy">宝塔调用密钥</code><br/>
-					9.密码：<code class="mnbt-tmp-dymy mnbt-tmp-permanent-active"><?=htmlspecialchars($conf['api'] ?: 'API密钥', ENT_QUOTES, 'UTF-8')?></code><br/>
-                    10.安全访问/SSL访问之类的开关：<?=($_SERVER['SERVER_PORT'] == '443' ? '打开' : '关闭')?><br/>
-					11.然后您就能添加产品进行测试了<br/>
+					<strong>① 准备工作（MNBT 侧）</strong><br/>
+					1.系统设置 → API 设置：开启 API 并保存<strong>系统 API 密钥</strong>（下方表格会自动填入）<br/>
+					2.确认要对接的<strong>宝塔</strong>（虚拟主机）或 <strong>Docker 节点</strong>处于开启状态，且已设置调用密钥（调用密钥 = <code>md5(调用密钥Key.验证密钥)</code>，在宝塔列表/Docker 节点管理中查看）<br/>
+					3.对接插件：<strong>梦奈宝塔虚拟主机</strong>（mnbthost，对接 <code>/api/api.php</code>）与<strong>梦奈宝塔Docker对接插件</strong>（mnbtdocker，对接 <code>/api/docker.php</code>），按需上传<br/>
+					<br/>
+					<strong>② 安装对接插件（魔方侧）</strong><br/>
+					4.下载对接插件<br/>
+					5.上传到搭建魔方财务网站的目录：<code>/public/plugins/servers</code>（mnbthost 与 mnbtdocker 两个文件夹一并上传）<br/>
+					6.解压后删除压缩包即可<br/>
+					<br/>
+					<strong>③ 添加服务器（两个模块的服务器字段完全相同）</strong><br/>
+					7.IP地址：<code><?=($_SERVER['HTTP_HOST'])?></code>（MNBT 所在服务器，勿套 Cloudflare 代理）<br/>
+					8.端口：MNBT 的访问端口（80/443 可留默认）；安全访问/SSL 开关：<?=($_SERVER['SERVER_PORT'] == '443' ? '打开' : '关闭')?><br/>
+					9.用户名：<code class="mnbt-tmp-btdh">节点编号</code>（虚拟主机填<strong>宝塔编号</strong> btdh；Docker 填 <strong>Docker 节点 ID</strong>）<br/>
+					10.密码：<code class="mnbt-tmp-ktmy">调用密钥</code>（对应节点的 <code>md5(ktmy.qmk)</code>；节点未设置时留空，模块默认按 <code>md5('')</code> 处理）<br/>
+					11.访问哈希（Access Hash）：<code class="mnbt-tmp-dymy mnbt-tmp-permanent-active"><?=htmlspecialchars($conf['api'] ?: '系统API密钥', ENT_QUOTES, 'UTF-8')?></code>（系统 API 密钥）<br/>
+					12.保存后先用魔方"测试连接"验证（对应 MNBT 的 cfif 连接验证）<br/>
+					<br/>
+					<strong>④ 添加产品</strong><br/>
+					13.服务器组选择刚添加的服务器，模块按业务选择：<strong>梦奈宝塔虚拟主机</strong> 或 <strong>梦奈宝塔Docker对接插件</strong><br/>
+					14.虚拟主机产品配置选项：<strong>网站空间 / 数据库空间 / 流量（MB，0=不限制）/ 域名绑定数 / 控制台地址</strong>（控制台默认 <code>{MNBT地址}/user/login.php</code>）<br/>
+					15.Docker 产品配置选项：<strong>默认套餐 ID</strong>（MNBT 后台 Docker 套餐 ID，可不填）与 <strong>控制台地址</strong>（默认 <code>{MNBT地址}/docker/login.php</code>）<br/>
+					16.虚拟主机账号取产品<strong>域名</strong>（≥6 位、全局唯一）；Docker 账号取产品域名（≥4 位）。开通密码留空时 MNBT 自动生成并<strong>回写</strong>到魔方产品密码<br/>
+					17.添加产品后即可测试开通；模块支持开通/续费/暂停/解停/删除/改密/升降级/状态同步全流程
              </p>
               <p class="small">对接文件下载：<a href="./wjxz.php?ne=mr"/>点我前去下载</a></p>
             </div>
@@ -298,16 +311,17 @@ if($_GET['gn']=='' || !isset($_GET['gn'])){?>
               <code>[对接]魔方对接教程</code>
               <p class="small">
 					1.下载对接插件<br/>
-					2.上传到搭建IDC网站目录：<code>/public/plugins/servers</code><br/>
+					2.上传到搭建魔方财务网站目录：<code>/public/plugins/servers</code><br/>
 					3.然后解压刚才上传的文件然后删除压缩包即可<br/>
 					4.进入后台填写服务器信息<br/>
-					5.IP地址填写：<code><?=$cres['btdh']?></code><br/>
-					6.服务器模块：<code>梦奈宝塔对接模块</code><br/>
-					7.主机名：<code><?=$_SERVER['HTTP_HOST']?></code><br/>
-					8.用户名：<code><?=$eritvf?></code><br/>
-					9.密码：<code><?=$conf['api']?></code><br/>
+					5.IP地址填写：<code><?=$_SERVER['HTTP_HOST']?></code><br/>
+					6.服务器模块：<code>梦奈宝塔虚拟主机</code>（Docker 业务请选择<code>梦奈宝塔Docker对接插件</code>）<br/>
+					7.用户名（节点编号）：<code class="mnbt-tmp-btdh"><?=$cres['btdh']?></code><br/>
+					8.密码（调用密钥）：<code class="mnbt-tmp-ktmy"><?=$eritvf?></code><br/>
+					9.访问哈希（Access Hash，系统API密钥）：<code class="mnbt-tmp-dymy mnbt-tmp-permanent-active"><?=htmlspecialchars($conf['api'] ?: '系统API密钥', ENT_QUOTES, 'UTF-8')?></code><br/>
                     10.安全访问/SSL访问之类的开关：<?=($_SERVER['SERVER_PORT'] == '443' ? '打开' : '关闭')?><br/>
-					11.然后您就能添加产品进行测试了<br/>
+					11.保存后先"测试连接"，再添加产品进行测试<br/>
+					12.产品域名即主机/容器账号：虚拟主机 ≥6 位、Docker ≥4 位且全局唯一
               </p>
               <p class="small">对接文件下载：<a href="./wjxz.php?ne=mr"/>点我前去下载</a></p>
             </div>
