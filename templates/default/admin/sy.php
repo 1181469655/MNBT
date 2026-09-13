@@ -1,5 +1,5 @@
 <?php mnbt_admin_include('head'); ?>
-<link rel="stylesheet" href="https://unpkg.com/layui@2.9.8/dist/css/layui.css">
+<link rel="stylesheet" href="<?= mnbt_asset_url('layui/css/layui.css') ?>">
 <style>
 /* ---- Layui 管理首页增强 ---- */
 .ly-dash { padding: 15px; background: #f2f3f5; min-height: 100%; }

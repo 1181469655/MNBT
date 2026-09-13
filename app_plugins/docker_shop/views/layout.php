@@ -14,7 +14,7 @@ $base = function_exists('mnbt_home_base') ? mnbt_home_base() : '';
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title><?= htmlspecialchars($page_title) ?> - Docker 售卖</title>
-<link rel="stylesheet" href="https://unpkg.com/layui@2.9.8/dist/css/layui.css">
+<link rel="stylesheet" href="<?= mnbt_asset_url('layui/css/layui.css') ?>">
 <link rel="stylesheet" href="<?= htmlspecialchars(mnbt_plugin_url('docker_shop', 'assets/style.css'), ENT_QUOTES) ?>">
 </head>
 <body>
@@ -41,6 +41,6 @@ $base = function_exists('mnbt_home_base') ? mnbt_home_base() : '';
 
 <div class="ly-page-wide"><?= $content ?></div>
 
-<script src="https://unpkg.com/layui@2.9.8/dist/layui.js"></script>
+<script src="<?= mnbt_asset_url('layui/layui.js') ?>"></script>
 </body>
 </html>

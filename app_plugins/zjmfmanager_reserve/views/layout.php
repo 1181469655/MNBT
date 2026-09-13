@@ -15,7 +15,7 @@ $content = $content ?? '';
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title><?= htmlspecialchars($page_title) ?> - 魔方财务分销</title>
-<link rel="stylesheet" href="https://unpkg.com/layui@2.9.8/dist/css/layui.css">
+<link rel="stylesheet" href="<?= mnbt_asset_url('layui/css/layui.css') ?>">
 <link rel="stylesheet" href="<?= zjmf_asset_url('style.css') ?>">
 </head>
 <body>
@@ -41,6 +41,6 @@ $content = $content ?? '';
 
 <div class="zj-page"><?= $content ?></div>
 
-<script src="https://unpkg.com/layui@2.9.8/dist/layui.js"></script>
+<script src="<?= mnbt_asset_url('layui/layui.js') ?>"></script>
 </body>
 </html>
