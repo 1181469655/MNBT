@@ -44,6 +44,91 @@ function table_case_map($canonical_list) {
     return $map;
 }
 
+// 读取表的全部列名（小写），表不存在时返回空数组
+function mnbt_table_columns($table) {
+    $cols = array();
+    if (!table_exists_case($table)) return $cols;
+    $result = DB::query("SHOW COLUMNS FROM `{$table}`");
+    if ($result) {
+        while ($row = DB::fetch($result)) {
+            $cols[] = strtolower($row['Field']);
+        }
+    }
+    return $cols;
+}
+
+// 标准表清单（含 V1.83 Docker 集成四表）
+function mnbt_standard_tables() {
+    return array('MN_config','MN_log','MN_bt','MN_zj','MN_bs','MN_ym','MN_dd',
+        'MN_monitor_task','MN_monitor_log','MN_notice_log',
+        'MN_node','MN_node_task','MN_node_nonce',
+        'MN_forbidden_scan','MN_forbidden_match',
+        'MN_plugin','MN_plugin_option',
+        'MN_docker_node','MN_docker_user','MN_docker_plan','MN_docker_order');
+}
+
+// V1.81~V1.84 增量字段定义：表 => (列名 => ALTER 语句)
+// 实际表名由调用方传入（兼容大小写迁移场景）；仅添加缺失列
+function mnbt_upgrade_columns($actual_config, $actual_zj, $actual_bt, $actual_dplan, $actual_duser) {
+    return array(
+        // V1.81 修复字段
+        $actual_config => array(
+            'mailhost' => "ALTER TABLE `{$actual_config}` ADD `mailhost` VARCHAR(50) NULL DEFAULT NULL",
+            'mailuser' => "ALTER TABLE `{$actual_config}` ADD `mailuser` VARCHAR(50) NULL DEFAULT NULL",
+            'mailpassword' => "ALTER TABLE `{$actual_config}` ADD `mailpassword` VARCHAR(50) NULL DEFAULT NULL",
+            'mailport' => "ALTER TABLE `{$actual_config}` ADD `mailport` VARCHAR(20) NOT NULL DEFAULT '465'",
+            'ymjkkg' => "ALTER TABLE `{$actual_config}` ADD `ymjkkg` VARCHAR(20) NOT NULL DEFAULT 'false'",
+            'mtyxfskg' => "ALTER TABLE `{$actual_config}` ADD `mtyxfskg` VARCHAR(20) NOT NULL DEFAULT 'false'",
+            'ymjktsyz' => "ALTER TABLE `{$actual_config}` ADD `ymjktsyz` VARCHAR(20) NOT NULL DEFAULT '7'",
+            'wjjkkg' => "ALTER TABLE `{$actual_config}` ADD `wjjkkg` VARCHAR(20) NOT NULL DEFAULT 'false'",
+            'mtwjfskg' => "ALTER TABLE `{$actual_config}` ADD `mtwjfskg` VARCHAR(50) NOT NULL DEFAULT 'false'",
+            'wjjktsyz' => "ALTER TABLE `{$actual_config}` ADD `wjjktsyz` VARCHAR(20) NOT NULL DEFAULT '7'",
+            'optionzc' => "ALTER TABLE `{$actual_config}` ADD `optionzc` VARCHAR(20) NOT NULL DEFAULT 'stop'",
+            'zjyxbd' => "ALTER TABLE `{$actual_config}` ADD `zjyxbd` VARCHAR(20) NOT NULL DEFAULT 'true'",
+            'wjsckg' => "ALTER TABLE `{$actual_config}` ADD `wjsckg` VARCHAR(20) NOT NULL DEFAULT 'false'",
+            'wjsccnr' => "ALTER TABLE `{$actual_config}` ADD `wjsccnr` TEXT NULL DEFAULT NULL",
+            'wjsckgqbfx' => "ALTER TABLE `{$actual_config}` ADD `wjsckgqbfx` VARCHAR(10) NOT NULL DEFAULT 'true'",
+            'wjscml' => "ALTER TABLE `{$actual_config}` ADD `wjscml` VARCHAR(500) NOT NULL DEFAULT '/www/wwwroot'",
+            'wjstqml' => "ALTER TABLE `{$actual_config}` ADD `wjstqml` TEXT NULL DEFAULT NULL",
+            'wjstqhz' => "ALTER TABLE `{$actual_config}` ADD `wjstqhz` TEXT NULL DEFAULT NULL",
+            'wjscdzmax' => "ALTER TABLE `{$actual_config}` ADD `wjscdzmax` INT(11) NOT NULL DEFAULT 5242880",
+            'wjscdhmax' => "ALTER TABLE `{$actual_config}` ADD `wjscdhmax` INT(11) NOT NULL DEFAULT 1000",
+            'wjscqzcs' => "ALTER TABLE `{$actual_config}` ADD `wjscqzcs` VARCHAR(50) NOT NULL DEFAULT '0 3 * * *'",
+            'wjscqzcskg' => "ALTER TABLE `{$actual_config}` ADD `wjscqzcskg` VARCHAR(20) NOT NULL DEFAULT 'true'",
+            'pay_methods' => "ALTER TABLE `{$actual_config}` ADD `pay_methods` TEXT NOT NULL DEFAULT ''",
+            // V1.84 独立主页系统（与 update/update_v184_home.sql 保持一致）
+            'home_enable' => "ALTER TABLE `{$actual_config}` ADD `home_enable` varchar(10) NOT NULL DEFAULT 'true'",
+            'home_theme' => "ALTER TABLE `{$actual_config}` ADD `home_theme` varchar(50) NOT NULL DEFAULT ''",
+            'home_theme_settings' => "ALTER TABLE `{$actual_config}` ADD `home_theme_settings` text NOT NULL",
+            'home_title' => "ALTER TABLE `{$actual_config}` ADD `home_title` text NOT NULL",
+            'home_hero' => "ALTER TABLE `{$actual_config}` ADD `home_hero` text NOT NULL",
+            'home_primary' => "ALTER TABLE `{$actual_config}` ADD `home_primary` varchar(10) NOT NULL DEFAULT '#4f46e5'",
+            'home_logo' => "ALTER TABLE `{$actual_config}` ADD `home_logo` text NOT NULL",
+            'home_favicon' => "ALTER TABLE `{$actual_config}` ADD `home_favicon` text NOT NULL",
+            'home_footer' => "ALTER TABLE `{$actual_config}` ADD `home_footer` text NOT NULL",
+            'home_show_notice' => "ALTER TABLE `{$actual_config}` ADD `home_show_notice` varchar(10) NOT NULL DEFAULT 'true'",
+            'home_show_plans' => "ALTER TABLE `{$actual_config}` ADD `home_show_plans` varchar(10) NOT NULL DEFAULT 'true'",
+        ),
+        $actual_zj => array(
+            'backup' => "ALTER TABLE `{$actual_zj}` ADD `backup` VARCHAR(50) NOT NULL DEFAULT '{\"max\":\"3\",\"dq\":0}'",
+            'mailuser' => "ALTER TABLE `{$actual_zj}` ADD `mailuser` VARCHAR(50) NULL DEFAULT NULL",
+        ),
+        $actual_bt => array(
+            'ftpdz' => "ALTER TABLE `{$actual_bt}` ADD `ftpdz` VARCHAR(50) NOT NULL DEFAULT 'false'",
+            'mrbts_php' => "ALTER TABLE `{$actual_bt}` ADD `mrbts_php` VARCHAR(10) NOT NULL DEFAULT ''",
+        ),
+        // V1.83.1 Docker 磁盘配额字段（表已在 repair_tables.sql 中补齐）
+        $actual_dplan => array(
+            'disk_max' => "ALTER TABLE `{$actual_dplan}` ADD `disk_max` varchar(20) NOT NULL DEFAULT '0' COMMENT '磁盘配额 MB 上限（0=不限制）'",
+            'proxy_max' => "ALTER TABLE `{$actual_dplan}` ADD `proxy_max` varchar(20) NOT NULL DEFAULT '0' COMMENT '反向代理数量上限（0=不限制）'",
+        ),
+        $actual_duser => array(
+            'disk_usage' => "ALTER TABLE `{$actual_duser}` ADD `disk_usage` bigint(20) NOT NULL DEFAULT '0' COMMENT '最近磁盘用量（字节）'",
+            'disk_usage_at' => "ALTER TABLE `{$actual_duser}` ADD `disk_usage_at` varchar(50) DEFAULT NULL COMMENT '磁盘用量采集时间'",
+        ),
+    );
+}
+
 if (file_exists('install.lock')) exit(Res(1, '已安装', ['vs' => $vs,'is_install'=>true], 1));
 
 function send_post()
@@ -201,13 +286,7 @@ switch ($action) {
             }
 
             // 检查所有标准表
-            $all_tables = array(
-                'MN_log', 'MN_bt', 'MN_zj', 'MN_bs', 'MN_ym', 'MN_dd',
-                'MN_monitor_task', 'MN_monitor_log', 'MN_notice_log',
-                'MN_node', 'MN_node_task', 'MN_node_nonce',
-                'MN_forbidden_scan', 'MN_forbidden_match',
-                'MN_plugin', 'MN_plugin_option'
-            );
+            $all_tables = mnbt_standard_tables();
             foreach ($all_tables as $tbl) {
                 if (!in_array(strtolower($tbl), $existing_tables, true)) {
                     $result['need_upgrade'] = true;
@@ -226,6 +305,13 @@ switch ($action) {
             if (!$col_php) {
                 $result['need_upgrade'] = true;
                 $result['missing_columns'][] = 'MN_bt.mrbts_php';
+            }
+
+            // 检查 V1.84 新增字段（独立主页系统）
+            $col_home = DB::get_row("SHOW COLUMNS FROM `MN_config` LIKE 'home_enable'");
+            if (!$col_home) {
+                $result['need_upgrade'] = true;
+                $result['missing_columns'][] = 'MN_config.home_enable';
             }
         }
 
@@ -248,12 +334,7 @@ switch ($action) {
         $r_t = 0; $r_e = 0;
 
         // 获取规范名→实际名映射（兼容跨系统迁移后大小写不一致）
-        $all_tables = array('MN_config','MN_log','MN_bt','MN_zj','MN_bs','MN_ym','MN_dd',
-            'MN_monitor_task','MN_monitor_log','MN_notice_log',
-            'MN_node','MN_node_task','MN_node_nonce',
-            'MN_forbidden_scan','MN_forbidden_match',
-            'MN_plugin','MN_plugin_option');
-        $tbl_map = table_case_map($all_tables);
+        $tbl_map = table_case_map(mnbt_standard_tables());
 
         // 1. 补齐缺失的表（跳过已存在的，不管大小写）
         $sql = file_get_contents("repair_tables.sql");
@@ -272,70 +353,25 @@ switch ($action) {
             }
         }
 
-        // 2. 补齐字段（使用实际表名）
+        // 2. 补齐字段（使用实际表名，仅添加缺失列）
         $actual_config = isset($tbl_map['MN_config']) ? $tbl_map['MN_config'] : 'MN_config';
         $actual_zj     = isset($tbl_map['MN_zj']) ? $tbl_map['MN_zj'] : 'MN_zj';
         $actual_bt     = isset($tbl_map['MN_bt']) ? $tbl_map['MN_bt'] : 'MN_bt';
+        $actual_dplan  = isset($tbl_map['MN_docker_plan']) ? $tbl_map['MN_docker_plan'] : 'MN_docker_plan';
+        $actual_duser  = isset($tbl_map['MN_docker_user']) ? $tbl_map['MN_docker_user'] : 'MN_docker_user';
 
-        $config_cols = array(
-            'mailhost','mailuser','mailpassword','mailport',
-            'ymjkkg','mtyxfskg','ymjktsyz','wjjkkg','mtwjfskg','wjjktsyz',
-            'optionzc','zjyxbd',
-            'wjsckg','wjsccnr','wjsckgqbfx','wjscml','wjstqml','wjstqhz','wjscdzmax','wjscdhmax','wjscqzcs','wjscqzcskg',
-            'pay_methods',
-        );
+        $alter_sqls = mnbt_upgrade_columns($actual_config, $actual_zj, $actual_bt, $actual_dplan, $actual_duser);
 
-        // 先获取已有列名
-        $existing_cols = array();
-        $col_result = DB::query("SHOW COLUMNS FROM `{$actual_config}`");
-        if ($col_result) {
-            while ($row = DB::fetch($col_result)) {
-                $existing_cols[] = strtolower($row['Field']);
-            }
-        }
-
-        $alter_sqls = array(
-            'mailhost' => "ALTER TABLE `{$actual_config}` ADD `mailhost` VARCHAR(50) NULL DEFAULT NULL",
-            'mailuser' => "ALTER TABLE `{$actual_config}` ADD `mailuser` VARCHAR(50) NULL DEFAULT NULL",
-            'mailpassword' => "ALTER TABLE `{$actual_config}` ADD `mailpassword` VARCHAR(50) NULL DEFAULT NULL",
-            'mailport' => "ALTER TABLE `{$actual_config}` ADD `mailport` VARCHAR(20) NOT NULL DEFAULT '465'",
-            'ymjkkg' => "ALTER TABLE `{$actual_config}` ADD `ymjkkg` VARCHAR(20) NOT NULL DEFAULT 'false'",
-            'mtyxfskg' => "ALTER TABLE `{$actual_config}` ADD `mtyxfskg` VARCHAR(20) NOT NULL DEFAULT 'false'",
-            'ymjktsyz' => "ALTER TABLE `{$actual_config}` ADD `ymjktsyz` VARCHAR(20) NOT NULL DEFAULT '7'",
-            'wjjkkg' => "ALTER TABLE `{$actual_config}` ADD `wjjkkg` VARCHAR(20) NOT NULL DEFAULT 'false'",
-            'mtwjfskg' => "ALTER TABLE `{$actual_config}` ADD `mtwjfskg` VARCHAR(50) NOT NULL DEFAULT 'false'",
-            'wjjktsyz' => "ALTER TABLE `{$actual_config}` ADD `wjjktsyz` VARCHAR(20) NOT NULL DEFAULT '7'",
-            'optionzc' => "ALTER TABLE `{$actual_config}` ADD `optionzc` VARCHAR(20) NOT NULL DEFAULT 'stop'",
-            'zjyxbd' => "ALTER TABLE `{$actual_config}` ADD `zjyxbd` VARCHAR(20) NOT NULL DEFAULT 'true'",
-            'wjsckg' => "ALTER TABLE `{$actual_config}` ADD `wjsckg` VARCHAR(20) NOT NULL DEFAULT 'false'",
-            'wjsccnr' => "ALTER TABLE `{$actual_config}` ADD `wjsccnr` TEXT NULL DEFAULT NULL",
-            'wjsckgqbfx' => "ALTER TABLE `{$actual_config}` ADD `wjsckgqbfx` VARCHAR(10) NOT NULL DEFAULT 'true'",
-            'wjscml' => "ALTER TABLE `{$actual_config}` ADD `wjscml` VARCHAR(500) NOT NULL DEFAULT '/www/wwwroot'",
-            'wjstqml' => "ALTER TABLE `{$actual_config}` ADD `wjstqml` TEXT NULL DEFAULT NULL",
-            'wjstqhz' => "ALTER TABLE `{$actual_config}` ADD `wjstqhz` TEXT NULL DEFAULT NULL",
-            'wjscdzmax' => "ALTER TABLE `{$actual_config}` ADD `wjscdzmax` INT(11) NOT NULL DEFAULT 5242880",
-            'wjscdhmax' => "ALTER TABLE `{$actual_config}` ADD `wjscdhmax` INT(11) NOT NULL DEFAULT 1000",
-            'wjscqzcs' => "ALTER TABLE `{$actual_config}` ADD `wjscqzcs` VARCHAR(50) NOT NULL DEFAULT '0 3 * * *'",
-            'wjscqzcskg' => "ALTER TABLE `{$actual_config}` ADD `wjscqzcskg` VARCHAR(20) NOT NULL DEFAULT 'true'",
-            'pay_methods' => "ALTER TABLE `{$actual_config}` ADD `pay_methods` TEXT NOT NULL DEFAULT ''",
-            // MN_zj
-            'backup' => "ALTER TABLE `{$actual_zj}` ADD `backup` VARCHAR(50) NOT NULL DEFAULT '{\"max\":\"3\",\"dq\":0}'",
-            'mailuser_zj' => "ALTER TABLE `{$actual_zj}` ADD `mailuser` VARCHAR(50) NULL DEFAULT NULL",
-            // MN_bt
-            'ftpdz' => "ALTER TABLE `{$actual_bt}` ADD `ftpdz` VARCHAR(50) NOT NULL DEFAULT 'false'",
-            'mrbts_php' => "ALTER TABLE `{$actual_bt}` ADD `mrbts_php` VARCHAR(10) NOT NULL DEFAULT ''",
-        );
-
-        foreach ($alter_sqls as $col_name => $alter_sql) {
-            // 修复列名键（去掉 _zj 后缀）
-            $check_name = $col_name;
-            if ($check_name === 'mailuser_zj') $check_name = 'mailuser';
-
-            if (!in_array(strtolower($check_name), $existing_cols, true)) {
-                if (DB::query($alter_sql)) {
-                    ++$r_t;
-                } else {
-                    ++$r_e;
+        foreach ($alter_sqls as $table_name => $cols) {
+            $existing_cols = mnbt_table_columns($table_name);
+            if (empty($existing_cols)) continue; // 表不存在，repair_tables 已尝试创建
+            foreach ($cols as $col_name => $alter_sql) {
+                if (!in_array(strtolower($col_name), $existing_cols, true)) {
+                    if (DB::query($alter_sql)) {
+                        ++$r_t;
+                    } else {
+                        ++$r_e;
+                    }
                 }
             }
         }
@@ -392,32 +428,32 @@ switch ($action) {
         $skip_sql = ($install_mode === 'skip');
 
         if ($install_mode === 'upgrade') {
-            // 获取规范名→实际名映射
-            $all_tables = array('MN_config','MN_log','MN_bt','MN_zj','MN_bs','MN_ym','MN_dd',
-                'MN_monitor_task','MN_monitor_log','MN_notice_log',
-                'MN_node','MN_node_task','MN_node_nonce',
-                'MN_forbidden_scan','MN_forbidden_match',
-                'MN_plugin','MN_plugin_option');
-            $tbl_map = table_case_map($all_tables);
+            // 获取规范名→实际名映射（含 V1.83 Docker 集成四表）
+            $tbl_map = table_case_map(mnbt_standard_tables());
             $actual_config = isset($tbl_map['MN_config']) ? $tbl_map['MN_config'] : 'MN_config';
             $actual_zj     = isset($tbl_map['MN_zj']) ? $tbl_map['MN_zj'] : 'MN_zj';
             $actual_bt     = isset($tbl_map['MN_bt']) ? $tbl_map['MN_bt'] : 'MN_bt';
+            $actual_dplan  = isset($tbl_map['MN_docker_plan']) ? $tbl_map['MN_docker_plan'] : 'MN_docker_plan';
+            $actual_duser  = isset($tbl_map['MN_docker_user']) ? $tbl_map['MN_docker_user'] : 'MN_docker_user';
 
-            // 1. 运行 V1.79→V1.81 升级脚本
-            $sql = file_get_contents("upgrade_179to181.sql");
-            $sql = explode(';', $sql);
-            for ($i = 0; $i < count($sql); $i++) {
-                $q = trim($sql[$i]);
-                if ($q === '') continue;
-                if (DB::query($q)) {
-                    ++$t;
-                } else {
-                    ++$e;
-                    $error .= DB::error() . '<br/>';
+            // 1. 运行 V1.79→V1.81 升级脚本（脚本已幂等化，1.81 库上重跑安全）
+            $upgrade_sql_file = __DIR__ . '/1.79To1.81.sql';
+            if (file_exists($upgrade_sql_file)) {
+                $sql = file_get_contents($upgrade_sql_file);
+                $sql = explode(';', $sql);
+                for ($i = 0; $i < count($sql); $i++) {
+                    $q = trim($sql[$i]);
+                    if ($q === '') continue;
+                    if (DB::query($q)) {
+                        ++$t;
+                    } else {
+                        ++$e;
+                        $error .= DB::error() . '<br/>';
+                    }
                 }
             }
-            // 2. 补齐缺失的表（跳过已存在的）
-            $sql = file_get_contents("repair_tables.sql");
+            // 2. 补齐缺失的表（含 V1.83 Docker 四表，跳过已存在的）
+            $sql = file_get_contents(__DIR__ . '/repair_tables.sql');
             $sql = explode(';', $sql);
             for ($i = 0; $i < count($sql); $i++) {
                 $q = trim($sql[$i]);
@@ -432,40 +468,20 @@ switch ($action) {
                     $error .= DB::error() . '<br/>';
                 }
             }
-            // 3. 补齐缺失字段（使用实际表名）
-            $repair_cols = array(
-                "ALTER TABLE `{$actual_config}` ADD `mailhost` VARCHAR(50) NULL DEFAULT NULL",
-                "ALTER TABLE `{$actual_config}` ADD `mailuser` VARCHAR(50) NULL DEFAULT NULL",
-                "ALTER TABLE `{$actual_config}` ADD `mailpassword` VARCHAR(50) NULL DEFAULT NULL",
-                "ALTER TABLE `{$actual_config}` ADD `mailport` VARCHAR(20) NOT NULL DEFAULT '465'",
-                "ALTER TABLE `{$actual_config}` ADD `ymjkkg` VARCHAR(20) NOT NULL DEFAULT 'false'",
-                "ALTER TABLE `{$actual_config}` ADD `mtyxfskg` VARCHAR(20) NOT NULL DEFAULT 'false'",
-                "ALTER TABLE `{$actual_config}` ADD `ymjktsyz` VARCHAR(20) NOT NULL DEFAULT '7'",
-                "ALTER TABLE `{$actual_config}` ADD `wjjkkg` VARCHAR(20) NOT NULL DEFAULT 'false'",
-                "ALTER TABLE `{$actual_config}` ADD `mtwjfskg` VARCHAR(50) NOT NULL DEFAULT 'false'",
-                "ALTER TABLE `{$actual_config}` ADD `wjjktsyz` VARCHAR(20) NOT NULL DEFAULT '7'",
-                "ALTER TABLE `{$actual_config}` ADD `optionzc` VARCHAR(20) NOT NULL DEFAULT 'stop'",
-                "ALTER TABLE `{$actual_config}` ADD `zjyxbd` VARCHAR(20) NOT NULL DEFAULT 'true'",
-                "ALTER TABLE `{$actual_config}` ADD `wjsckg` VARCHAR(20) NOT NULL DEFAULT 'false'",
-                "ALTER TABLE `{$actual_config}` ADD `wjsccnr` TEXT NULL DEFAULT NULL",
-                "ALTER TABLE `{$actual_config}` ADD `wjsckgqbfx` VARCHAR(10) NOT NULL DEFAULT 'true'",
-                "ALTER TABLE `{$actual_config}` ADD `wjscml` VARCHAR(500) NOT NULL DEFAULT '/www/wwwroot'",
-                "ALTER TABLE `{$actual_config}` ADD `wjstqml` TEXT NULL DEFAULT NULL",
-                "ALTER TABLE `{$actual_config}` ADD `wjstqhz` TEXT NULL DEFAULT NULL",
-                "ALTER TABLE `{$actual_config}` ADD `wjscdzmax` INT(11) NOT NULL DEFAULT 5242880",
-                "ALTER TABLE `{$actual_config}` ADD `wjscdhmax` INT(11) NOT NULL DEFAULT 1000",
-                "ALTER TABLE `{$actual_config}` ADD `wjscqzcs` VARCHAR(50) NOT NULL DEFAULT '0 3 * * *'",
-                "ALTER TABLE `{$actual_config}` ADD `wjscqzcskg` VARCHAR(20) NOT NULL DEFAULT 'true'",
-                "ALTER TABLE `{$actual_config}` ADD `pay_methods` TEXT NOT NULL DEFAULT ''",
-                "ALTER TABLE `{$actual_zj}` ADD `backup` VARCHAR(50) NOT NULL DEFAULT '{\"max\":\"3\",\"dq\":0}'",
-                "ALTER TABLE `{$actual_zj}` ADD `mailuser` VARCHAR(50) NULL DEFAULT NULL",
-                "ALTER TABLE `{$actual_bt}` ADD `mrbts_php` VARCHAR(10) NOT NULL DEFAULT ''",
-            );
-            foreach ($repair_cols as $col_sql) {
-                if (DB::query($col_sql)) {
-                    ++$t;
-                } else {
-                    ++$e;
+            // 3. 补齐缺失字段（V1.81 修复字段 + V1.83 Docker 配额字段 + V1.84 主页字段，判重后添加）
+            $alter_sqls = mnbt_upgrade_columns($actual_config, $actual_zj, $actual_bt, $actual_dplan, $actual_duser);
+            foreach ($alter_sqls as $table_name => $cols) {
+                $existing_cols = mnbt_table_columns($table_name);
+                if (empty($existing_cols)) continue; // 表不存在，第 2 步已尝试创建
+                foreach ($cols as $col_name => $alter_sql) {
+                    if (!in_array(strtolower($col_name), $existing_cols, true)) {
+                        if (DB::query($alter_sql)) {
+                            ++$t;
+                        } else {
+                            ++$e;
+                            $error .= DB::error() . '<br/>';
+                        }
+                    }
                 }
             }
         } elseif (!$skip_sql) {
@@ -506,7 +522,7 @@ switch ($action) {
 
         @file_put_contents("install.lock", '安装锁');
         if ($install_mode === 'upgrade') {
-            exit(Res(1, '升级完成！已保留原有数据，成功更新至 V1.83'));
+            exit(Res(1, '升级完成！已保留原有数据，成功更新至 V1.84'));
         }
         if ($skip_sql) {
             exit(Res(1, '安装完成（保留原表并更新站点/管理员配置）'));

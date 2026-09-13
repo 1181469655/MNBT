@@ -259,3 +259,71 @@ CREATE TABLE IF NOT EXISTS `MN_plugin_option` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_plugin_k` (`plugin_slug`,`k`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+-- ======================== Docker 集成（V1.83）========================
+-- MN_docker_node / MN_docker_user / MN_docker_plan / MN_docker_order
+-- 与 update/update_v183_docker.sql 保持一致，仅在表不存在时创建
+CREATE TABLE IF NOT EXISTS `MN_docker_node` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(64) NOT NULL,
+  `btip` varchar(128) NOT NULL,
+  `btdk` varchar(10) NOT NULL DEFAULT '8888',
+  `ptl` varchar(10) NOT NULL DEFAULT 'false',
+  `btmy` varchar(255) NOT NULL,
+  `ktmy` varchar(255) NOT NULL,
+  `qmk` varchar(255) NOT NULL DEFAULT '',
+  `qk` varchar(10) NOT NULL DEFAULT 'true',
+  `date` varchar(50) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `MN_docker_user` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `username` varchar(64) NOT NULL,
+  `password_hash` varchar(255) NOT NULL,
+  `email` varchar(128) DEFAULT NULL,
+  `ssbt` int(11) NOT NULL DEFAULT '0',
+  `data` varchar(50) NOT NULL,
+  `datae` varchar(50) NOT NULL,
+  `qk` varchar(20) NOT NULL DEFAULT 'active',
+  `plan_id` int(11) DEFAULT NULL,
+  `container_id` varchar(64) DEFAULT NULL,
+  `service_name` varchar(64) DEFAULT NULL,
+  `app_name` varchar(64) DEFAULT NULL,
+  `container_spec` text,
+  `container_status` varchar(20) DEFAULT 'none',
+  `disk_usage` bigint(20) NOT NULL DEFAULT '0',
+  `disk_usage_at` varchar(50) DEFAULT NULL,
+  `expired_at` varchar(50) DEFAULT NULL,
+  `prune_due` varchar(50) DEFAULT NULL,
+  `extra` text,
+  `created_at` varchar(50) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_username` (`username`),
+  KEY `idx_ssbt` (`ssbt`),
+  KEY `idx_qk` (`qk`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `MN_docker_plan` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(64) NOT NULL,
+  `jc` text,
+  `cpu_max` varchar(20) NOT NULL DEFAULT '1',
+  `mem_max` varchar(20) NOT NULL DEFAULT '512',
+  `disk_max` varchar(20) NOT NULL DEFAULT '0',
+  `proxy_max` varchar(20) NOT NULL DEFAULT '0',
+  `jg` varchar(50) NOT NULL,
+  `qk` varchar(10) NOT NULL DEFAULT 'true',
+  `date` varchar(50) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `MN_docker_order` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `username` varchar(64) NOT NULL,
+  `plan_id` int(11) NOT NULL,
+  `rmb` varchar(50) NOT NULL,
+  `qk` varchar(10) NOT NULL DEFAULT 'false',
+  `date` varchar(50) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;

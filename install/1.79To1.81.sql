@@ -1,5 +1,6 @@
 -- MNBT V1.79 → V1.81 升级迁移脚本
 -- 保留所有已有数据，仅添加 V1.81 新增的表和字段
+-- 表使用 IF NOT EXISTS、字段由安装器判重后添加，可重复执行（1.81 库上重跑安全）
 
 -- V1.81: MN_bt 新增 mrbts_php 字段（节点默认 PHP 版本）
 ALTER TABLE `MN_bt`
@@ -11,7 +12,7 @@ ALTER TABLE `MN_config`
 
 
 DROP TABLE IF EXISTS `MN_monitor_task`; -- 用户端URL监控任务
-CREATE TABLE `MN_monitor_task`
+CREATE TABLE IF NOT EXISTS `MN_monitor_task`
 (
     `id`                 int(11)       NOT NULL AUTO_INCREMENT,
     `user`               varchar(250)  NOT NULL,
@@ -45,7 +46,7 @@ CREATE TABLE `MN_monitor_task`
   DEFAULT CHARSET = utf8;
 
 DROP TABLE IF EXISTS `MN_monitor_log`; -- 用户端URL监控检测日志
-CREATE TABLE `MN_monitor_log`
+CREATE TABLE IF NOT EXISTS `MN_monitor_log`
 (
     `id`               int(11)       NOT NULL AUTO_INCREMENT,
     `task_id`          int(11)       NOT NULL,
@@ -65,7 +66,7 @@ CREATE TABLE `MN_monitor_log`
   DEFAULT CHARSET = utf8;
 
 DROP TABLE IF EXISTS `MN_notice_log`; -- 用户端通知日志
-CREATE TABLE `MN_notice_log`
+CREATE TABLE IF NOT EXISTS `MN_notice_log`
 (
     `id`         int(11)      NOT NULL AUTO_INCREMENT,
     `user`       varchar(250) NOT NULL,
@@ -81,7 +82,7 @@ CREATE TABLE `MN_notice_log`
   DEFAULT CHARSET = utf8;
 
 DROP TABLE IF EXISTS `MN_node`; -- MNBT节点插件
-CREATE TABLE `MN_node`
+CREATE TABLE IF NOT EXISTS `MN_node`
 (
     `id`             int(11)      NOT NULL AUTO_INCREMENT,
     `bt_id`          int(11)      NOT NULL DEFAULT 0,
@@ -103,7 +104,7 @@ CREATE TABLE `MN_node`
   DEFAULT CHARSET = utf8;
 
 DROP TABLE IF EXISTS `MN_node_task`; -- MNBT节点任务
-CREATE TABLE `MN_node_task`
+CREATE TABLE IF NOT EXISTS `MN_node_task`
 (
     `id`          int(11)     NOT NULL AUTO_INCREMENT,
     `task_id`     varchar(64) NOT NULL,
@@ -124,7 +125,7 @@ CREATE TABLE `MN_node_task`
   DEFAULT CHARSET = utf8;
 
 DROP TABLE IF EXISTS `MN_node_nonce`; -- MNBT节点防重放
-CREATE TABLE `MN_node_nonce`
+CREATE TABLE IF NOT EXISTS `MN_node_nonce`
 (
     `id`         int(11)     NOT NULL AUTO_INCREMENT,
     `node_id`    varchar(64) NOT NULL,
@@ -136,7 +137,7 @@ CREATE TABLE `MN_node_nonce`
   DEFAULT CHARSET = utf8;
 
 DROP TABLE IF EXISTS `MN_forbidden_scan`; -- 违禁词扫描任务
-CREATE TABLE `MN_forbidden_scan`
+CREATE TABLE IF NOT EXISTS `MN_forbidden_scan`
 (
     `id`            int(11)      NOT NULL AUTO_INCREMENT,
     `task_id`       varchar(64)  NOT NULL,
@@ -156,7 +157,7 @@ CREATE TABLE `MN_forbidden_scan`
   DEFAULT CHARSET = utf8;
 
 DROP TABLE IF EXISTS `MN_forbidden_match`; -- 违禁词命中记录
-CREATE TABLE `MN_forbidden_match`
+CREATE TABLE IF NOT EXISTS `MN_forbidden_match`
 (
     `id`         int(11)       NOT NULL AUTO_INCREMENT,
     `task_id`    varchar(64)   NOT NULL,
@@ -199,7 +200,7 @@ ALTER TABLE `MN_config`
 
 -- V1.81 插件系统
 DROP TABLE IF EXISTS `MN_plugin`;
-CREATE TABLE `MN_plugin`
+CREATE TABLE IF NOT EXISTS `MN_plugin`
 (
     `id`           int(11)      NOT NULL AUTO_INCREMENT,
     `slug`         varchar(64)  NOT NULL,
@@ -215,7 +216,7 @@ CREATE TABLE `MN_plugin`
   DEFAULT CHARSET = utf8;
 
 DROP TABLE IF EXISTS `MN_plugin_option`;
-CREATE TABLE `MN_plugin_option`
+CREATE TABLE IF NOT EXISTS `MN_plugin_option`
 (
     `id`          int(11)      NOT NULL AUTO_INCREMENT,
     `plugin_slug` varchar(64)  NOT NULL,

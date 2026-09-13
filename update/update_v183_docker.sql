@@ -74,7 +74,26 @@ CREATE TABLE IF NOT EXISTS `MN_docker_order` (
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 
 -- v1.83.1 磁盘配额：为已有表添加 disk_max / disk_usage / disk_usage_at 字段（若不存在）
-ALTER TABLE `MN_docker_plan` ADD COLUMN IF NOT EXISTS `disk_max` varchar(20) NOT NULL DEFAULT '0' COMMENT '磁盘配额 MB 上限（0=不限制）';
-ALTER TABLE `MN_docker_plan` ADD COLUMN IF NOT EXISTS `proxy_max` varchar(20) NOT NULL DEFAULT '0' COMMENT '反向代理数量上限（0=不限制）';
-ALTER TABLE `MN_docker_user` ADD COLUMN IF NOT EXISTS `disk_usage` bigint(20) NOT NULL DEFAULT '0' COMMENT '最近磁盘用量（字节）';
-ALTER TABLE `MN_docker_user` ADD COLUMN IF NOT EXISTS `disk_usage_at` varchar(50) DEFAULT NULL COMMENT '磁盘用量采集时间';
+-- 使用存储过程实现列存在检查（兼容 MySQL 5.5+，原 ADD COLUMN IF NOT EXISTS 为 MariaDB 专属语法）
+-- 可重复执行，已有列会跳过
+DELIMITER $$
+
+DROP PROCEDURE IF EXISTS mnbt_docker_add_col$$
+CREATE PROCEDURE mnbt_docker_add_col(IN t VARCHAR(64), IN c VARCHAR(64), IN d VARCHAR(255))
+BEGIN
+  IF (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE table_schema = DATABASE() AND table_name = t AND column_name = c) = 0 THEN
+    SET @s = CONCAT('ALTER TABLE `', t, '` ADD COLUMN `', c, '` ', d);
+    PREPARE st FROM @s;
+    EXECUTE st;
+    DEALLOCATE PREPARE st;
+  END IF;
+END$$
+
+DELIMITER ;
+
+CALL mnbt_docker_add_col('MN_docker_plan', 'disk_max',      "varchar(20) NOT NULL DEFAULT '0' COMMENT '磁盘配额 MB 上限（0=不限制）'");
+CALL mnbt_docker_add_col('MN_docker_plan', 'proxy_max',     "varchar(20) NOT NULL DEFAULT '0' COMMENT '反向代理数量上限（0=不限制）'");
+CALL mnbt_docker_add_col('MN_docker_user', 'disk_usage',    "bigint(20) NOT NULL DEFAULT '0' COMMENT '最近磁盘用量（字节）'");
+CALL mnbt_docker_add_col('MN_docker_user', 'disk_usage_at', "varchar(50) DEFAULT NULL COMMENT '磁盘用量采集时间'");
+
+DROP PROCEDURE IF EXISTS mnbt_docker_add_col;
