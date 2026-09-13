@@ -121,7 +121,8 @@ if ($egn === 'docker_user_add') {
 	$datae = daddslashes($_POST['datae'] ?? '0000-00-00');
 	if ($username === '' || $password === '') json_exit('账号和密码不能为空');
 	if ($ssbt <= 0) json_exit('请选择 Docker 节点');
-	if (!$DB->get_row_prepare("SELECT id FROM MN_docker_node WHERE id=? limit 1", [$ssbt])) json_exit('所选节点不存在');
+	$addNode = $DB->get_row_prepare("SELECT id,qk FROM MN_docker_node WHERE id=? limit 1", [$ssbt]);
+	if (!$addNode || $addNode['qk'] !== 'true') json_exit('所选节点不存在或已停用');
 	if ($DB->get_row_prepare("SELECT id FROM MN_docker_user WHERE username=? limit 1", [$username])) json_exit('账号已存在');
 	$hash = docker_auth_password_hash($password);
 	$plan_id = $plan_id > 0 ? $plan_id : null;
@@ -135,16 +136,19 @@ if ($egn === 'docker_user_add') {
 // ===== 编辑用户 =====
 if ($egn === 'docker_user_edit') {
 	$id = (int)($_POST['id'] ?? 0);
-	$username = daddslashes($_POST['username'] ?? '');
 	$email = daddslashes($_POST['email'] ?? '');
 	$ssbt = (int)($_POST['ssbt'] ?? 0);
 	$plan_id = (int)($_POST['plan_id'] ?? 0);
 	$datae = daddslashes($_POST['datae'] ?? '0000-00-00');
 	$qk = daddslashes($_POST['qk'] ?? 'active');
+	// qk 枚举白名单（install.sql MN_docker_user.qk 注释：active/expired/paused/pruned）
+	if (!in_array($qk, ['active', 'paused', 'expired', 'pruned'], true)) json_exit('状态值非法');
+	// 注意：username 与节点侧容器 service_name/容器命名前缀强绑定，本接口禁止修改（改了会导致容器关联断裂）
+	// 注意：ssbt（所属节点）修改仅转移账户归属，节点上的容器不会自动迁移，修改后需管理员自行在节点间迁移容器
 	if ($id <= 0) json_exit('参数错误');
 	if ($ssbt <= 0) json_exit('请选择 Docker 节点');
 	$plan_id = $plan_id > 0 ? $plan_id : null;
-	if ($DB->query_prepare("UPDATE MN_docker_user SET username=?,email=?,ssbt=?,plan_id=?,datae=?,qk=? WHERE id=?", [$username, $email, $ssbt, $plan_id, $datae, $qk, $id])) {
+	if ($DB->query_prepare("UPDATE MN_docker_user SET email=?,ssbt=?,plan_id=?,datae=?,qk=? WHERE id=?", [$email, $ssbt, $plan_id, $datae, $qk, $id])) {
 		mnbt_log($user, 'Docker用户', '编辑 Docker 用户 ID' . $id, '编辑成功', $DB);
 		json_exit('编辑成功');
 	}

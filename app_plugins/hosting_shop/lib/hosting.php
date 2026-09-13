@@ -217,7 +217,7 @@ function hosting_category_delete($name)
 	mnbt_plugin_option_set('hosting_shop', 'categories', $list);
 	// 把使用该分类的套餐清空分类
 	global $DB;
-	$DB->query_prepare("UPDATE hosting_plans SET category = '' WHERE category = ?", [$name]);
+	$DB->query_prepare("UPDATE MN_plugin_hosting_plan SET category = '' WHERE category = ?", [$name]);
 	return true;
 }
 
@@ -244,7 +244,7 @@ function hosting_category_rename($old, $new)
 	mnbt_plugin_option_set('hosting_shop', 'categories', $list);
 	// 同步更新套餐表
 	global $DB;
-	$DB->query_prepare("UPDATE hosting_plans SET category = ? WHERE category = ?", [$new, $old]);
+	$DB->query_prepare("UPDATE MN_plugin_hosting_plan SET category = ? WHERE category = ?", [$new, $old]);
 	return true;
 }
 
@@ -252,7 +252,7 @@ function hosting_category_rename($old, $new)
 function hosting_category_counts()
 {
 	global $DB;
-	$rows = $DB->get_all_prepare("SELECT category, COUNT(*) AS cnt FROM hosting_plans WHERE category != '' GROUP BY category");
+	$rows = $DB->get_all_prepare("SELECT category, COUNT(*) AS cnt FROM MN_plugin_hosting_plan WHERE category != '' GROUP BY category");
 	$map = [];
 	if (is_array($rows)) {
 		foreach ($rows as $r) {
@@ -756,16 +756,23 @@ function hosting_open_host($order_id)
 	$now = $date ?: date('Y-m-d H:i:s');
 	$kg = 'true';
 
-	$rowe = $DB->get_row_prepare("SELECT * FROM MN_zj WHERE 1 order by id desc limit 1");
-	$new_zj_id = $rowe ? ((int)$rowe['id'] + 1) : 1;
-
-	$ok = $DB->query_prepare(
-		"INSERT INTO `MN_zj` (`id`, `ssbt`, `user`, `pass`, `sqluser`, `sqlpass`, `data`, `datae`, `qk`, `btid`, `sqldz`, `ftpid`, `ymbds`, `hxa`, `hxb`, `hxc`, `hxd`, `llmax`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-		[$new_zj_id, $order['node'], $bt_user, $bt_pass, $bt_user, $bt_pass, $now, $datae, $kg, $zdide, $btserw, $aedfs, $ymbds, $webdx, $sqldx, '2', $sqlfs, $flowratemax]
-	);
-	if (!$ok) {
-		// 宝塔站点已开通但本地数据库写入失败，标记 failed 但保留 siteId 信息
-		hosting_order_set_status($order_id, 'failed', '宝塔已开通但本地数据库写入失败 siteId=' . $zdide);
+	// 写入主机记录：max(id)+1 在并发下可能重复导致插入失败，失败时重新取号重试几次（与 api/api.php 开通逻辑一致）
+	$insert_ok = false;
+	for($tryi = 0; $tryi < 3; $tryi++){
+		$rowe = $DB->get_row_prepare("SELECT id FROM MN_zj WHERE 1 order by id desc limit 1");
+		$new_zj_id = $rowe ? ((int)$rowe['id'] + 1) : 1;
+		if($DB->query_prepare(
+			"INSERT INTO `MN_zj` (`id`, `ssbt`, `user`, `pass`, `sqluser`, `sqlpass`, `data`, `datae`, `qk`, `btid`, `sqldz`, `ftpid`, `ymbds`, `hxa`, `hxb`, `hxc`, `hxd`, `llmax`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+			[$new_zj_id, $order['node'], $bt_user, $bt_pass, $bt_user, $bt_pass, $now, $datae, $kg, $zdide, $btserw, $aedfs, $ymbds, $webdx, $sqldx, '2', $sqlfs, $flowratemax]
+		)){
+			$insert_ok = true;
+			break;
+		}
+	}
+	if (!$insert_ok) {
+		// 宝塔站点已开通但本地数据库写入失败：回滚删除宝塔站点，避免留下无主站点
+		$api->delsite($zdide, $btserw);
+		hosting_order_set_status($order_id, 'failed', '本地数据库写入失败，已回滚宝塔站点');
 		return ['ok' => false, 'msg' => '本地数据库写入失败，请联系管理员'];
 	}
 

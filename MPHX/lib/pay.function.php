@@ -67,6 +67,15 @@ if (!function_exists('mnbt_pay_settle_order')) {
 			return ['ok' => false, 'msg' => '订单参数解析失败'];
 		}
 
+		// 原子翻转订单状态：并发回调下只有 affected_rows>0 的一方获得处理权，防止重复触发 order.paid
+		// （query_prepare 返回值仅表示执行成功与否，受影响行数需经 $DB->affected() 获取）
+		$DB->query_prepare("update `MN_dd` set `qk` = 'true' where `ddh` = ? and `qk` <> 'true'", [$out_trade_no]);
+		if ((int)$DB->affected() === 0) {
+			// 翻转失败说明订单已被其他并发请求处理，直接返回成功让网关停止重发，不触发任何业务钩子
+			mnbt_pay_log('订单已被其他请求处理，跳过', '重复回调', $out_trade_no);
+			return ['ok' => true, 'msg' => '该订单已被系统处理'];
+		}
+
 		if ($ddxx['lx'] == 'yjbs') {
 			// 一键部署
 			$ddxx_xid = $ddxx_cs['gmid'] ?? 0;
@@ -91,10 +100,7 @@ if (!function_exists('mnbt_pay_settle_order')) {
 			mnbt_pay_log('扩展业务类型 ' . $ddxx['lx'] . '，交由 order.paid 钩子处理', '处理成功', $out_trade_no);
 		}
 
-		if (!$DB->query_prepare("update `MN_dd` set `qk` =? where `ddh`=?", ['true', $out_trade_no])) {
-			mnbt_pay_log('订单状态更新失败', '处理失败', $out_trade_no);
-			return ['ok' => false, 'msg' => '订单状态更新失败'];
-		}
+		// 订单状态已在业务处理前原子翻转为 'true'，此处无需再更新
 		mnbt_pay_log('订单处理完成 类型' . $ddxx['lx'] . ' 金额' . $money, '处理成功', $out_trade_no);
 		$order_row = $DB->get_row_prepare("SELECT * FROM MN_dd WHERE ddh=? limit 1", [$out_trade_no]);
 		if (function_exists('mnbt_do_action')) {

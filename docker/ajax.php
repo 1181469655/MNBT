@@ -60,7 +60,11 @@ if (!$bt) {
 if ($gn === 'my_container') {
 	$res = $bt->installed_apps();
 	$container = docker_find_my_installed_app($me, $res);
-	// 同步容器状态
+	if ($container === false) {
+		// 节点查询失败：不清零、不改库，保留用户原数据，直接返回错误
+		docker_json(100, '节点暂时不可用，请稍后刷新');
+	}
+	// 同步容器状态（$container 为 null 表示节点返回成功但列表中无该应用，此时才允许清零）
 	if ($container) {
 		$status = strtolower((string)($container['status'] ?? ''));
 		$mapped = 'running';
@@ -128,6 +132,14 @@ if ($gn === 'my_container') {
 if (in_array($gn, ['container_start', 'container_stop', 'container_restart'], true)) {
 	if (empty($me['container_id'])) {
 		docker_json(100, '您还没有容器，请先在应用商店创建');
+	}
+	// 启动前复查磁盘配额：已超限则拒绝启动（disk_max=0 表示不限制；超限自动停机见 my_container）
+	if ($gn === 'container_start') {
+		$plan = docker_user_plan($me);
+		$diskMax = $plan ? (int)$plan['disk_max'] : 0;
+		if ($diskMax > 0 && (int)($me['disk_usage'] ?? 0) > $diskMax * 1048576) {
+			docker_json(100, '磁盘用量已超配额（' . round((int)$me['disk_usage'] / 1048576, 1) . 'MB / ' . $diskMax . 'MB），请先清理磁盘后再启动');
+		}
 	}
 	$res = $bt->container_list();
 	$container = docker_find_my_container($me, $res);
@@ -324,19 +336,35 @@ if ($gn === 'proxy_list') {
 	$r = $px->proxy_list(1, 200);
 	$list = $r['data'] ?? $r;
 	if (!is_array($list)) $list = [];
-	docker_json(200, 'ok', ['data' => $list]);
+	// 归属过滤：remark 带 "用户名|" 前缀的代理只返回本人的（宝塔列表项备注在 ps 字段，兼容 remark）；
+	// 无前缀的存量代理无法归属，保持旧行为原样返回（存量兼容，归属标记见 proxy_create）
+	$username = (string)$me['username'];
+	$filtered = [];
+	foreach ($list as $item) {
+		if (!is_array($item)) { $filtered[] = $item; continue; }
+		$itemRemark = (string)($item['ps'] ?? $item['remark'] ?? '');
+		if ($itemRemark === '' || strpos($itemRemark, $username . '|') === 0) {
+			$filtered[] = $item;
+		}
+	}
+	docker_json(200, 'ok', ['data' => $filtered]);
 }
 
 if ($gn === 'proxy_create') {
 	$px = docker_user_proxy($me);
 	if (!$px) docker_json(100, '所属节点不可用');
-	// 配额检查
+	// 配额检查（只统计本人名下的代理）
 	$plan = docker_user_plan($me);
 	$proxyMax = $plan ? (int)$plan['proxy_max'] : 0;
 	if ($proxyMax > 0) {
 		$existing = $px->proxy_list(1, 200);
 		$existingList = $existing['data'] ?? $existing;
-		$count = is_array($existingList) ? count($existingList) : 0;
+		$count = 0;
+		if (is_array($existingList)) {
+			foreach ($existingList as $item) {
+				if (is_array($item) && strpos((string)($item['ps'] ?? $item['remark'] ?? ''), $me['username'] . '|') === 0) $count++;
+			}
+		}
 		if ($count >= $proxyMax) {
 			docker_json(100, '反向代理数量已达上限（' . $proxyMax . '个），请先删除后再添加');
 		}
@@ -346,13 +374,19 @@ if ($gn === 'proxy_create') {
 	$proto = daddslashes($_POST['proto'] ?? 'http');
 	$ip = daddslashes($_POST['ip'] ?? '127.0.0.1');
 	$proxy_path = daddslashes($_POST['proxy_path'] ?? '/');
-	$remark = daddslashes($_POST['remark'] ?? '');
 	if ($domains === '' || $port <= 0) {
 		docker_json(100, '域名和容器端口不能为空');
+	}
+	// ip 基本校验：必须为合法 IP 或 host:port 格式，拒绝空值与特殊字符
+	if ($ip === '' || !preg_match('/^[a-zA-Z0-9.\-]+(:[0-9]{1,5})?$/', $ip)) {
+		docker_json(100, '代理目标 IP 格式不正确');
 	}
 	// 代理目标，IP 默认 127.0.0.1（容器与本机同机部署），协议由用户选择
 	$proto = ($proto === 'https') ? 'https' : 'http';
 	$proxy_pass = $proto . '://' . $ip . ':' . $port;
+	// 归属标记：remark 以 "用户名|" 前缀标识代理归属，供列表过滤与删除校验使用
+	// （存量兼容：此前创建的代理 remark 无该前缀，无法归属，列表/删除保持旧行为）
+	$remark = $me['username'] . '|' . daddslashes($_POST['remark'] ?? '');
 	$r = $px->proxy_create([
 		'domains'    => $domains,
 		'proxy_pass' => $proxy_pass,
@@ -373,6 +407,23 @@ if ($gn === 'proxy_delete') {
 	$id = (int)($_POST['id'] ?? 0);
 	$site_name = daddslashes($_POST['site_name'] ?? '');
 	if ($id <= 0 || $site_name === '') docker_json(100, '参数错误');
+	// 归属校验：remark 带 "用户名|" 前缀的代理只有本人才允许删除；
+	// 无前缀的存量代理无法归属，保持旧行为允许删除（存量兼容，归属标记见 proxy_create）
+	$target = null;
+	$r0 = $px->proxy_list(1, 200);
+	$l0 = $r0['data'] ?? $r0;
+	if (is_array($l0)) {
+		foreach ($l0 as $item) {
+			if (is_array($item) && (int)($item['id'] ?? 0) === $id) { $target = $item; break; }
+		}
+	}
+	if ($target !== null) {
+		$targetRemark = (string)($target['ps'] ?? $target['remark'] ?? '');
+		// 有归属标记且不属于本人 → 拒绝；无标记的存量代理无法归属，保持旧行为放行
+		if ($targetRemark !== '' && strpos($targetRemark, $me['username'] . '|') !== 0) {
+			docker_json(100, '无权操作：该反向代理不属于当前账户');
+		}
+	}
 	$r = $px->proxy_delete($id, $site_name);
 	$ok = ($r['status'] ?? false) || (($r['code'] ?? 1) === 0);
 	if ($ok) {

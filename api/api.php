@@ -44,6 +44,13 @@ if($keye!=$mdjm){
 $btipe=($cert['ptl']=='true'?'https':'http').'://'.$cert['btip'].':'.$cert['btdk'];
 $btkeye=$cert['btmy'];
 
+// 归属校验：除 kt（新建主机）和 cfif（连接验证）外，所有动作必须校验主机属于该节点，防止跨节点越权操作
+if($gn!='kt' && $gn!='cfif'){
+    if(empty($et_zj))api_json_exit(100, '不存在主机用户名');
+    // ssbt/btdh 为 varchar 节点代号，双端强转字符串严格比较，避免 '01' 与 '1' 被宽松比较误判
+    if((string)$et_zj['ssbt'] !== (string)$bh)api_json_exit(100, '主机不属于该节点');
+}
+
 if($gn=='cfif'){
     api_json_exit(200, '连接验证成功！');
 }elseif($gn=='kt'){
@@ -154,8 +161,8 @@ if($gn=='cfif'){
     $old_date=$et_zj['datae'] ?? '';
     $api = new bt_api($btipe,$btkeye);
     $r_data = $api->setdqsj($et_zj['btid'],$x_dq_date);
-    // qk 为字符串 'true'/'false'，需显式比较；未到期且已暂停时续费解停
-    if(strtotime($date)-strtotime($x_dq_date)<0 && $x_dq_date!='0000-00-00' && $et_zj['qk']=='true'){
+    // qk 为字符串 'true'/'false'，需显式比较；续费后到期日在未来且主机处于暂停状态（qk=='false'，含到期暂停）时自动解停
+    if(strtotime($date)-strtotime($x_dq_date)<0 && $x_dq_date!='0000-00-00' && $et_zj['qk']=='false'){
         $api->siteqt($et_zj['btid'],$et_zj['sqldz'],true);
         $api->setftpzt($et_zj['ftpid'],$et_zj['user'],'1');
     }
@@ -188,6 +195,8 @@ if($gn=='cfif'){
     if($r_data['status']){
         if($DB->query_prepare("DELETE FROM MN_zj WHERE user=? limit 1", [$user])){
             api_lifecycle_log('API删除主机','删除'.$user.'成功','删除成功');
+            // 级联删除 hosting_shop 插件的资产记录（host_id 关联 MN_zj.id，插件未安装时表不存在、prepare 失败静默返回 false，无影响）
+            $DB->query_prepare("DELETE FROM MN_plugin_hosting_asset WHERE host_id=?", [$et_zj['id']]);
             if (function_exists('mnbt_do_action')) {
                 mnbt_do_action('host.deleted', $et_zj, ['source'=>'api']);
             }
@@ -210,6 +219,8 @@ if($gn=='cfif'){
 }elseif($gn == 'zjmode'){
     $zjdata=$DB->get_row_prepare("SELECT * FROM MN_zj WHERE user=?", [$user]);
     if($zjdata == null) api_json_exit(100, '不存在主机用户名');
+    // zjmode 使用单独查询，同样需要校验主机归属节点
+    if((string)$zjdata['ssbt'] !== (string)$bh)api_json_exit(100, '主机不属于该节点');
     $hxa_array = json_decode($zjdata['hxa'],true);
     $hxb_array = json_decode($zjdata['hxb'],true);
     $llmax_array = json_decode($zjdata['llmax'],true);

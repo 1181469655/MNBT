@@ -56,10 +56,13 @@ function jk_parse_size($raw) {
 
 // 检查是否需要暂停或恢复站点
 function jk_toggle_site($over_limit, $was_under, $api, $yhc, &$ztzj, &$ztyh_arr, $other_ok=true) {
+    global $DB;
     if ($over_limit) {
         if ($was_under) {
             $api->ztweb($yhc['btid'], $yhc['sqldz']);
             $api->ftpxg($yhc['ftpid'], $yhc['user'], '0');
+            // 暂停后回写 qk，保持数据库状态与宝塔实际状态一致
+            $DB->query_prepare("update MN_zj set qk='false' where user=?", [$yhc['user']]);
         }
         $ztzj++;
         $ztyh_arr[] = $yhc['user'];
@@ -67,6 +70,8 @@ function jk_toggle_site($over_limit, $was_under, $api, $yhc, &$ztzj, &$ztyh_arr,
         if (!$was_under && $other_ok) {
             $api->qdweb($yhc['btid'], $yhc['sqldz']);
             $api->ftpxg($yhc['ftpid'], $yhc['user'], '1');
+            // 恢复后回写 qk，保持数据库状态与宝塔实际状态一致
+            $DB->query_prepare("update MN_zj set qk='true' where user=?", [$yhc['user']]);
         }
     }
 }

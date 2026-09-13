@@ -28,7 +28,8 @@ if($conf['kzmbqk']=='false'){sysmsg('控制面板已经被关闭详细请联系�
 		$zjid=$yhc['btid'];
 		$ssbt=$yhc['ssbt'];                     
 		if($conf['kzmbqk']=='false'){sysmsg('控制面板已经关闭！详细请联系站长QQ'.$conf['qqh']);}
-		if(strtotime($date)-strtotime($yhc['datae'])>0 && $yhc['datae']!='0000-00-00'){mnbt_set_auth_cookie("user_token", "", time() - 604800);sysmsg('您已到期！已经帮您自动退出登陆！刷新即可重新登录');}
+		// 到期不再清除登录态（不强退），改为展示专门的到期提示页：保留 cookie，续费后刷新即可恢复使用
+		if(strtotime($date)-strtotime($yhc['datae'])>0 && $yhc['datae']!='0000-00-00'){sysmsg('您的主机已到期，相关功能已暂停使用！<br/>请联系站长续费（QQ：'.$conf['qqh'].'），续费成功后刷新本页即可继续使用。');}
 		if($yhc['qk']=='false'){
 			sysmsg('您已被禁止登陆！详细请联系站长QQ'.$conf['qqh']);
 		}

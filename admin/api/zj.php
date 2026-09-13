@@ -227,13 +227,27 @@ if($egn=='addzj') {
 			$rowe=$DB->get_row_prepare("SELECT * FROM MN_zj WHERE 1 order by id desc limit 1");
 			$id=$rowe['id']+1;
 			mnbt_log($user,'添加主机','添加ID'.$id.'宝塔成功','添加成功',$DB);
-			if($DB->query_prepare("INSERT INTO `MN_zj` (`id`, `ssbt`, `user`, `pass`, `sqluser`, `sqlpass`, `data`, `datae`, `qk`, `btid`, `sqldz`, `ftpid`, `ymbds`, `hxa`, `hxb`, `hxc`, `hxd`, `llmax`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", [$id, $btdh, $user, $pass, $user, $pass, $date, $datae, $kg, $zdide, $btserw, $aedfs, $ymbds, $webdx, $sqldx, '2', $sqlfs, $flowratemax])){
+			// max(id)+1 在并发下可能重复导致插入失败，失败时重新取号重试几次（与 api/api.php 开通逻辑一致）
+			$insert_ok = false;
+			for($tryi = 0; $tryi < 3; $tryi++){
+				$rowe=$DB->get_row_prepare("SELECT id FROM MN_zj WHERE 1 order by id desc limit 1");
+				$id=($rowe['id'] ?? 0)+1;
+				if($DB->query_prepare("INSERT INTO `MN_zj` (`id`, `ssbt`, `user`, `pass`, `sqluser`, `sqlpass`, `data`, `datae`, `qk`, `btid`, `sqldz`, `ftpid`, `ymbds`, `hxa`, `hxb`, `hxc`, `hxd`, `llmax`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", [$id, $btdh, $user, $pass, $user, $pass, $date, $datae, $kg, $zdide, $btserw, $aedfs, $ymbds, $webdx, $sqldx, '2', $sqlfs, $flowratemax])){
+					$insert_ok = true;
+					break;
+				}
+			}
+			if($insert_ok){
 				$host_row = $DB->get_row_prepare("SELECT * FROM MN_zj WHERE id=? limit 1", [$id]);
 				if (function_exists('mnbt_do_action')) {
 					mnbt_do_action('host.created', $host_row ?: ['id'=>$id,'user'=>$user,'ssbt'=>$btdh,'btid'=>$zdide,'sqldz'=>$btserw], ['source'=>'admin']);
 				}
 				json_exit('添加成功');
-			} else { mnbt_log($user,'添加主机','添加ID'.$id.'数据库失败','添加失败',$DB); json_exit('添加失败'.$DB->error()); }
+			} else {
+				// 宝塔站点已开通但本地数据库写入失败：回滚删除宝塔站点，避免留下无主站点
+				$api->delsite($zdide,$btserw);
+				mnbt_log($user,'添加主机','添加ID'.$id.'数据库失败','添加失败',$DB); json_exit('添加失败'.$DB->error());
+			}
 		} else {
 			mnbt_log($user,'添加主机','添加'.$user.'到期设置失败','添加失败',$DB);
 				json_exit('添加失败');

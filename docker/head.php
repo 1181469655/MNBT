@@ -115,12 +115,17 @@ function docker_find_my_container($dockerUser, $containers)
  * 宝塔 get_installed_apps 返回的应用信息比 get_list 更丰富（含端口/IP/参数）
  * @param array $dockerUser
  * @param array $apps bt_docker::installed_apps() 返回的应用数组
- * @return array|null
+ * @return array|null|false 找到返回应用数组；节点返回成功但无匹配返回 null；节点请求失败返回 false（调用方不得据此清零用户数据）
  */
 function docker_find_my_installed_app($dockerUser, $apps)
 {
 	if (!is_array($apps)) {
 		return null;
+	}
+	// 节点请求失败时 bt_docker::request 返回 ['status'=>false,'msg'=>...]（无 data），
+	// 必须与"查询成功但无该应用"区分开，否则调用方会把失败响应当成无应用而误清零用户容器数据
+	if (isset($apps['status']) && $apps['status'] === false) {
+		return false;
 	}
 	$list = $apps['data'] ?? $apps;
 	if (!is_array($list)) {

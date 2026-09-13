@@ -114,12 +114,14 @@ if ($gn === 'zt') {
 	if ($urow['qk'] === 'paused' || $urow['qk'] === 'expired') {
 		api_json_exit(200, 'Docker 账户已处于暂停/到期状态，无需重复操作');
 	}
-	// 有容器则停止（失败仅记日志，不阻断暂停流程）
+	// 有容器则先停止容器；停止失败时保留原状态，不置 paused（避免状态失真）
 	if (!empty($urow['container_id']) && !empty($urow['service_name'])) {
 		$bt = new bt_docker($btipe, $btkeye);
 		$stop_r = $bt->container_stop($urow['container_id'], $urow['service_name']);
 		if (!($stop_r['status'] ?? false)) {
 			mnbt_log('外部API', 'DockerAPI暂停', 'DockerAPI-' . $bh . ' ' . $user . ' 停容器失败：' . ($stop_r['msg'] ?? '未知'), '警告', $DB);
+			api_lifecycle_log('API暂停Docker', '暂停 ' . $user . ' 失败：停容器失败 ' . ($stop_r['msg'] ?? '未知'), '暂停失败');
+			api_json_exit(100, '错误！停止容器失败：' . ($stop_r['msg'] ?? '未知错误') . '，账户状态未变更');
 		}
 		$DB->query_prepare("UPDATE MN_docker_user SET container_status='stopped' WHERE id=?", [$urow['id']]);
 	}
@@ -141,7 +143,18 @@ if ($gn === 'jc') {
 	if ($urow['qk'] !== 'paused') {
 		api_json_exit(100, '错误！该账户当前状态为 ' . $urow['qk'] . '，无法恢复（仅 paused 状态可恢复；expired 请走续费）');
 	}
-	$DB->query_prepare("UPDATE MN_docker_user SET qk='active' WHERE id=?", [$urow['id']]);
+	// 恢复后若容器处于停止状态则自动启动容器；启动失败时不写 active，保持 paused 原状态
+	if ($urow['container_status'] === 'stopped' && !empty($urow['container_id']) && !empty($urow['service_name'])) {
+		$bt = new bt_docker($btipe, $btkeye);
+		$start_r = $bt->container_start($urow['container_id'], $urow['service_name']);
+		if (!($start_r['status'] ?? false)) {
+			api_lifecycle_log('API恢复Docker', '恢复 ' . $user . ' 失败：启动容器失败 ' . ($start_r['msg'] ?? '未知'), '恢复失败');
+			api_json_exit(100, '错误！启动容器失败：' . ($start_r['msg'] ?? '未知错误') . '，账户未恢复');
+		}
+		$DB->query_prepare("UPDATE MN_docker_user SET qk='active', container_status='running' WHERE id=?", [$urow['id']]);
+	} else {
+		$DB->query_prepare("UPDATE MN_docker_user SET qk='active' WHERE id=?", [$urow['id']]);
+	}
 	api_lifecycle_log('API恢复Docker', '恢复 ' . $user . ' 成功', '恢复成功');
 	if (function_exists('mnbt_do_action')) {
 		mnbt_do_action('docker.user.unpaused', $urow, ['source' => 'api']);
@@ -156,10 +169,10 @@ if ($gn === 'tj') {
 		api_lifecycle_log('API删除Docker', '删除 ' . $user . ' 失败：账号不存在', '删除失败');
 		api_json_exit(100, '错误！该 Docker 账号不存在');
 	}
-	// 有容器则先删除容器（失败则返回错误，不删用户行）
-	if (!empty($urow['container_id']) && !empty($urow['service_name'])) {
+	// 有容器则先删除容器（service_name 非空即尝试删除，container_del 按 id+name 传参；失败则返回错误，不删用户行）
+	if (!empty($urow['service_name'])) {
 		$bt = new bt_docker($btipe, $btkeye);
-		$del_r = $bt->container_del($urow['container_id'], $urow['service_name']);
+		$del_r = $bt->container_del((string)($urow['container_id'] ?? ''), $urow['service_name']);
 		if (!($del_r['status'] ?? false)) {
 			api_lifecycle_log('API删除Docker', '删除 ' . $user . ' 失败：删容器失败 ' . ($del_r['msg'] ?? '未知'), '删除失败');
 			api_json_exit(100, '错误！删除容器失败：' . ($del_r['msg'] ?? '未知错误'));
@@ -187,6 +200,7 @@ if ($gn === 'xf') {
 	$old_datae = $urow['datae'];
 	$updates = "datae=?";
 	$bind = [$new_datae];
+	$renew_msg = 'Docker 账户续费成功';
 	// 若原 expired 且新到期时间未过 → 恢复 active
 	if ($urow['qk'] === 'expired') {
 		if ($new_datae === '0000-00-00' || strtotime($date) - strtotime($new_datae) < 0) {
@@ -200,6 +214,15 @@ if ($gn === 'xf') {
 				}
 			}
 		}
+	} elseif ($urow['qk'] === 'pruned') {
+		// 容器已被到期清理删除，恢复可用状态；用户需重新创建容器
+		if ($new_datae === '0000-00-00' || strtotime($date) - strtotime($new_datae) < 0) {
+			$updates .= ", qk='active', container_status='none', prune_due=NULL, expired_at=NULL";
+			$renew_msg = '续费成功，原容器已被清理，请重新创建容器';
+		}
+	} elseif ($urow['qk'] === 'paused') {
+		// 暂停状态仅更新到期时间，不解除暂停（解停走 jc 恢复接口）
+		$renew_msg = '已续费，账户处于暂停状态，请联系管理员解停';
 	}
 	$bind[] = $urow['id'];
 	$DB->query_prepare("UPDATE MN_docker_user SET {$updates} WHERE id=?", $bind);
@@ -207,7 +230,7 @@ if ($gn === 'xf') {
 	if (function_exists('mnbt_do_action')) {
 		mnbt_do_action('docker.user.renewed', array_merge($urow, ['datae' => $new_datae]), ['source' => 'api', 'old_date' => $old_datae, 'new_date' => $new_datae]);
 	}
-	api_json_exit(200, 'Docker 账户续费成功');
+	api_json_exit(200, $renew_msg);
 }
 
 // ========== gn=bg 变更套餐 ==========

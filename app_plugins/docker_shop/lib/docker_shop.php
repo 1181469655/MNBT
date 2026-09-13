@@ -192,11 +192,11 @@ function docker_shop_node_list()
 	return $DB->get_all_prepare("SELECT id, name FROM MN_docker_node WHERE qk='true' ORDER BY id ASC") ?: [];
 }
 
-/** 获取单个 Docker 节点。 */
+/** 获取单个 Docker 节点（仅返回启用中的节点，已停用节点视为不存在，防止超卖到停用节点）。 */
 function docker_shop_node_get($node_id)
 {
 	global $DB;
-	return $DB->get_row_prepare("SELECT * FROM MN_docker_node WHERE id=? LIMIT 1", [(int)$node_id]) ?: null;
+	return $DB->get_row_prepare("SELECT * FROM MN_docker_node WHERE id=? AND qk='true' LIMIT 1", [(int)$node_id]) ?: null;
 }
 
 /** 全部 Docker 节点列表（管理员端，含完整信息）。 */
@@ -441,8 +441,10 @@ function docker_shop_order_create($user, $plan, $period)
 	if ($node <= 0 || !docker_shop_node_get($node)) {
 		return ['ok' => false, 'msg' => '套餐未配置有效开通节点'];
 	}
-	if ($base_plan_id <= 0 || !docker_shop_base_plan_get($base_plan_id)) {
-		return ['ok' => false, 'msg' => '套餐未配置有效配额套餐'];
+	// 配额套餐必须处于上架状态（MN_docker_plan.qk='true'），下架套餐不可下单
+	$base_plan = $base_plan_id > 0 ? docker_shop_base_plan_get($base_plan_id) : null;
+	if (!$base_plan || $base_plan['qk'] !== 'true') {
+		return ['ok' => false, 'msg' => '套餐未配置有效配额套餐或配额套餐已下架'];
 	}
 	$now = $date ?: date('Y-m-d H:i:s');
 	$order_no = date("YmdHis") . mt_rand(1000, 9999);
@@ -557,10 +559,11 @@ function docker_shop_open_account($order_id)
 		docker_shop_order_set_status($order_id, 'failed', '节点不存在或已停用');
 		return ['ok' => false, 'msg' => '节点不存在或已停用'];
 	}
+	// 配额套餐必须处于上架状态（MN_docker_plan.qk='true'），下架套餐不可开通
 	$base_plan = docker_shop_base_plan_get($plan['base_plan_id']);
-	if (!$base_plan) {
-		docker_shop_order_set_status($order_id, 'failed', '配额套餐不存在');
-		return ['ok' => false, 'msg' => '配额套餐不存在'];
+	if (!$base_plan || $base_plan['qk'] !== 'true') {
+		docker_shop_order_set_status($order_id, 'failed', '配额套餐不存在或已下架');
+		return ['ok' => false, 'msg' => '配额套餐不存在或已下架'];
 	}
 
 	// 依赖核心 Docker 认证函数（bcrypt 哈希）
@@ -734,7 +737,12 @@ function docker_shop_sync_container_status($asset)
 		$bt = new bt_docker($url, $node['btmy']);
 		$apps = $bt->installed_apps();
 		$container = docker_find_my_installed_app($docker_user, $apps);
+		if ($container === false) {
+			// 节点查询失败：不清零、不改库，保留数据库中的现有状态
+			return $asset;
+		}
 		if (!$container) {
+			// 节点返回成功且确认无该应用时才允许清零
 			$DB->query_prepare("UPDATE MN_docker_user SET container_id=NULL, container_status='none', service_name=NULL WHERE id=?", [$docker_user['id']]);
 			$asset['container_status'] = 'none';
 			return $asset;
