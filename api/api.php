@@ -114,11 +114,9 @@ if($gn=='cfif'){
                 api_json_exit(100, '错误！网站创建成功但到期时间设置失败！');
             }
         }
-        $r_datn = $api->sjlist('ftps');
-        $r_datp = $api->sjlist('databases');
-        $aedfs = '0'; $sqlfs = '0';
-        foreach(($r_datn['data'] ?? []) as $val){ if($val['name']===$user){ $aedfs=$val['id']; break; } }
-        foreach(($r_datp['data'] ?? []) as $val){ if($val['name']===$user){ $sqlfs=$val['id']; break; } }
+        // 按账号精确获取 FTP/数据库 ID（原为全表拉取，主机数多时会显著变慢）
+        $aedfs = $api->sjid('ftps', $user);
+        $sqlfs = $api->sjid('databases', $user);
         // 写入主机记录：max(id)+1 在并发下可能重复导致插入失败，失败时重新取号重试几次
         $insert_ok = false;
         for($tryi = 0; $tryi < 3; $tryi++){
