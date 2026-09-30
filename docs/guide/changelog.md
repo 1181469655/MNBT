@@ -1,9 +1,51 @@
 ---
 title: 更新日志
-description: MNBT 版本更新记录（V1.83 ~ V1.60）
+description: MNBT 版本更新记录（V1.85 ~ V1.60）
 ---
 
 # 更新日志
+
+## V1.85
+
+**外部主机 API 协议兼容开关**
+
+- 新增全局开关 `MN_config.api_compat`：`0`=新版协议（1.83+ 严格，默认），`1`=兼容 1.81 对接模块
+- 后台入口：系统设置 → API 设置 → 「对外 API 协议模式」（`egn=setapicompat`）；代码侧统一走 `mnbt_api_compat_mode()`（`MPHX/function.php`）
+- 兼容模式只放宽 1.83+ 新增的**行为约束**（跨节点归属校验、`kt` 站点名按 `max(id)+1`、`zjmode` 缺参清零、`xf` 真值解停、鉴权失败老文案），传输包络与响应结构两个版本一直一致
+- 老版 `kt` 里恒真的「主机已存在」表达式与 `tz` 的资产级联删除属 bug/新能力，兼容模式刻意不还原
+- 详见 [外部对接 API](/api/external)
+
+**系统更新改造：改走 GitHub Release**
+
+- 更新不再回连自建更新服务器（`check.php`），也不再校验 `authcode`；统一从 GitHub Release 拉包覆盖站点
+- 新增 `MPHX/github_updater.php`（纯函数库，受 `IN_CRONLITE` 保护），承载配置读写、Release 元数据获取、流式下载与安全校验
+- 后台入口：`admin/api/gg.php`（`egn=update` 执行更新）、`admin/api/update_setting.php`（`egn=upcheck` 检查、`egn=upset` 保存设置）；`admin/api/bt.php`（`egn=mnbt`）改用新检查器
+- 界面：`admin/update.php` + `templates/default/admin/update.php`、`templates/tdesign/admin/update.php`（含 SPA `UpdateView.vue`）展示最新可用版本、Release 正文作为更新日志、包来源与下载通道，并提供「更新设置」区块（仓库 owner/repo、镜像增删、可选 Token）
+
+**包来源优先级**
+
+1. Release 自定义 `.zip` 附件（`zip` 内容即站点根）
+2. 回落 GitHub 自动源码包（codeload），解压时剥掉顶层目录使内容对齐站点根
+
+**下载通道（多候选）**
+
+- 每个来源依次尝试：`github.com` 直连 → 配置镜像（原地址前加 `https://镜像/` 前缀）
+- Release 元数据接口（`api.github.com`）也按同样顺序走镜像兜底，否则国内环境直连不通时明明有镜像却检查不到新版本；Token 只随直连发出，不会带给镜像
+- 仓库与镜像在后台「更新设置」配置，默认 `1181469655/MNBT` + `https://gh-proxy.com/`，写入 `cf_up.php` 的 `update` 段（其余键原样保留）
+- Token 仅用于提升 GitHub API 速率，只以「是否已设置」回显，不随下载请求发给镜像，也不明文存储回显
+
+**安全与可靠性**
+
+- 下载/API 地址 host 白名单：github.com、api.github.com、codeload.github.com、objects.githubusercontent.com 及配置镜像域；解析到内网/保留 IP 一律拒绝（防 SSRF）
+- 流式下载：校验 `Content-Length` 与实际字节、`PK\x03\x04` zip 魔数，失败即删临时文件
+- 解压前扫描 ZipArchive 条目名，拒绝绝对路径、盘符、`..` 段
+- 覆盖前备份并在完成后还原 `config.php`、`cf_up.php`、`MPHX/SQ.php`、`install/install.lock`、`api/cookie/`；包自带的 `install.lock` 若站点原本没有会被删除，避免被判定为未安装
+- `set_time_limit(600)` + `ignore_user_abort` + `register_shutdown_function` 兜底：任何中断路径都会还原改名后的后台目录、还原本地配置并清理临时包
+- 升级 SQL 仅执行包内 `update/update.sql`（通过 `$dbconfig` 连接），执行成功后删除该文件与 `update/` 目录
+
+**发版运维约定**
+
+> 发版时请在 GitHub Release 挂载 zip 附件（内容即为站点根目录文件），否则将走源码包回落路径（自动剥顶层目录）。附件请确保不含本地配置文件的覆盖内容，运行时配置由更新流程的备份还原机制保护。
 
 ## V1.83（当前）
 

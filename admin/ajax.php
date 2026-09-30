@@ -21,5 +21,6 @@ require_once './api/dd.php';
 require_once './api/gg.php';
 require_once './api/plugin.php';
 require_once './api/docker.php';
+require_once './api/update_setting.php';
 json_exit('系统指令不存在！');
 ?>

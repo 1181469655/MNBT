@@ -69,27 +69,29 @@ if($egn=='xgjl') {
 }
 if($egn=='mnbt') {
 	include("../MPHX/BL.php");
-	include("../MPHX/SQ.php");
-	include("../cf_up.php");
-	$gxtj = array(
-		'url' => $_SERVER['HTTP_HOST'],
-		'authcode' => $authcode,
-		'ver' => $WEBQB,
-		);
-	$result = send_post($mn_conf['aet'].'://'.$mn_conf['url'].':'.$mn_conf['port'].'/check.php',$gxtj);
-	$content=json_decode($result, true);
+	include_once("../MPHX/github_updater.php");
+	// 只走 GitHub Release 检查更新，不再回连自建服务器，也不再校验 authcode
+	$content = mnbt_updater_check();
 	$total ='V'.sprintf( "%.2f ",$WEBQB/1000);
-	if($content['code']=='0') {
-		$cl='mdi-bookmark-check';
-		$gx='您使用的已是最新版本！';
-	} elseif($content['code']=='1') {
+	if($content['ok']!=1) {
+		$cl='mdi-cloud-off';
+		$gx='暂时无法检查更新：'.$content['error'];
+	} elseif($content['can_update']==1) {
 		$cl='mdi-arrow-up-bold-circle';
 		$gx='已经有新版本推出！请前往系统管理->系统更新处进行更新';
-	} elseif($content['code']=='-1') {
-		$cl='mdi-account-off';
-		$gx='离线模式不提供更新！！！';
+	} else {
+		$cl='mdi-bookmark-check';
+		$gx='您使用的已是最新版本！';
 	}
-	exit(json_encode(['cl'=>$cl,'gx'=>$gx,'vs'=>$total,'gg'=>$content['gg']],256));
+	exit(json_encode([
+		'cl'=>$cl,
+		'gx'=>$gx,
+		'vs'=>$total,
+		'gg'=>'',
+		'newver'=>$content['latest'],
+		'cver'=>$content['current'],
+		'canupdate'=>$content['can_update'],
+	],256));
 }
 if($egn=='listbt') {
 	//宝塔列表
