@@ -726,27 +726,9 @@ function hosting_open_host($order_id)
 		@error_log('[hosting_shop] setdqsj failed for order ' . $order['order_no']);
 	}
 
-	// 获取 FTP/数据库 ID（与 admin/api/zj.php 流程一致）
-	$r_datn = $api->sjlist('ftps');
-	$r_datp = $api->sjlist('databases');
-	$aedfs = '0';
-	$sqlfs = '0';
-	if (isset($r_datn['data']) && is_array($r_datn['data'])) {
-		foreach ($r_datn['data'] as $val) {
-			if ($val['name'] === $bt_user) {
-				$aedfs = $val['id'];
-				break;
-			}
-		}
-	}
-	if (isset($r_datp['data']) && is_array($r_datp['data'])) {
-		foreach ($r_datp['data'] as $val) {
-			if ($val['name'] === $bt_user) {
-				$sqlfs = $val['id'];
-				break;
-			}
-		}
-	}
+	// 按账号精确获取 FTP/数据库 ID（原为全表拉取，主机数多时会显著变慢）
+	$aedfs = $api->sjid('ftps', $bt_user);
+	$sqlfs = $api->sjid('databases', $bt_user);
 
 	// 写入 MN_zj 表
 	$webdx = json_encode(['max' => (int)$plan['spec_web'], 'dq' => 0]);

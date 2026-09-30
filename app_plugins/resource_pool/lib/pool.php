@@ -895,27 +895,9 @@ function rp_open_host($pool_id, $args)
 		@error_log('[resource_pool] setdqsj failed for host ' . $hostuser);
 	}
 
-	// FTP / 数据库 ID
-	$ftpid = '0';
-	$sqlid = '0';
-	$r_ftp = $api->sjlist('ftps');
-	$r_sql = $api->sjlist('databases');
-	if (isset($r_ftp['data']) && is_array($r_ftp['data'])) {
-		foreach ($r_ftp['data'] as $v) {
-			if (($v['name'] ?? '') === $hostuser) {
-				$ftpid = $v['id'];
-				break;
-			}
-		}
-	}
-	if (isset($r_sql['data']) && is_array($r_sql['data'])) {
-		foreach ($r_sql['data'] as $v) {
-			if (($v['name'] ?? '') === $hostuser) {
-				$sqlid = $v['id'];
-				break;
-			}
-		}
-	}
+	// 按账号精确获取 FTP/数据库 ID（原为全表拉取，主机数多时会显著变慢）
+	$ftpid = $api->sjid('ftps', $hostuser);
+	$sqlid = $api->sjid('databases', $hostuser);
 
 	$webdx = json_encode(['max' => $web, 'dq' => 0]);
 	$sqldx = json_encode(['max' => $sqlspace, 'dq' => 0]);

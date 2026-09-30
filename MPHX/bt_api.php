@@ -1238,6 +1238,49 @@ class bt_api
         return json_decode($this->HttpPostCookie($url, $p_data), true);
     }
 
+    /**
+     * 按账号名精确查询 FTP/数据库记录 ID（开通主机后回填 MN_zj.ftpid / MN_zj.hxd 用）。
+     *
+     * 面板 /data?action=getData 对每一行都要做额外统计（数据库需算占用大小），
+     * 实测每返回一行约 53ms：537 行要 28 秒，而按 search 精确过滤后仅 0.1 秒。
+     * 因此这里一律带 search 查询，绝不再全表拉取。
+     *
+     * @param string $table 'ftps' 或 'databases'
+     * @param string $name 面板账号名
+     * @return string 记录 ID；未找到返回 '0'（与原先全表扫描的兜底值一致）
+     */
+    public function sjid($table, $name)
+    {
+        $name = (string)$name;
+        if ($name === '') {
+            return '0';
+        }
+        foreach (['100', '2000'] as $limit) {
+            $url = $this->BT_PANEL . '/data?action=getData';
+            $p_data = $this->GetKeyData();
+            $p_data['table'] = $table;
+            $p_data['search'] = $name;
+            $p_data['limit'] = $limit;
+            $p_data['p'] = '1';
+            $result = json_decode($this->HttpPostCookie($url, $p_data), true);
+            if (isset($result['data']) && is_array($result['data'])) {
+                foreach ($result['data'] as $row) {
+                    if (($row['name'] ?? '') === $name) {
+                        return (string)$row['id'];
+                    }
+                }
+                // 首轮结果被截断（返回条数已达上限）时放大 limit 再查一次，
+                // 仍然带 search，避免退化为全表扫描
+                if (count($result['data']) < (int)$limit) {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+        return '0';
+    }
+
     // ========================================================================
     //  Shell执行（通过宝塔计划任务）
     // ========================================================================

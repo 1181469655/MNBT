@@ -204,26 +204,9 @@ if($egn=='addzj') {
 		$r_datan = $api->setdqsj($zdide,$datae);
 		$de=$r_datan['status'];
 		if($de=='1' || $de=='true') {
-			//获取FTP/数据库列表
-			$r_datn = $api->sjlist('ftps');
-			$r_datp = $api->sjlist('databases');
-			$aedfs = '0'; $sqlfs = '0';
-			if(isset($r_datn['data']) && is_array($r_datn['data'])) {
-				foreach($r_datn['data'] as $val) {
-					if($val['name']===$user) {
-						$aedfs=$val['id'];
-						break;
-					}
-				}
-			}
-			if(isset($r_datp['data']) && is_array($r_datp['data'])) {
-				foreach($r_datp['data'] as $val) {
-					if($val['name']===$user) {
-						$sqlfs=$val['id'];
-						break;
-					}
-				}
-			}
+			//按账号精确获取 FTP/数据库 ID（原为全表拉取，主机数多时会显著变慢）
+			$aedfs = $api->sjid('ftps', $user);
+			$sqlfs = $api->sjid('databases', $user);
 			$rowe=$DB->get_row_prepare("SELECT * FROM MN_zj WHERE 1 order by id desc limit 1");
 			$id=$rowe['id']+1;
 			mnbt_log($user,'添加主机','添加ID'.$id.'宝塔成功','添加成功',$DB);
