@@ -327,3 +327,11 @@ CREATE TABLE IF NOT EXISTS `MN_docker_order` (
   `date` varchar(50) NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+-- V1.85 迁移链版本游标表（在线更新据此判断已应用版本）
+CREATE TABLE IF NOT EXISTS `MN_dbver` (
+  `version` int(11) NOT NULL,
+  `file` varchar(191) NOT NULL DEFAULT '',
+  `applied_at` datetime NOT NULL,
+  PRIMARY KEY (`version`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;

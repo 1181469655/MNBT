@@ -944,7 +944,9 @@ function mnbt_updater_guard_shutdown()
 }
 
 /**
- * 执行升级 SQL（只执行 update/update.sql，逻辑与旧版一致：按分号逐句跑）
+ * V1.85 迁移链（MPHX/migrations.php / MN_dbver 游标表）的旧式兼容路径：
+ * 仅用于执行发布包里遗留的单文件 update/update.sql，按分号逐句跑，不做 DELIMITER 切分。
+ * 新版本请改放 update/update_v<3位或4位>_<slug>.sql，走 mnbt_migrations_run。
  * 注意参数顺序是 mysqli(host, user, pwd, dbname[, port])，旧代码把 dbname 和 pwd 传反了，
  * 导致连接总是失败，这里按正确顺序传
  * @return string 空串表示成功，否则为错误说明

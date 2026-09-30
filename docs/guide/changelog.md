@@ -41,7 +41,7 @@ description: MNBT 版本更新记录（V1.85 ~ V1.60）
 - 解压前扫描 ZipArchive 条目名，拒绝绝对路径、盘符、`..` 段
 - 覆盖前备份并在完成后还原 `config.php`、`cf_up.php`、`MPHX/SQ.php`、`install/install.lock`、`api/cookie/`；包自带的 `install.lock` 若站点原本没有会被删除，避免被判定为未安装
 - `set_time_limit(600)` + `ignore_user_abort` + `register_shutdown_function` 兜底：任何中断路径都会还原改名后的后台目录、还原本地配置并清理临时包
-- 升级 SQL 仅执行包内 `update/update.sql`（通过 `$dbconfig` 连接），执行成功后删除该文件与 `update/` 目录
+- 升级 SQL 走版本化迁移链：`update/update_v<3 位或 4 位>_<slug>.sql` 按版本号升序执行，仅跑游标之后、目标版本以内的增量（详见下节）
 
 **发版运维约定**
 
@@ -52,6 +52,16 @@ description: MNBT 版本更新记录（V1.85 ~ V1.60）
 - `$WEBQB`（`MPHX/BL.php`）是版本号唯一来源，新增格式化函数 `mnbt_version_num()`（`1850`→`"1.85"`）与 `mnbt_version()`（→`"V1.85"`）
 - 安装向导（`install/index.php` 的徽章/升级文案、`install/install.api.php` 的接口 `vs` 字段与升级完成提示）、后台版本显示（`admin/api/bt.php`）全部改为从 `$WEBQB` 计算，不再写死字面量；发版改产品内版本只需动 `BL.php` 一处
 - README 与 docs 首页的 shields.io 徽章是静态 Markdown（PHP 渲染不到），由 `tools/sync-version.sh` 从 `$WEBQB` 同步；发版流程：改 `BL.php` → `bash tools/sync-version.sh` → 追加 changelog 段落
+
+**版本化迁移链**
+
+- 新增 `MPHX/migrations.php`：按文件版本号排序、以游标表驱动依次执行的迁移引擎；任意老版本一键跳到目标版本，无需人工拼 SQL
+- 游标表 `MN_dbver`（`version` PK / `file` / `applied_at`）独立记录每个版本何时应用，不塞进 `MN_config`，也留下审计；安装向导与 `install.sql`、`repair_tables.sql` 一并建表
+- 迁移文件命名：`update/update_v<3位或4位>_<slug>.sql`；3 位取 `183`→`1830`，4 位取 `1860`→`1860`；不符合此命名的旧式单文件 `update.sql` 走一次性兼容路径执行后删除
+- 语句切分支持 `DELIMITER $$` 与存储过程守护写法（v183/v184 的幂等「列存在则跳过」），引号/注释内的分隔符不参与切分
+- 幂等容忍错误码：1050 表已存在、1060 列重复、1061/1826 索引重复（MySQL/MariaDB）、1091 无法删除不存在列/索引；其它错误码致命并停链，`update/` 目录保留、游标停在最后成功的版本，修复后可再次点击继续
+- 基线播种：全新安装/升级完成后调用 `mnbt_migrations_seed($dbconfig, $WEBQB)` 把游标抬到当前版本，之后在线更新只跑更高版本的增量，不会重放历史迁移
+- 发版约定：每个版本的增量放独立小 SQL 追加到 `update/`，每条迁移保持幂等；跨版本升级由客户端自动顺序执行游标之后的所有文件
 
 ## V1.83
 

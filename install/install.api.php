@@ -57,14 +57,14 @@ function mnbt_table_columns($table) {
     return $cols;
 }
 
-// 标准表清单（含 V1.83 Docker 集成四表）
+// 标准表清单（含 V1.83 Docker 集成四表、V1.85 迁移游标表 MN_dbver）
 function mnbt_standard_tables() {
     return array('MN_config','MN_log','MN_bt','MN_zj','MN_bs','MN_ym','MN_dd',
         'MN_monitor_task','MN_monitor_log','MN_notice_log',
         'MN_node','MN_node_task','MN_node_nonce',
         'MN_forbidden_scan','MN_forbidden_match',
         'MN_plugin','MN_plugin_option',
-        'MN_docker_node','MN_docker_user','MN_docker_plan','MN_docker_order');
+        'MN_docker_node','MN_docker_user','MN_docker_plan','MN_docker_order','MN_dbver');
 }
 
 // 各版本增量字段定义（随发版追加，勿在此写死当前版本号）：表 => (列名 => ALTER 语句)
@@ -527,6 +527,17 @@ switch ($action) {
         $upd = DB::query("UPDATE `MN_config` SET `user`='{$esc_user}', `pwd`='{$esc_pwd}', `name`='{$esc_name}', `qqh`='{$esc_qq}', `gg`='{$esc_gg}', `date`='{$esc_date}' WHERE `id`='1'");
         if (!$upd) {
             exit(Res(0, '站点配置写入失败：' . DB::error()));
+        }
+
+        // V1.85 迁移链基线播种：全新安装 / 覆盖升级已把库结构带到当前版本，
+        // 据此把游标 MN_dbver 抬到 $WEBQB，之后在线更新只跑更高版本的增量、不重放历史迁移。
+        // skip 模式（只改配置不动表结构）库版本未知，故不播种；播种失败也不阻断安装。
+        if ($install_mode !== 'skip') {
+            include_once __DIR__ . '/../MPHX/migrations.php';
+            if (function_exists('mnbt_migrations_seed')) {
+                $seed_err = '';
+                mnbt_migrations_seed($dbconfig, (int)$WEBQB, $seed_err);
+            }
         }
 
         @file_put_contents("install.lock", '安装锁');

@@ -423,3 +423,12 @@ CREATE TABLE `MN_plugin_option` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_plugin_k` (`plugin_slug`,`k`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+-- 迁移链版本游标（V1.85 起，在线更新按此表记录已应用的版本决定后续增量）
+DROP TABLE IF EXISTS `MN_dbver`;
+CREATE TABLE `MN_dbver` (
+  `version` int(11) NOT NULL,                                   -- 已应用的版本整数（同 $WEBQB 体系，如 1850）
+  `file` varchar(191) NOT NULL DEFAULT '',                      -- 应用的迁移文件名
+  `applied_at` datetime NOT NULL,                               -- 应用时间
+  PRIMARY KEY (`version`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;

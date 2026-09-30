@@ -146,7 +146,7 @@ $upd_token_set = !empty($mnbt_update['has_token']);
       <div class="mn-upd-note" style="margin-top:16px;">
         <b>更新说明：</b>更新会直接用 GitHub Release 的包覆盖站点文件，覆盖前会备份并还原
         <code>config.php</code>、<code>cf_up.php</code>、<code>MPHX/SQ.php</code>、<code>install/install.lock</code>、<code>api/cookie/</code>；
-        包里若带 <code>update/update.sql</code> 会自动执行。请在维护时段操作，更新过程中不要关闭页面。
+        包里 <code>update/update_v*_*.sql</code> 的版本化迁移会按版本号依次执行（仅跑游标 <code>MN_dbver</code> 之后的增量），旧式单文件 <code>update/update.sql</code> 仍兼容。请在维护时段操作，更新过程中不要关闭页面。
       </div>
     </div>
   </div>

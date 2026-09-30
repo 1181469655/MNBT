@@ -11,6 +11,7 @@ if($egn=='update') {
 	@ignore_user_abort(true);
 	include("../MPHX/BL.php");
 	include_once("../MPHX/github_updater.php");
+	include_once("../MPHX/migrations.php");
 	include("../cf_up.php");
 
 	mnbt_updater_guard_start();
@@ -103,16 +104,26 @@ if($egn=='update') {
 		json_exit_error('解压覆盖失败：'.$ex_err);
 	}
 
-	// 8. 升级 SQL：只执行包里带的 update/update.sql，位置在剥顶层目录后不变
+	// 8. 升级 SQL：把包里 update/ 的版本化迁移文件按游标顺序跑一遍（支持跨版本一步跳）
 	$sql_msg = '';
-	$sql_file = $root.'/update/update.sql';
-	if(is_file($sql_file)) {
-		$sql_msg = mnbt_updater_run_sql($sql_file,$dbconfig);
-		if($sql_msg==='') {
-			// 执行成功才删，出错时保留文件让管理员可以手工再跑一次
-			@unlink($sql_file);
-			@rmdir($root.'/update/');
+	$upd_dir = $root.'/update/';
+	$applied_files = array();
+	if(is_dir($upd_dir)) {
+		$applied_files = mnbt_migrations_run($dbconfig,$upd_dir,(int)$chk['version'],$mig_err);
+		if($mig_err!=='') $sql_msg = $mig_err;
+		// 遗留单文件 update.sql（旧式发布）继续兼容：链成功后一次性执行并删除
+		if($sql_msg==='' && is_file($upd_dir.'update.sql')) {
+			$sql_msg = mnbt_updater_run_sql($upd_dir.'update.sql',$dbconfig);
+			if($sql_msg==='') {
+				@unlink($upd_dir.'update.sql');
+				@rmdir($upd_dir);
+			}
+		} elseif($sql_msg==='') {
+			// 版本链全部成功：删掉已应用的迁移文件，保持 update/ 目录整洁（游标表已记账，重跑无副作用）
+			foreach($applied_files as $fn) @unlink($upd_dir.$fn);
+			@rmdir($upd_dir);
 		}
+		// 失败：保留 update/ 目录所有文件，游标停在最后成功版本，修复后可再次点击继续
 	}
 
 	// 9. 还原本地配置与安装锁、把后台目录改回原名、清临时文件
@@ -124,7 +135,7 @@ if($egn=='update') {
 		logjl($user ?? '', '系统更新', '更新到 '.$chk['latest'].'（'.$used['label'].'，来源 '.$via_label.'）', $sql_msg===''?'更新成功':'更新成功但升级SQL有误', $DB);
 	}
 	if($sql_msg!=='') {
-		json_exit_error('文件已更新，但升级 SQL 执行失败：'.$sql_msg.'（update/update.sql 已保留，可手工执行）', [
+		json_exit_error('文件已更新，但升级 SQL 执行失败：'.$sql_msg.'（update/ 迁移文件已保留，游标停在最后成功的版本，可修复后重跑或手工执行）', [
 			'ver' => $chk['latest'], 'tag' => $chk['tag'],
 			'source' => $used['label'], 'via' => $via_label, 'strip' => $za['strip'], 'files' => $za['files'],
 		]);
