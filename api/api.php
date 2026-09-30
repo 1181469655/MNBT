@@ -37,6 +37,11 @@ $et_zj=$DB->get_row_prepare("SELECT * FROM MN_zj WHERE user=? limit 1", [$user])
 if($cert=='' || $cert['qk']=='false')api_json_exit(100, '错误！该宝塔不存在或该宝塔已经被关闭');
 $adyjm=$cert['ktmy'].$cert['qmk'];$mdjm=md5($adyjm);
 if($keye!=$mdjm){
+    if(mnbt_api_compat_mode()){
+        // 1.81 兼容：老对接模块按 msg 文案分支，沿用原文案与不带 key 前缀的日志
+        mnbt_log('外部API','API鉴权','API-'.$bh.' '.$user.' 宝塔调用密钥错误','鉴权失败',$DB);
+        api_json_exit(100, '错误！您所传输的宝塔调用密钥与该宝塔的调用密钥不匹配！');
+    }
     // 不回显正确密钥，避免密钥泄露
     mnbt_log('外部API','API鉴权','API-'.$bh.' '.$user.' 宝塔调用密钥错误(发送:'.substr($keye,0,8).',btdh='.$bh.')','鉴权失败',$DB);
     api_json_exit(100, '调用密钥不匹配！');
@@ -47,8 +52,9 @@ $btkeye=$cert['btmy'];
 // 归属校验：除 kt（新建主机）和 cfif（连接验证）外，所有动作必须校验主机属于该节点，防止跨节点越权操作
 if($gn!='kt' && $gn!='cfif'){
     if(empty($et_zj))api_json_exit(100, '不存在主机用户名');
+    // 1.81 兼容模式仅放宽跨节点校验（老对接模块传的 username 可能与节点代号对不上）；空主机检查两种模式都保留
     // ssbt/btdh 为 varchar 节点代号，双端强转字符串严格比较，避免 '01' 与 '1' 被宽松比较误判
-    if((string)$et_zj['ssbt'] !== (string)$bh)api_json_exit(100, '主机不属于该节点');
+    if(!mnbt_api_compat_mode() && (string)$et_zj['ssbt'] !== (string)$bh)api_json_exit(100, '主机不属于该节点');
 }
 
 if($gn=='cfif'){
@@ -60,7 +66,7 @@ if($gn=='cfif'){
     $webdx=json_encode(array('max'=>daddslashes($_POST['webdx'] ?? 0),'dq'=>0));
     $sqldx=json_encode(array('max'=>daddslashes($_POST['sqldx'] ?? 0),'dq'=>0));
     $ymbds=daddslashes($_POST['ymbds'] ?? 0);
-    // 直接真值判断：已存在则报错
+    // 直接真值判断：已存在则报错。1.81 原表达式 ($et_zj!='' || $et_zj!=false) 恒真是 bug 而非兼容需求，兼容模式刻意不还原
     if($et_zj){
         api_lifecycle_log('API开通主机','开通'.$user.'失败：主机已存在','开通失败');
         api_json_exit(100, '错误！该主机已经存在，请重新开通！');
@@ -96,11 +102,18 @@ if($gn=='cfif'){
         api_lifecycle_log('API开通主机','开通'.$user.'失败：账号重复','开通失败');
         api_json_exit(100, '错误！该账号已存在！请更换账号！');
     }
-    // max(id)+1 并发下可能重复导致插入失败，失败时重新取号重试几次
     $hskr=mt_rand(4,10);
     $rqsj=md5($date.$user);
     $wjler=substr($rqsj, $hskr , 3);
-    $btserw='mnbt.'.mt_rand(1,999).$wjler;
+    if(mnbt_api_compat_mode()){
+        // 1.81 兼容：站点名按 max(id)+1 序列生成，老对接模块据此猜测站点名
+        $rowe=$DB->get_row_prepare("SELECT id FROM MN_zj WHERE 1 order by id desc limit 1");
+        $id=($rowe['id'] ?? 0)+1;
+        $btserw='mnbt.'.$id.mt_rand(1,999).$wjler;
+    }else{
+        // 站点名不含 id，配合下方取号重试，避免并发下 max(id)+1 重复
+        $btserw='mnbt.'.mt_rand(1,999).$wjler;
+    }
     $mrwww=$cert['btos']=='1' ? $conf['hxi'].'/'.$btserw : $conf['hxo'].'/'.$btserw;
     $r_data = $api->webkt($user,$pass,$btserw,'主机','true','true',$phpVersion,$mrwww);
     $cjqk=$r_data['siteStatus'] ?? false;
@@ -120,13 +133,20 @@ if($gn=='cfif'){
         foreach(($r_datn['data'] ?? []) as $val){ if($val['name']===$user){ $aedfs=$val['id']; break; } }
         foreach(($r_datp['data'] ?? []) as $val){ if($val['name']===$user){ $sqlfs=$val['id']; break; } }
         // 写入主机记录：max(id)+1 在并发下可能重复导致插入失败，失败时重新取号重试几次
+        $insert_sql = "INSERT INTO `MN_zj` (`id`, `ssbt`, `user`, `pass`, `sqluser`, `sqlpass`, `data`, `datae`, `qk`, `btid`, `sqldz`, `ftpid`, `ymbds`, `hxa`, `hxb`, `hxc`, `hxd`, `llmax`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+        $insert_args = [$bh, $user, $pass, $user, $pass, $date, $datae, 'true', $zdide, $btserw, $aedfs, $ymbds, $webdx, $sqldx, '2', $sqlfs, $flowratemax];
         $insert_ok = false;
-        for($tryi = 0; $tryi < 3; $tryi++){
-            $rowe=$DB->get_row_prepare("SELECT id FROM MN_zj WHERE 1 order by id desc limit 1");
-            $id=($rowe['id'] ?? 0)+1;
-            if($DB->query_prepare("INSERT INTO `MN_zj` (`id`, `ssbt`, `user`, `pass`, `sqluser`, `sqlpass`, `data`, `datae`, `qk`, `btid`, `sqldz`, `ftpid`, `ymbds`, `hxa`, `hxb`, `hxc`, `hxd`, `llmax`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", [$id, $bh, $user, $pass, $user, $pass, $date, $datae, 'true', $zdide, $btserw, $aedfs, $ymbds, $webdx, $sqldx, '2', $sqlfs, $flowratemax])){
-                $insert_ok = true;
-                break;
+        if(mnbt_api_compat_mode()){
+            // 1.81 兼容：沿用建站前取的号单次插入，保证站点名与 id 序列一致
+            $insert_ok = (bool)$DB->query_prepare($insert_sql, array_merge([$id], $insert_args));
+        }else{
+            for($tryi = 0; $tryi < 3; $tryi++){
+                $rowe=$DB->get_row_prepare("SELECT id FROM MN_zj WHERE 1 order by id desc limit 1");
+                $id=($rowe['id'] ?? 0)+1;
+                if($DB->query_prepare($insert_sql, array_merge([$id], $insert_args))){
+                    $insert_ok = true;
+                    break;
+                }
             }
         }
         if($insert_ok){
@@ -162,7 +182,9 @@ if($gn=='cfif'){
     $api = new bt_api($btipe,$btkeye);
     $r_data = $api->setdqsj($et_zj['btid'],$x_dq_date);
     // qk 为字符串 'true'/'false'，需显式比较；续费后到期日在未来且主机处于暂停状态（qk=='false'，含到期暂停）时自动解停
-    if(strtotime($date)-strtotime($x_dq_date)<0 && $x_dq_date!='0000-00-00' && $et_zj['qk']=='false'){
+    // 1.81 兼容：老版对 $et_zj['qk'] 做真值判断（'false' 字符串亦为真，故总会解停），按老版原样还原
+    $qk_pf = mnbt_api_compat_mode() ? $et_zj['qk'] : $et_zj['qk']=='false';
+    if(strtotime($date)-strtotime($x_dq_date)<0 && $x_dq_date!='0000-00-00' && $qk_pf){
         $api->siteqt($et_zj['btid'],$et_zj['sqldz'],true);
         $api->setftpzt($et_zj['ftpid'],$et_zj['user'],'1');
     }
@@ -219,15 +241,22 @@ if($gn=='cfif'){
 }elseif($gn == 'zjmode'){
     $zjdata=$DB->get_row_prepare("SELECT * FROM MN_zj WHERE user=?", [$user]);
     if($zjdata == null) api_json_exit(100, '不存在主机用户名');
-    // zjmode 使用单独查询，同样需要校验主机归属节点
-    if((string)$zjdata['ssbt'] !== (string)$bh)api_json_exit(100, '主机不属于该节点');
+    // zjmode 使用单独查询，同样需要校验主机归属节点；1.81 兼容模式仅放宽跨节点校验
+    if(!mnbt_api_compat_mode() && (string)$zjdata['ssbt'] !== (string)$bh)api_json_exit(100, '主机不属于该节点');
     $hxa_array = json_decode($zjdata['hxa'],true);
     $hxb_array = json_decode($zjdata['hxb'],true);
     $llmax_array = json_decode($zjdata['llmax'],true);
-    // 有传参才覆盖对应配额，三项相互独立，避免缺参导致配额被清零
-    if(isset($_POST['websize']) && $_POST['websize']!=='') $hxa_array['max'] = $_POST['websize'];
-    if(isset($_POST['sqlsize']) && $_POST['sqlsize']!=='') $hxb_array['max'] = $_POST['sqlsize'];
-    if(isset($_POST['ll']) && $_POST['ll']!=='') $llmax_array['max'] = $_POST['ll'];
+    if(mnbt_api_compat_mode()){
+        // 1.81 兼容：无条件覆盖三项配额，老对接模块依赖缺参即清零的语义
+        $hxa_array['max'] = $_POST['websize'] ?? null;
+        $hxb_array['max'] = $_POST['sqlsize'] ?? null;
+        $llmax_array['max'] = $_POST['ll'] ?? null;
+    }else{
+        // 有传参才覆盖对应配额，三项相互独立，避免缺参导致配额被清零
+        if(isset($_POST['websize']) && $_POST['websize']!=='') $hxa_array['max'] = $_POST['websize'];
+        if(isset($_POST['sqlsize']) && $_POST['sqlsize']!=='') $hxb_array['max'] = $_POST['sqlsize'];
+        if(isset($_POST['ll']) && $_POST['ll']!=='') $llmax_array['max'] = $_POST['ll'];
+    }
     if($DB->query_prepare("UPDATE `MN_zj` SET `hxa` = ?, `hxb` = ?, `llmax` = ? WHERE `user` = ?", [json_encode($hxa_array), json_encode($hxb_array), json_encode($llmax_array), $user])) api_json_exit(200, '主机修改成功');
     api_json_exit(100, '主机修改失败我也不知道什么问题，请联系开发者');
 }elseif($gn == 'start'){

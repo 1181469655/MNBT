@@ -286,6 +286,13 @@ function mnbt_log($user = '系统', $type = '系统日志', $content = '内容',
 	return logjl($user, $type, $content, $status, $db);
 }
 
+function mnbt_api_compat_mode()
+{
+	global $conf;
+	// api_compat='1' 时对外主机 API 还原 1.81 老协议行为，供未升级对接模块的客户过渡使用
+	return isset($conf['api_compat']) && (string)$conf['api_compat'] === '1';
+}
+
 function send_post($url, $post_data) {
   if(!is_array($post_data)) $post_data=[];
   $postdata = http_build_query($post_data);

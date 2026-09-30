@@ -93,14 +93,42 @@ if ($set == 'wz') {
         </div>
       </div>
     </div>
+    <div class="mn-set-field">
+      <label for="apicompat">对外 API 协议模式</label>
+      <select class="form-control" id="apicompat" name="apicompat" size="1">
+        <option value="0" <?php if ((string)($conf['api_compat'] ?? '0') !== '1') echo 'selected'; ?>>新版协议（1.83+，默认）</option>
+        <option value="1" <?php if ((string)($conf['api_compat'] ?? '0') === '1') echo 'selected'; ?>>兼容 1.81 对接模块</option>
+      </select>
+      <small>兼容模式仅还原 1.81 老协议的行为约束（跨节点校验、站点名规则等），供未升级对接模块的老客户过渡使用。</small>
+    </div>
     <div class="mn-set-actions">
       <button class="btn btn-primary btn-block" type="button" onclick="setapi()"><i class="mdi mdi-content-save-outline"></i> 保存修改</button>
+      <button class="btn btn-outline-secondary btn-block" type="button" onclick="setapicompat()"><i class="mdi mdi-swap-vertical"></i> 保存协议模式</button>
     </div>
     <div class="mn-set-note">
-      <b>注意：</b>建站目录请勿随意修改，已开通主机可能受影响。API 密钥修改后，监控 URL 与外部对接均需同步更新。默认 PHP 版本需在宝塔软件商店中已安装。
+      <b>注意：</b>建站目录请勿随意修改，已开通主机可能受影响。API 密钥修改后，监控 URL 与外部对接均需同步更新。默认 PHP 版本需在宝塔软件商店中已安装。兼容模式只是过渡期方案，建议尽快升级对接模块（WordPress 销售插件 / 魔方财务 server module）后切回新版协议。
     </div>
   </div>
 </div>
+<script>
+// 协议模式独立提交：xtset.js 的 setapi() 不感知该字段，为避免公共 JS 扩散改动单独走 setapicompat
+function setapicompat() {
+  msloading('正在修改中！请稍后...','text-info','text-info');
+  let data = {};
+  data['gn'] = 'setapicompat';
+  data['api_compat'] = document.getElementById('apicompat').value;
+  $.post('./ajax.php', data, function (date) {
+    var jsoe = JSON.parse(date);
+    var qk = jsoe.code;
+    if (qk == '修改成功') {
+      msalert(1, '协议模式已保存！', 2000);
+    } else {
+      msalert(4, qk, 2000);
+    }
+    msloadingde();
+  });
+}
+</script>
 
 <?php } elseif ($set == 'kzmb') { ?>
 <div class="mn-set-card">

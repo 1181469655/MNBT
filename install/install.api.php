@@ -108,6 +108,8 @@ function mnbt_upgrade_columns($actual_config, $actual_zj, $actual_bt, $actual_dp
             'home_footer' => "ALTER TABLE `{$actual_config}` ADD `home_footer` text NOT NULL",
             'home_show_notice' => "ALTER TABLE `{$actual_config}` ADD `home_show_notice` varchar(10) NOT NULL DEFAULT 'true'",
             'home_show_plans' => "ALTER TABLE `{$actual_config}` ADD `home_show_plans` varchar(10) NOT NULL DEFAULT 'true'",
+            // V1.85 对外 API 协议模式开关（0=1.83+ 严格，1=1.81 兼容）
+            'api_compat' => "ALTER TABLE `{$actual_config}` ADD `api_compat` varchar(10) NOT NULL DEFAULT '0'",
         ),
         $actual_zj => array(
             'backup' => "ALTER TABLE `{$actual_zj}` ADD `backup` VARCHAR(50) NOT NULL DEFAULT '{\"max\":\"3\",\"dq\":0}'",
@@ -312,6 +314,13 @@ switch ($action) {
             if (!$col_home) {
                 $result['need_upgrade'] = true;
                 $result['missing_columns'][] = 'MN_config.home_enable';
+            }
+
+            // 检查 V1.85 新增字段（对外 API 协议模式开关）
+            $col_api_compat = DB::get_row("SHOW COLUMNS FROM `MN_config` LIKE 'api_compat'");
+            if (!$col_api_compat) {
+                $result['need_upgrade'] = true;
+                $result['missing_columns'][] = 'MN_config.api_compat';
             }
         }
 

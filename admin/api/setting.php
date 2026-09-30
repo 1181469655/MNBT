@@ -19,6 +19,14 @@ if($egn=='setapi') {
 	if($DB->query_prepare($sql,[$apikey,$apiqk,$lin,$win,$siteid]))json_exit('修改成功'); else json_exit('修改失败'.$DB->error());
 	return;
 }
+if($egn=='setapicompat') {
+	// 对外 API 协议模式开关：0=新版协议（1.83+ 严格），1=兼容 1.81 对接模块
+	$apicompat = (daddslashes($_POST['api_compat'] ?? '0') === '1') ? '1' : '0';
+	logjl($user,'API设置','对外API协议模式切换为'.($apicompat==='1'?'兼容1.81':'新版1.83+'),'修改成功',$DB);
+	$sql="update `MN_config` set `api_compat` =? where `id`=?";
+	if($DB->query_prepare($sql,[$apicompat,$siteid]))json_exit('修改成功'); else json_exit('修改失败'.$DB->error());
+	return;
+}
 if($egn=='setkzmb') {
 	$name=daddslashes($_POST['name']);
 	$ftp=daddslashes($_POST['ftp']);

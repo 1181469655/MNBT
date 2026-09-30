@@ -38,10 +38,11 @@ CREATE TABLE `MN_config` (
   `home_footer` text NOT NULL,                         -- V1.84: 主页底部版权（空则回退系统版权）
   `home_show_notice` varchar(10) NOT NULL DEFAULT 'true', -- V1.84: 显示公告区
   `home_show_plans` varchar(10) NOT NULL DEFAULT 'true',  -- V1.84: 显示套餐区
+  `api_compat` varchar(10) NOT NULL DEFAULT '0',          -- V1.85: 对外 API 协议模式（0=1.83+ 严格，1=1.81 兼容）
   PRIMARY KEY (`id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
-INSERT INTO `MN_config`(`id`, `user`, `pwd`, `gg`, `name`, `yzm`,`yzme`,`wzqk`,`auther`,`kzmbqk`, `apiqk`,`api`,`qqh`,`date`,`hxw`, `hxe`, `hxr`, `hxt`, `hxy`, `hxu`,`hxi`,`hxo`,`hxp`,`hxa`, `hxs`,`hxd`, `pay_methods`, `home_enable`, `home_theme`, `home_theme_settings`, `home_title`, `home_hero`, `home_primary`, `home_logo`, `home_favicon`, `home_footer`, `home_show_notice`, `home_show_plans`) VALUES
-('1', 'admin', '123456', '', '', 'true', 'false', '', '', 'true', '', '', '', '', 'mnftp', '', '', '', '', '56', '/www/wwwroot', 'D:/wwwroot', "<a href='./'>Copyright ©梦奈云 2023</a>", '', '', '', '', 'true', '', '', '', '', '#4f46e5', '', '', '', 'true', 'true');
+INSERT INTO `MN_config`(`id`, `user`, `pwd`, `gg`, `name`, `yzm`,`yzme`,`wzqk`,`auther`,`kzmbqk`, `apiqk`,`api`,`qqh`,`date`,`hxw`, `hxe`, `hxr`, `hxt`, `hxy`, `hxu`,`hxi`,`hxo`,`hxp`,`hxa`, `hxs`,`hxd`, `pay_methods`, `home_enable`, `home_theme`, `home_theme_settings`, `home_title`, `home_hero`, `home_primary`, `home_logo`, `home_favicon`, `home_footer`, `home_show_notice`, `home_show_plans`, `api_compat`) VALUES
+('1', 'admin', '123456', '', '', 'true', 'false', '', '', 'true', '', '', '', '', 'mnftp', '', '', '', '', '56', '/www/wwwroot', 'D:/wwwroot', "<a href='./'>Copyright ©梦奈云 2023</a>", '', '', '', '', 'true', '', '', '', '', '#4f46e5', '', '', '', 'true', 'true', '0');
 
 
 
