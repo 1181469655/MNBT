@@ -72,7 +72,7 @@ if($egn=='mnbt') {
 	include_once("../MPHX/github_updater.php");
 	// 只走 GitHub Release 检查更新，不再回连自建服务器，也不再校验 authcode
 	$content = mnbt_updater_check();
-	$total ='V'.sprintf( "%.2f ",$WEBQB/1000);
+	$total = mnbt_version();
 	if($content['ok']!=1) {
 		$cl='mdi-cloud-off';
 		$gx='暂时无法检查更新：'.$content['error'];

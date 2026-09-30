@@ -47,7 +47,13 @@ description: MNBT 版本更新记录（V1.85 ~ V1.60）
 
 > 发版时请在 GitHub Release 挂载 zip 附件（内容即为站点根目录文件），否则将走源码包回落路径（自动剥顶层目录）。附件请确保不含本地配置文件的覆盖内容，运行时配置由更新流程的备份还原机制保护。
 
-## V1.83（当前）
+**版本号单一数据源**
+
+- `$WEBQB`（`MPHX/BL.php`）是版本号唯一来源，新增格式化函数 `mnbt_version_num()`（`1850`→`"1.85"`）与 `mnbt_version()`（→`"V1.85"`）
+- 安装向导（`install/index.php` 的徽章/升级文案、`install/install.api.php` 的接口 `vs` 字段与升级完成提示）、后台版本显示（`admin/api/bt.php`）全部改为从 `$WEBQB` 计算，不再写死字面量；发版改产品内版本只需动 `BL.php` 一处
+- README 与 docs 首页的 shields.io 徽章是静态 Markdown（PHP 渲染不到），由 `tools/sync-version.sh` 从 `$WEBQB` 同步；发版流程：改 `BL.php` → `bash tools/sync-version.sh` → 追加 changelog 段落
+
+## V1.83
 
 **Docker 容器托管**
 

@@ -6,7 +6,7 @@ include("../cf_up.php");
 include("../MPHX/BL.php");
 include_once("../MPHX/Response.php");
 $action = $_GET['action'] ?? 'index';
-$vs = sprintf("%.2f ", $WEBQB / 1000);
+$vs = mnbt_version_num();
 
 function Res(int $code, string $msg = '返回信息', ?array $data = null, ?int $redirect = null)
 {
@@ -67,7 +67,7 @@ function mnbt_standard_tables() {
         'MN_docker_node','MN_docker_user','MN_docker_plan','MN_docker_order');
 }
 
-// V1.81~V1.84 增量字段定义：表 => (列名 => ALTER 语句)
+// 各版本增量字段定义（随发版追加，勿在此写死当前版本号）：表 => (列名 => ALTER 语句)
 // 实际表名由调用方传入（兼容大小写迁移场景）；仅添加缺失列
 function mnbt_upgrade_columns($actual_config, $actual_zj, $actual_bt, $actual_dplan, $actual_duser) {
     return array(
@@ -531,7 +531,7 @@ switch ($action) {
 
         @file_put_contents("install.lock", '安装锁');
         if ($install_mode === 'upgrade') {
-            exit(Res(1, '升级完成！已保留原有数据，成功更新至 V1.84'));
+            exit(Res(1, '升级完成！已保留原有数据，成功更新至 ' . mnbt_version()));
         }
         if ($skip_sql) {
             exit(Res(1, '安装完成（保留原表并更新站点/管理员配置）'));

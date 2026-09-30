@@ -43,7 +43,7 @@ features:
 
 ![PHP](https://img.shields.io/badge/PHP-7.4~8.4-777BB4?logo=php&logoColor=white)
 ![MySQL](https://img.shields.io/badge/MySQL-5.6+-4479A1?logo=mysql&logoColor=white)
-![Version](https://img.shields.io/badge/version-1.83-green)
+![Version](https://img.shields.io/badge/version-1.85-green)
 ![License](https://img.shields.io/badge/license-Commercial-blue)
 
 ---
@@ -52,7 +52,7 @@ features:
 
 | 文档 | 说明 |
 |------|------|
-| [更新日志](/guide/changelog) | 版本更新记录（V1.60 → V1.83） |
+| [更新日志](/guide/changelog) | 版本更新记录（V1.60 → V1.85） |
 | [集成对接](/integration/idcsmart-hosting) | 魔方财务 server module 对接指南 |
 | [插件商店](/store/index) | 插件商店 & 主题商店规格 |
 | [PRD 归档](/prd/docker) | 历史产品需求文档归档 |

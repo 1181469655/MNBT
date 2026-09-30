@@ -1,3 +1,7 @@
+<?php
+// 版本徽章/文案的唯一来源：MPHX/BL.php 的 $WEBQB，发版只改那里
+include_once __DIR__ . '/../MPHX/BL.php';
+?>
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -23,7 +27,7 @@
                 <p>安装向导 · 欢迎使用</p>
             </div>
         </div>
-        <span class="ver-badge">V<span class="mn-vs">1.84</span></span>
+        <span class="ver-badge">V<span class="mn-vs"><?=mnbt_version_num()?></span></span>
     </header>
 
     <!-- 横向步骤条 -->
@@ -78,7 +82,7 @@
                     </div>
                     <div>
                         <h2>欢迎使用 梦奈宝塔主机系统</h2>
-                        <p>版本 V<span class="mn-vs">1.84</span> &middot; 约需 2 分钟</p>
+                        <p>版本 V<span class="mn-vs"><?=mnbt_version_num()?></span> &middot; 约需 2 分钟</p>
                     </div>
                 </div>
                 <p class="welcome-lead">
@@ -260,8 +264,8 @@
                         <div class="choice-item use-terms mn-upgrade">
                             <div class="check"><svg viewBox="0 0 11 9" fill="none"><path d="M1 4L4 7L10 1" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
                             <div>
-                                <b>覆盖更新（保留数据升级到 V1.84）<span class="mn-upgrade-detail"></span></b>
-                                <small>添加 V1.84 新增表和字段，自动补全缺失项，保留所有已有数据</small>
+                                <b>覆盖更新（保留数据升级到 <?=mnbt_version()?>）<span class="mn-upgrade-detail"></span></b>
+                                <small>添加 <?=mnbt_version()?> 新增表和字段，自动补全缺失项，保留所有已有数据</small>
                             </div>
                         </div>
                         <div class="choice-item use-terms mn-repair">
@@ -445,7 +449,7 @@
                         $('.mn-repair').parent().show();
                     } else {
                         console.log('[升级检测] 数据完整，无需升级');
-                        $('.mn-upgrade-detail').text('（当前已是 V1.84，无需升级）');
+                        $('.mn-upgrade-detail').text('（当前已是 <?=mnbt_version()?>，无需升级）');
                         $('.mn-upgrade').parent().show();
                         $('.mn-repair').parent().show();
                     }
