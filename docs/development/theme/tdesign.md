@@ -3,12 +3,14 @@ title: TDesign 三端主题
 description: tdesign 主题说明:特性、目录结构、编译、启用、设计规范、开发约定、已知限制与版本
 ---
 
-# TDesign 三端主题(tdesign)v0.3.0
+# TDesign 三端主题(tdesign)v0.4.0
 
 现代化 **三端** 主题:基于 TDesign 品牌蓝,覆盖**用户端 + 管理端 + 主页售卖**全部页面。卡片化布局、侧栏 + 顶栏、echarts 数据可视化、左侧背景图登录页、独立主页售卖前端。
 
-技术栈:**Vue 3 + Vue Router (Hash) + TDesign Vue Next + Vite + ECharts**。
+技术栈:**Vue 3 + Vue Router (Hash) + TDesign Vue Next + vue3-sfc-loader(免构建)+ ECharts(UMD 全量)**。
 
+> **V1.87 起 tdesign 为系统默认主题**(classic 即原 default 主题冻结保留,不再维护);SPA 不再需要 Node 构建链,由 [vue3-sfc-loader](https://github.com/FranckFreiburger/vue3-sfc-loader) 在浏览器内直接编译 `spa/src/` 下的 `.vue` 源码运行,修改源码刷新页面即生效。
+>
 > 历史文档:双端改造计划见 [tdesign 双端改造计划](../plan/tdesign-user-scope.md);与 PHP 的对接细节见 [与 PHP 的对接](./tdesign-php.md)。
 
 ---
@@ -23,7 +25,7 @@ description: tdesign 主题说明:特性、目录结构、编译、启用、设�
 | 控制台壳 | 侧栏 + 顶栏,折叠/移动端抽屉,退出登录确认 |
 | 首页仪表盘 | 资源使用 echarts gauge 仪表盘 / 月度流量趋势柱状图+折线图 / 快捷操作平铺按钮 / 4 张站点信息卡片 |
 | 站点设置 | PHP 版本 / 密码访问 / 默认文档 / 运行目录 / 伪静态 / SSL / 防盗链 / Gzip / 缓存 / 修改密码 / SQL 权限 |
-| 文件管理 | iframe 嵌入默认主题 ftp.php(复用成熟的文件管理 UI) |
+| 文件管理 | SPA 原生文件管理(目录浏览/在线编辑/分片上传+断点续传/复制剪切/压缩解压/回收站/权限/图片预览/SQL 导入) |
 | SQL 备份 | 备份列表 / 立即备份 / 下载 / 恢复 / 删除 |
 | 监控任务 | 任务列表 / 新增 / 编辑 / 删除 / 监控日志 |
 | 站点统计 | 概览卡片 + 访问路径 / IP 排行 / 错误日志分类标签页 |
@@ -71,11 +73,13 @@ description: tdesign 主题说明:特性、目录结构、编译、启用、设�
 templates/tdesign/
 ├── theme.json                 # 主题元信息(scope: ["user", "admin", "home"])
 ├── theme.php                  # 注册双端菜单渲染器(插件菜单 → 侧栏 HTML)
-├── README.md                  # 本说明(已迁移至 docs/development/theme/tdesign.md)
-├── PLAN_USER_SCOPE.md         # 双端改造计划文档(已迁移至 ../plan/tdesign-user-scope.md)
+├── assets/
+│   └── td-boot.js             # ★ vue3-sfc-loader 免构建引导(所有端共用)
 │
 ├── admin/                     # 管理端 PHP 主题入口
-│   ├── _spa_boot.php          # 注入 window.__TD_BOOT__ + 加载 dist
+│   ├── _spa_boot.php          # 注入 window.__TD_BOOT__ + 加载 vendor UMD + td-boot.js
+│   ├── head.php               # 插件页 iframe 壳(Bootstrap/lyear,与 classic 一致)
+│   ├── assets/                # head 壳所需 CSS(admin-common 等,与 classic 同源)
 │   ├── login.php              # 登录页入口
 │   ├── index.php / sy.php     # 仪表盘入口(sy.php 注入 $sy)
 │   ├── set.php                # 设置类页面(set.php?gn=xxx → SPA 路由)
@@ -85,205 +89,94 @@ templates/tdesign/
 │   ├── plugin_manage.php      # 插件管理
 │   ├── pay_settings.php       # 支付设置
 │   ├── tutorial.php           # 教程与监控
-│   ├── update.php             # 系统更新
-│   └── dist/                  # ★ Vite 构建产物(需提交,勿 gitignore)
-│       ├── admin.html
-│       └── assets/
-│           ├── index.js
-│           ├── index.css
-│           └── login-bg.webp
+│   └── update.php             # 系统更新
 │
 ├── user/                      # 用户端 PHP 主题入口
-│   ├── _spa_boot.php          # 注入 window.__TD_BOOT__ + 加载 dist + 插件菜单渲染
+│   ├── _spa_boot.php          # 注入 window.__TD_BOOT__ + 加载 vendor UMD + td-boot.js
+│   ├── head.php               # 插件页 iframe 壳
+│   ├── assets/                # head 壳所需 CSS(user-common 等)
 │   ├── login.php              # 登录页入口
 │   ├── index.php / sy.php     # 首页入口
+│   ├── ftp.php                # 在线文件管理入口
 │   ├── set.php                # 设置类页面(set.php?gn=xxx → SPA 路由)
 │   ├── site_stats.php         # 站点统计
 │   ├── sqlgl.php              # SQL 备份
 │   ├── monitor.php            # 监控任务
 │   ├── monitor_log.php        # 监控日志
 │   ├── notice.php             # 公告
-│   ├── webgl.php              # 一键部署
-│   └── dist/                  # ★ Vite 构建产物(需提交,勿 gitignore)
-│       ├── user.html
-│       └── assets/
-│           ├── index.js
-│           ├── index.css
-│           └── login-bg.webp
+│   └── webgl.php              # 一键部署
+│
+├── docker/                    # Docker 控制台 PHP 入口(7 视图 + _spa_boot.php)
+│   └── assets/captcha-images/ # 滑块验证码图集
 │
 ├── home/                      # 主页 PHP 主题入口(home scope)
-│   ├── index.php              # 落地页入口,注入 __TD_BOOT__ + 加载 dist(未构建时给出提示)
-│   └── dist/                  # ★ Vite 构建产物(需提交,勿 gitignore)
-│       ├── home.html
-│       └── assets/
-│           ├── index.js
-│           └── index.css
+│   └── index.php              # 落地页入口,注入 __TD_BOOT__ + 免构建加载
 │
-└── spa/                       # SPA 源码(开发用,按端分层)
-    ├── package.json           # 构建脚本(build:admin / build:user / build:docker / build:home)
-    ├── vite.admin.config.js   # 管理端 Vite 配置
-    ├── vite.user.config.js    # 用户端 Vite 配置
-    ├── vite.docker.config.js  # Docker 控制台 Vite 配置
-    ├── vite.home.config.js    # 主页 Vite 配置
-    ├── admin.html             # 管理端 HTML 模板
-    ├── user.html              # 用户端 HTML 模板
-    ├── docker.html            # Docker 控制台 HTML 模板
-    ├── home.html              # 主页 HTML 模板
-    ├── public/                # 静态资源(验证码图等,构建时复制进 dist)
-    ├── .gitignore             # 仅忽略 node_modules 等,不忽略 dist
+└── spa/                       # SPA 源码(浏览器内直出,按端分层)
     └── src/
-        ├── App-admin.vue      # 管理端根组件
-        ├── App-user.vue       # 用户端根组件
-        ├── App-docker.vue     # Docker 控制台根组件
-        ├── App-home.vue       # 主页根组件
-        ├── main-admin.js      # 管理端入口
-        ├── main-user.js       # 用户端入口
-        ├── main-docker.js     # Docker 控制台入口
-        ├── main-home.js       # 主页入口
+        ├── App-*.vue          # 各端根组件(admin/user/docker/home/account)
+        ├── main-*.js          # 各端入口(createApp + router + TDesign)
         │
         ├── admin/             # 管理端代码(全部集中于此)
         │   ├── api/           # 13 个 API 文件(auth/baota/dashboard/host/...)
         │   ├── layouts/AdminLayout.vue
         │   ├── router/index.js
-        │   └── views/         # 按业务模块分目录
-        │       ├── baota/     # 宝塔(List/Add)
-        │       ├── docker/    # Docker(节点/套餐/用户)
-        │       ├── host/      # 主机(List/Add)
-        │       ├── node/      # 节点(List/Scan)
-        │       ├── program/   # 程序(List/Add/Import)
-        │       ├── order/     # 订单
-        │       ├── log/       # 日志
-        │       ├── plugin/    # 插件
-        │       ├── pay/       # 支付
-        │       ├── settings/  # 设置(Website/Admin/Api/Mail/Panel/Monitor/Theme)
-        │       └── *.vue      # 顶层散落 view(Dashboard/Login/PluginPage/Repair/Tutorial/Update)
+        │   └── views/         # 按业务模块分目录(baota/docker/host/node/program/order/log/plugin/pay/settings + 顶层 view)
         │
         ├── user/              # 用户端代码(全部集中于此)
-        │   ├── api/           # 7 个 API 文件(auth/common/database/deploy/monitor/site/stats)
+        │   ├── api/           # 8 个 API 文件(auth/common/database/deploy/ftp/monitor/site/stats)
+        │   ├── utils/         # uploader.js 分片上传器 / codemirror.js 动态加载
         │   ├── components/    # MailBindDialog / NoticeDialog
         │   ├── layouts/UserLayout.vue
         │   ├── router/index.js
-        │   └── views/         # 按业务模块分目录
-        │       ├── dashboard/ # 首页仪表盘(gauge + 流量趋势 + 快捷操作 + 站点信息)
-        │       ├── settings/  # 站点设置
-        │       ├── ftp/       # 文件管理
-        │       ├── database/  # SQL 备份
-        │       ├── monitor/   # 监控任务 + 监控日志
-        │       ├── stats/     # 站点统计
-        │       ├── deploy/    # 一键部署
-        │       └── *.vue      # 顶层 view(Login/Notice/Plugin)
+        │   └── views/         # 按业务模块分目录(dashboard/settings/ftp/database/monitor/stats/deploy + 顶层 view)
         │
-        ├── docker/            # Docker 控制台代码
-        │   ├── api/docker.js  # Docker API 封装(CSRF + 登录态自动跳转)
-        │   ├── components/    # SliderCaptcha 滑块验证码
-        │   ├── layouts/DockerLayout.vue
-        │   ├── router/index.js
-        │   └── views/         # Console/Login/AppStore/Image/Volume/Compose/Proxy
-        │
-        ├── home/              # 主页售卖端代码(home scope)
-        │   ├── api/           # http.js(routeRequest+CSRF) / account / balance / shop
-        │   ├── layouts/HomeLayout.vue
-        │   ├── router/index.js # 路由 + 登录态守卫(initAuth 探测 /account/api/me)
-        │   ├── store/auth.js   # 响应式登录态 store
-        │   ├── styles/home.scss
-        │   ├── utils/format.js # periodLabels/centsToYuan/orderStatusMap/...
-        │   └── views/         # 按业务模块分目录
-        │       ├── auth/      # 登录/注册/个人信息/修改密码
-        │       ├── shop/      # 套餐列表/下单/我的主机/我的订单
-        │       ├── balance/   # 余额/充值
-        │       └── LandingView.vue # 落地页
-        │
+        ├── docker/            # Docker 控制台代码(api/components/layouts/router/views)
+        ├── home/              # 主页售卖端代码(api/layouts/router/store/utils/views)
+        ├── account/           # 用户中心(user_info 插件,layouts/api/router/views)
         └── shared/            # 各端共用代码
             ├── api/http.js    # apiGn/postGn/parseResult 统一请求封装
-            ├── utils/echarts.js # echarts 按需引入(Gauge/Bar/Line + 组件)
-            ├── assets/login-bg.webp  # 登录页背景图
-            └── styles/theme.scss     # 全局样式 + CSS 变量
+            ├── utils/echarts.js # echarts UMD 全局桥接
+            ├── assets/        # login-bg.webp / bg1-3.jpg 等(经 handleModule 以 URL 导入)
+            └── styles/theme.css # 全局样式 + CSS 变量(由 theme.scss 编译,SCSS 源文件已移除)
 ```
 
 ---
 
-## 编译说明
+## 免构建加载机制(V1.87)
 
-### 环境
+SPA 不再有 Node 构建链(vite/package.json 已移除)。`_spa_boot.php` 按顺序输出:
 
-- Node.js **18+**(推荐 20 LTS)
-- npm 9+ 或 pnpm / yarn
+1. `window.__TD_BOOT__`(含 `scope` / `themeBase` / `vendorBase` / `assetBase`)
+2. vendor UMD(`imsetes/vendor/`):`vue.global.prod.js` → `vue-router.global.prod.js` → `axios.min.js` → `tdesign.min.js`(+`tdesign.min.css`) → `echarts.min.js`(仅 user/admin) → `vue3-sfc-loader.js`
+3. `templates/tdesign/assets/td-boot.js` —— 共用引导
 
-### 安装依赖
+`td-boot.js` 职责:
 
-```bash
-cd templates/tdesign/spa
-npm install
-```
+- **moduleCache 桥接**:`vue` / `vue-router` / `tdesign-vue-next` / `axios` / `echarts` 及其子路径映射到 UMD 全局,并补 `default` 导出
+- **pathResolve**:`@/xxx` → `spa/src/xxx`;相对导入按引用方目录折叠;裸模块名原样返回命中 moduleCache
+- **getFile**:无扩展名导入按 node 顺序探测(`.js` → `/index.js` → `.vue` → `.css` → `.json`),结果按 URL 记忆
+- **handleModule**:`.webp/.jpg/.png/.svg` 等图片导入返回 URL(替代 vite 的资产管线)
+- **addStyle**:SFC `<style>` 块与 `.css` 导入注入 `<style>` 标签
 
-### 开发(可选)
+### 版本与升级
 
-```bash
-# 管理端开发服务器
-npm run dev:admin
+vendor 依赖版本记录在 `imsetes/vendor/VERSIONS.txt`;升级时用同版本 UMD 文件覆盖即可(vue3-sfc-loader 当前 **0.9.5**)。
 
-# 用户端开发服务器
-npm run dev:user
+### 已知取舍
 
-# Docker 控制台开发服务器
-npm run dev:docker
-
-# 主页开发服务器(端口 5177)
-npm run dev:home
-```
-
-开发配置见各 `vite.*.config.js` 的 `server.proxy`。  
-开发模式 HTML 内置最小 `window.__TD_BOOT__`,可在无 PHP 环境下预览 UI。
-
-### 生产构建
-
-```bash
-cd templates/tdesign/spa
-
-# 单独构建
-npm run build:admin    # 输出到 ../admin/dist/
-npm run build:user     # 输出到 ../user/dist/
-npm run build:docker   # 输出到 ../docker/dist/
-npm run build:home     # 输出到 ../home/dist/
-
-# 四端一起构建
-npm run build
-```
-
-产物输出:
-
-| 端 | 输出目录 | HTML | 入口 JS |
-|----|----------|------|---------|
-| 管理端 | `templates/tdesign/admin/dist/` | `admin.html` | `assets/index.js` |
-| 用户端 | `templates/tdesign/user/dist/` | `user.html` | `assets/index.js` |
-| Docker 控制台 | `templates/tdesign/docker/dist/` | `docker.html` | `assets/index.js` |
-| 主页 | `templates/tdesign/home/dist/` | `home.html` | `assets/index.js` |
-
-PHP 入口通过 `mnbt_theme_url('dist/assets/index.js')` 加载。  
-**请将各端 `dist` 一并提交/部署**,服务器无需安装 Node 即可运行主题。
-
-构建配置要点(各端一致):
-
-- `base: './'` —— 相对路径,适配 PHP 子目录部署
-- `inlineDynamicImports: true` —— 打成单 JS 包,避免动态 chunk 相对路径错位
-- `cssCodeSplit: false` —— 单 CSS 文件
-- `assetsDir: 'assets'`,固定输出 `assets/index.js` 与 `assets/index.css`
-- `@` alias 指向 `src`,import 路径形如 `@/admin/api/xxx`、`@/user/views/xxx`、`@/shared/utils/echarts`
-
-### 未构建时
-
-打开管理后台/用户端/主页会显示「TDesign 主题尚未构建」提示与编译命令。
+- 源码直出:前端代码不经压缩/混淆地发布(本就随分发包可见)
+- 首次导航按需编译,低端设备可感知延迟;浏览器 HTTP 缓存命中后无感
+- 无 HMR/构建期校验:改 `.vue` 保存后刷新生效,语法错误在浏览器控制台暴露
+- SCSS 源文件已移除(编译为 `theme.css` / `home.css` 提交);新增全局样式请直接写 CSS 或在 `.vue` 内写 `<style>`
 
 ---
 
 ## 启用主题
 
-1. 确保已 `npm run build` 且存在各端 `dist/assets/index.js`(`admin` / `user` / `home`)
-2. 管理后台 → **系统管理** → **前端模板**
-3. **管理端主题** 选择 **TDesign 三端主题** → 保存
-4. **用户端主题** 选择 **TDesign 三端主题** → 保存
-5. **主页主题** 选择 **TDesign 三端主题** → 保存  
-   或写入文件:`templates/active_admin_theme` / `templates/active_user_theme` / `templates/active_home_theme` 内容均为 `tdesign`
+1. 确认 `imsetes/vendor/` 目录完整(UMD 依赖随分发包内置)
+2. tdesign 已是系统默认主题;如需手动切换:管理后台 → **系统管理** → **前端模板** 选择 **TDesign 三端主题** → 保存  
+   或写入文件:`templates/active_admin_theme` / `templates/active_user_theme` / `templates/active_docker_theme` 内容均为 `tdesign`
 
 ---
 
@@ -309,7 +202,7 @@ PHP 入口通过 `mnbt_theme_url('dist/assets/index.js')` 加载。
 | 字体 | 系统 UI / 苹方 / 微软雅黑 |
 | 阴影 | `0 1px 2px rgba(0,0,0,.04), 0 4px 12px rgba(0,0,0,.04)` |
 
-CSS 变量定义在 `spa/src/shared/styles/theme.scss` 顶部 `:root`,修改后重新 `npm run build`。
+CSS 变量定义在 `spa/src/shared/styles/theme.css` 顶部 `:root`,修改后刷新页面即生效。
 
 ### 通用样式类
 
@@ -342,21 +235,22 @@ CSS 变量定义在 `spa/src/shared/styles/theme.scss` 顶部 `:root`,修改后�
    - 管理端:`@/admin/api/xxx`、`@/admin/views/xxx`
    - 用户端:`@/user/api/xxx`、`@/user/views/xxx`
    - 主页:`@/home/api/xxx`、`@/home/views/xxx`、`@/home/store/auth`
-   - 共用:`@/shared/api/http`、`@/shared/utils/echarts`、`@/shared/styles/theme.scss`
+   - 共用:`@/shared/api/http`、`@/shared/utils/echarts`、`@/shared/styles/theme.css`
 4. 列表页统一服务端分页,前端只做查询条件与渲染
 5. 表单/表格统一使用 `.td-form` / `.td-table-wrap` / `.td-toolbar` 等通用类,避免重复样式
 6. 表格工具条 `.td-toolbar` 使用 `padding: 12px 16px` 确保与边框间距
 7. `t-dialog` 组件必须使用 `v-model:visible` 而非 `v-model`(避免 Vue modelValue 错误)
-8. `spa/.gitignore` 忽略 `node_modules`,**不忽略** 各端 `dist`
-9. 版本号同步:`theme.json` 与 `spa/package.json`
-10. 修改源码后必须重新构建对应端(`npm run build:admin` / `build:user` / `build:docker` / `build:home`),否则线上不会生效
+8. 修改源码后**无需任何构建**,刷新页面即生效(浏览器内由 vue3-sfc-loader 编译)
+9. 图片等静态资产放 `spa/src/shared/assets/`,以 `import url from '@/shared/assets/x.webp'` 方式引用(loader 返回 URL)
+10. 版本号同步:`theme.json` 与各端 `_spa_boot.php` 注入的 `version` 字段
 
 ---
 
 ## 已知限制
 
-- 文件管理页面(ftp)采用 iframe 嵌入默认主题 ftp.php(复用成熟的文件管理 UI,避免重写复杂组件)
-- 插件自带页面仍由插件自行渲染,主题仅提供菜单入口与 iframe 容器
+- SPA 由 vue3-sfc-loader 浏览器内编译,不支持构建期优化(压缩/摇树/HMR),首次访问有按需编译开销
+- SPA 全局样式为预编译 CSS(无 SCSS),需预处理样式的场景请在 `.vue` 内手写或离线编译
+- 插件自带页面仍由插件自行渲染(Bootstrap/lyear 壳),主题提供 head.php 壳 + iframe 容器
 - 主页售卖端依赖 `user_info` / `balance` / `hosting_shop` 三个插件;官网页面依赖 `official_site` 插件(`boot.hasSite` 为 false 时导航与页面自动隐藏)
 - 部分旧接口字段因版本差异可能需在 `parseResult` 或视图层做兼容调整
 
@@ -364,6 +258,7 @@ CSS 变量定义在 `spa/src/shared/styles/theme.scss` 顶部 `:root`,修改后�
 
 ## 版本
 
+- **0.4.0** 免构建重构:引入 vue3-sfc-loader,移除 Vite/npm 构建链,dist 由 `spa/src` 直出替代;文件管理器 SPA 原生化(目录/编辑/分片上传/压缩解压/回收站/权限);补齐 user/admin head.php 插件页壳;echarts 改 UMD 全量;SCSS 预编译为 CSS;V1.87 起 tdesign 为系统默认主题(classic 冻结)
 - **0.3.0** 主页售卖端:新增 home scope(落地页/登录注册/个人信息/商店/下单/我的主机/订单/余额/充值),插件 API 路由(`index.php?_r=`)驱动 + 独立 Vite 入口(`build:home`),登录态由 `auth.js` store 统一探测
 - **0.2.0** 双端主题:用户端全部页面原生化(仪表盘/设置/文件管理/SQL备份/监控/统计/部署/插件) + 按端分层目录重构(admin/user/shared) + 左侧背景图登录页 + echarts gauge 仪表盘 + 快捷操作平铺按钮 + 插件页面 iframe 内嵌
 - **0.1.0** 首版:SPA 壳 + 登录 + 全部后台页面原生化(仪表盘 / 设置 / 主机 / 宝塔 / 节点 / 程序 / 订单 / 日志 / 插件 / 支付 / 主题切换 / 教程 / 更新 / 修复)

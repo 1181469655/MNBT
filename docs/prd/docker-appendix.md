@@ -33,7 +33,7 @@ MPHX/bt_docker.php                  # Docker API 封装
 MPHX/docker.member.php              # Docker 用户独立认证
 api/docker.php                      # 对外对接 API
 docker/                             # Docker 用户控制台控制器
-templates/default/docker/           # Docker scope 默认视图
+templates/classic/docker/           # Docker scope 默认视图
 templates/active_docker_theme       # Docker 当前主题
 admin/docker.php                    # 管理员 Docker 管理页
 admin/api/docker.php                # 管理员 Docker AJAX 模块（挂 admin/ajax.php）
@@ -68,7 +68,7 @@ docs/prd/docker.md                  # 本文档
 - **验收**：php 脚本调 `bt_docker` 返回真实容器 JSON；`docker/login.php` 可登录/登出。
 
 ### M2 — 用户 Docker 控制台（单容器 + 应用商店）
-- [ ] `theme.php` docker scope + `templates/default/docker/` 页面。
+- [ ] `theme.php` docker scope + `templates/classic/docker/` 页面。
 - [ ] 我的容器（单容器）/ 镜像 / 应用商店；`create_app` **P0 直接实现**，前端轮询 `get_cmd_log` 异步跟进。
 - [ ] **容器隔离**：每个账号仅装配一个容器，用户只看到自己的容器数据。
 - **验收**：Docker 账号登录控制台，选购应用并异步安装成功；仅见本人容器。

@@ -21,13 +21,13 @@ description: MNBT V1.83 Docker 集成（M1-M4）的完整手动测试流程：�
 | `update/update_v183_docker.sql` | 新增 | 升级 SQL |
 | `templates/active_docker_theme` | 新增 | 主题标记（内容 `default`） |
 | `docker/head.php` `ajax.php` `login.php` `index.php` `console.php` `image.php` `volume.php` `compose.php` `appstore.php` | 新增 | Docker 控制台控制器 |
-| `templates/default/docker/head.php` `foot.php` `login.php` `console.php` `image.php` `volume.php` `compose.php` `appstore.php` `assets/docker.css` | 新增 | Docker 控制台视图 |
+| `templates/classic/docker/head.php` `foot.php` `login.php` `console.php` `image.php` `volume.php` `compose.php` `appstore.php` `assets/docker.css` | 新增 | Docker 控制台视图 |
 | `admin/docker.php` | 新增 | 后台管理控制器 |
 | `admin/api/docker.php` | 新增 | 后台 AJAX 模块 |
 | `admin/ajax.php` | 修改 | 注册 docker 模块 |
-| `templates/default/admin/index.php` | 修改 | 侧栏新增 Docker 管理（含「添加 Docker 节点」入口） |
-| `templates/default/admin/docker.php` | 新增 | 后台管理视图 |
-| `templates/default/admin/add.php` | 修改 | 新增 `dknode` 分支：独立「添加 Docker 节点」表单页 |
+| `templates/classic/admin/index.php` | 修改 | 侧栏新增 Docker 管理（含「添加 Docker 节点」入口） |
+| `templates/classic/admin/docker.php` | 新增 | 后台管理视图 |
+| `templates/classic/admin/add.php` | 修改 | 新增 `dknode` 分支：独立「添加 Docker 节点」表单页 |
 | `api/docker.php` | 新增 | 对外开通 API |
 | `docker_cron.php` | 新增 | 到期软删定时任务 |
 | `README.md` `API.md` | 修改 | 文档 |
@@ -328,7 +328,7 @@ A: 节点宝塔未安装 Docker 管理器，或未初始化应用商店。去宝
 A: 查数据库 `MN_docker_user.container_status`。若容器实际已运行但状态没同步，检查 `my_container` 接口返回的 `container` 是否为 null（可能是 `service_name` 与宝塔实际容器名不匹配）。宝塔 create_app 的容器名通常是 `<service_name>_<数字>`，前端用 `service_name` 前缀匹配可能漏匹配 —— 如有此情况反馈，我调整为前缀匹配。
 
 **Q: 后台侧栏没有 Docker 管理？**
-A: 整页刷新后台（F5），multitabs 需刷新才加载新菜单。确认 `templates/default/admin/index.php` 已更新。
+A: 整页刷新后台（F5），multitabs 需刷新才加载新菜单。确认 `templates/classic/admin/index.php` 已更新。
 
 **Q: docker_cron 提示密钥错误？**
 A: `my` 参数必须等于后台「系统设置 → API」的密钥，与 `jk_monitor.php` 用的是同一个。

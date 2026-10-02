@@ -167,13 +167,13 @@ $footerMsg = function_exists('mnbt_home_theme_setting') ? mnbt_home_theme_settin
 
 | 文件 | 职责 |
 |------|------|
-| `MPHX/frontend.php` | 主页引擎(分发、数据组装、字段注册 API、default 渲染器) |
+| `MPHX/frontend.php` | 主页引擎(分发、数据组装、字段注册 API、classic 渲染器) |
 | `MPHX/theme.php` | `home` scope 注册(`mnbt_theme_name/list/set_active`) |
 | `index.php` | 请求分发入口(`mnbt_home_dispatch` 调用点) |
-| `templates/default/home/index.php` | 内置默认主页模板 |
+| `templates/classic/home/index.php` | 内置默认主页模板 |
 | `templates/tdesign/home/index.php` | tdesign 主页入口(加载 home SPA,注入 `__TD_BOOT__`) |
 | `templates/tdesign/spa/src/home/` | tdesign home SPA 源码(路由/API/视图/样式) |
-| `templates/default/admin/set.php` | default 后台渲染器(`gn=theme`) |
+| `templates/classic/admin/set.php` | classic 后台渲染器(`gn=theme`) |
 | `templates/tdesign/spa/src/admin/views/settings/ThemeView.vue` | tdesign 后台渲染器 |
 | `templates/tdesign/admin/_spa_boot.php` | tdesign boot 数据注入 |
 | `admin/api/setting.php` | `save_home_settings` / `home_upload_icon` / `settheme(hometheme)` 接口 |

@@ -1,8 +1,13 @@
 {
   "name": "tdesign",
   "title": "TDesign 三端主题",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "基于 Vue 3 + TDesign Vue Next 的三端 SPA 主题,覆盖用户端、管理端与主页售卖全部页面",
   "author": "MNBT",
-  "scope": ["user", "admin", "home"]
+  "scope": [
+    "user",
+    "admin",
+    "home",
+    "docker"
+  ]
 }

@@ -74,14 +74,15 @@ function mnbt_home_asset($path): string
 	return mnbt_home_base() . '/' . ltrim($path, '/');
 }
 
-/** 解析主页模板路径：当前主页主题（templates/{theme}/home/）→ default 主题回退 */
+/** 解析主页模板路径：当前主页主题（templates/{theme}/home/）→ 默认主题回退（MNBT_THEME_DEFAULT） */
 function mnbt_home_resolve(): ?string
 {
-	$theme = function_exists('mnbt_theme_name') ? mnbt_theme_name('home') : 'default';
+	$theme = function_exists('mnbt_theme_name') ? mnbt_theme_name('home') : (defined('MNBT_THEME_DEFAULT') ? MNBT_THEME_DEFAULT : 'tdesign');
 	$root = defined('MNBT_THEME_ROOT') ? MNBT_THEME_ROOT : (ROOT . 'templates/');
+	$fallback = defined('MNBT_THEME_DEFAULT') ? MNBT_THEME_DEFAULT : 'tdesign';
 	$candidates = [$root . $theme . '/home/index.php'];
-	if ($theme !== 'default') {
-		$candidates[] = $root . 'default/home/index.php';
+	if ($theme !== $fallback) {
+		$candidates[] = $root . $fallback . '/home/index.php';
 	}
 	foreach ($candidates as $p) {
 		if (is_file($p)) {

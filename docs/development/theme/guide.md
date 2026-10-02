@@ -57,7 +57,7 @@ templates/
 
 ### 步骤 3:覆盖页面
 
-从 `templates/default/user/` 或 `admin/` **复制**要改的文件到 `my_theme` 对应目录,再修改 HTML/CSS。示例:只改用户登录页外观(其余用户页仍走 `default`):
+从 `templates/classic/user/` 或 `admin/` **复制**要改的文件到 `my_theme` 对应目录,再修改 HTML/CSS。示例:只改用户登录页外观(其余用户页回退默认主题 tdesign):
 
 ```text
 templates/my_theme/user/login.php
@@ -189,7 +189,7 @@ templates/my_theme/admin/assets/admin-common.css
 
 ### 5.4 资源回退规则
 
-与页面模板相同:当前主题 `templates/{theme}/{scope}/assets/xxx.css` → 不存在则 `templates/default/{scope}/assets/xxx.css` → 仍不存在则返回当前主题 URL(便于你补文件时定位 404)。
+与页面模板相同:当前主题 `templates/{theme}/{scope}/assets/xxx.css` → 不存在则回退引擎默认主题(MNBT_THEME_DEFAULT,当前为 tdesign)对应路径 → 仍不存在则返回当前主题 URL(便于你补文件时定位 404)。
 
 因此自定义主题**只需覆盖要改的 CSS**,其余私有资源会用 default 的。
 
@@ -286,7 +286,7 @@ if (function_exists('mnbt_plugin_render_menu_user_html')) {
 
 从 V1.82 起,引擎支持**主题注册自己的菜单渲染器**,解决"插件菜单在不同主题下结构不兼容"问题。
 
-**原理**:插件通过 `mnbt_register_menu('user', ...)` 注册的是**菜单数据树**(title/icon/url/order/children),不带 HTML 结构;主题通过 `mnbt_register_theme_menu_renderer('user', $callback)` 注册**渲染器**,把这棵树转换成当前主题需要的 HTML。主题 `index.php` 中调用 `mnbt_plugin_render_menu_user_html()` 时,引擎自动使用当前主题注册的渲染器;若主题未注册渲染器,引擎回退到 default 主题(lyear)结构。
+**原理**:插件通过 `mnbt_register_menu('user', ...)` 注册的是**菜单数据树**(title/icon/url/order/children),不带 HTML 结构;主题通过 `mnbt_register_theme_menu_renderer('user', $callback)` 注册**渲染器**,把这棵树转换成当前主题需要的 HTML。主题 `index.php` 中调用 `mnbt_plugin_render_menu_user_html()` 时,引擎自动使用当前主题注册的渲染器;若主题未注册渲染器,引擎回退到内置的 lyear 结构 HTML(`_mnbt_plugin_render_default_menu_html`)。
 
 **主题开发者需要做的两件事**:
 
@@ -350,7 +350,7 @@ if (function_exists('mnbt_plugin_render_menu_user_html')) {
 
 ### Q: 管理端设置页样式在哪?
 
-默认主题布局:`templates/default/admin/set.php`,样式:`templates/default/admin/assets/set-page.css`。
+默认主题布局:`templates/classic/admin/set.php`,样式:`templates/classic/admin/assets/set-page.css`。
 
 ### Q: 主题里能否直接查数据库?
 
@@ -368,7 +368,7 @@ if (function_exists('mnbt_plugin_render_menu_user_html')) {
 
 ### Q: 回退页样式错乱?
 
-通常是 `head.php` 漏加载了 Bootstrap / jQuery / `fn-hs.js` / `style.min.css`。检查 head.php 是否完整保留了 default 主题的公共资源引用,再追加新 UI 库。
+通常是 `head.php` 漏加载了 Bootstrap / jQuery / `fn-hs.js` / `style.min.css`。检查 head.php 是否完整保留了 classic(原 default)主题的公共资源引用,再追加新 UI 库。
 
 ### Q: 主题加载了 Layui 但 `layui.form.render()` 报错?
 

@@ -265,7 +265,7 @@ class bt_docker
 
 `theme.php` 当前只认 `user|admin`，新增 `docker` scope（**唯一核心文件改动**，不影响现有 5 主题）：
 
-- `mnbt_theme_resolve($view, 'docker')` → `templates/{theme}/docker/{view}.php`，回退 `templates/default/docker/`。
+- `mnbt_theme_resolve($view, 'docker')` → `templates/{theme}/docker/{view}.php`，回退 `templates/classic/docker/`。
 - `mnbt_theme_name('docker')` → 读 `active_docker_theme` / `conf['docker_theme']`。
 - `mnbt_render($view, $vars, $exit, 'docker')` 与 `mnbt_theme_url('/assets/..','docker')` 支持 docker scope。
 

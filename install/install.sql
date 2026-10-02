@@ -28,7 +28,7 @@ CREATE TABLE `MN_config` (
   `hxd` text NOT NULL,     -- 后续....
   `pay_methods` text NOT NULL,  -- V1.81 P3: 已启用的付款方式配置（JSON）
   `home_enable` varchar(10) NOT NULL DEFAULT 'true',   -- V1.84: 启用内置主页
-  `home_theme` varchar(50) NOT NULL DEFAULT '',        -- V1.84: 主页主题（空则跟随默认，回退 default）
+  `home_theme` varchar(50) NOT NULL DEFAULT '',        -- V1.84: 主页主题（空则跟随引擎默认主题（V1.87 起 tdesign））
   `home_theme_settings` text NOT NULL,                 -- V1.84: 主页主题自定义设置（JSON）
   `home_title` text NOT NULL,                          -- V1.84: 主页站点标题（空则回退系统名称）
   `home_hero` text NOT NULL,                           -- V1.84: 主页 Hero 标语

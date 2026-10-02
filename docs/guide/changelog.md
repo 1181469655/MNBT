@@ -19,6 +19,16 @@ description: MNBT 版本更新记录（V1.86 ~ V1.60）
 - **前端重写**：`templates/default/user/ftp.php` 全部重写（TDesign 主题经 iframe 复用该页自动生效）——目录面包屑导航、分页/排序表格、同名文件覆盖确认、上传进度条与取消、在线编辑器（主题记忆）、回收站弹窗、权限弹窗，输出统一走 HTML 转义（修复旧版文件名注入 XSS）；旧版 `imsetes/js/upload.js` 替换为 `imsetes/js/mnbt-uploader.js`（自适应分片 1MB→8MB、断点续传、速度/剩余时间回调）
 - **其它修复**：旧版复制/压缩等操作 `exit()` 后才写日志的顺序错误；`dirfiles()` 补齐缺失索引兜底，消除 PHP8 未定义索引告警；后台「控制面板设置」保存脚本 `xtset.js` 不再读取已删除的 FTP 面板下拉框
 
+**主题体系重构：tdesign 升格默认主题，SPA 改为 vue3-sfc-loader 免构建加载**
+
+- **default 主题更名 `classic` 并冻结**：不再维护、仅随包保留供回退；tdesign（Vue 3 + TDesign）自本版本起为系统默认主题，缺页兜底常量 `MNBT_THEME_DEFAULT` 指向 tdesign；`templates/active_*_theme` 加入更新保留清单（`MPHX/github_updater.php`），管理员手动选择的主题跨更新保留
+- **移除 Vite/npm 构建链**：`vite.*.config.js` / `package.json` / 各端 HTML 模板 / `dist` 全部删除，SPA 由 [vue3-sfc-loader](https://github.com/FranckFreiburger/vue3-sfc-loader) 0.9.5 在浏览器内编译 `spa/src/` 源码直出——修改 `.vue` 保存刷新即生效，部署不再需要 Node
+- **vendor UMD 入库 `imsetes/vendor/`**：vue 3.5 / vue-router 4.6 / tdesign 1.20 / axios / echarts 6.1（全量版）+ loader 本体，版本记录见 `VERSIONS.txt`；`templates/tdesign/assets/td-boot.js` 为五端共用引导（moduleCache 桥接 / `@` 别名解析 / 无扩展名探测 / 图片资产 URL 化）
+- **文件管理器 SPA 化**：`FtpView.vue` 从 iframe 嵌入改为原生 TDesign 实现（目录面包屑、服务端分页排序、分片上传+断点续传+取消、同名冲突处理、在线编辑器 CodeMirror 动态加载、回收站、权限、图片预览、SQL 导入），对接 V1.86 的 `file_*` API；新增 `user/api/ftp.js`、`user/utils/uploader.js`、`user/utils/codemirror.js`
+- **缺口补齐**：tdesign 新增 `user/head.php` / `admin/head.php` 插件页壳（Bootstrap/lyear，与 classic 同构）及配套 CSS 资产；新增 `user/ftp.php` 包装视图；滑块验证码图集迁至 `tdesign/docker/assets/`；`_router.php` MIME 表补 vue/svg/webp/json/woff2；孤儿控制器 `admin/bt_php.php` 删除（底层函数与 AJAX 动作保留）
+- **SCSS 预编译**：`theme.scss` / `home.scss` 编译为 CSS 提交，SCSS 源移除（loader 不支持浏览器端 sass）；echarts 按需引入改为 UMD 全局桥接
+- 主题元信息 `theme.json` 升至 0.4.0；文档同步（tdesign.md / tdesign-php.md / engine / guide / home / views / directory）
+
 ## V1.85
 
 **外部主机 API 协议兼容开关**

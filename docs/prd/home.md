@@ -42,7 +42,7 @@ MNBT 当前的主页（站点根路径 `/` 的落地页）替换完全依赖插�
 
 | 期次 | 内容 |
 |------|------|
-| **P0（本期）** | 核心主页引擎（`MPHX/frontend.php`）+ 内置默认主页模板（`templates/default/home/`）+ `MN_config` 配置字段 + 升级 SQL + 后台「主页设置」页（含保存接口）+ 区块扩展钩子 + 与 `shop_frontend` 并存兼容 |
+| **P0（本期）** | 核心主页引擎（`MPHX/frontend.php`）+ 内置默认主页模板（`templates/classic/home/`）+ `MN_config` 配置字段 + 升级 SQL + 后台「主页设置」页（含保存接口）+ 区块扩展钩子 + 与 `shop_frontend` 并存兼容 |
 | **P1（下期）** | `tdesign` 主题专属主页模板定制、区块排序/启停 UI、统计/客服等扩展区块示例、主页预览 |
 
 ---
@@ -118,7 +118,7 @@ update/
 └── update_v184_home.sql      # ★ 新增：ALTER TABLE MN_config 追加 home_* 字段（幂等）
 ```
 
-> 主题解析不新增 scope：主页模板直接按 `templates/{当前 user 主题}/home/` 查找，未命中回退 `templates/default/home/`（与 `mnbt_theme_resolve` 的回退策略一致，但独立实现，不动现有三个 scope）。
+> 主题解析不新增 scope：主页模板直接按 `templates/{当前 user 主题}/home/` 查找，未命中回退 `templates/classic/home/`（与 `mnbt_theme_resolve` 的回退策略一致，但独立实现，不动现有三个 scope）。
 
 ---
 
@@ -137,7 +137,7 @@ function mnbt_home_option(string $key, $default = null);
 // 数据组装：返回模板变量数组
 function mnbt_home_data(): array;
 
-// 模板解析：templates/{user主题}/home/index.php → 回退 templates/default/home/index.php
+// 模板解析：templates/{user主题}/home/index.php → 回退 templates/classic/home/index.php
 function mnbt_home_resolve(): ?string;
 
 // 渲染：组装数据 → 加载模板 → exit
@@ -182,7 +182,7 @@ ALTER TABLE `MN_config` ADD COLUMN `home_show_plans` varchar(10) NOT NULL DEFAUL
 
 > 升级脚本需兼容重复执行（先 `SHOW COLUMNS` 判断或安装流程中统一处理，沿用仓库现有 `update_v183_docker.sql` 的幂等约定）。
 
-### 3.3 内置默认主页模板 `templates/default/home/index.php`
+### 3.3 内置默认主页模板 `templates/classic/home/index.php`
 
 **页面骨架**（参照 `shop_frontend/views/homepage.php` 的落地页结构，样式内联，不引入外部静态资源）：
 
@@ -280,7 +280,7 @@ mnbt_add_filter('home.blocks', function ($blocks) {
 
 1. 执行 `update/update_v184_home.sql` 追加配置字段（随版本升级流程）
 2. `common.php` include `frontend.php`，`index.php` 插入 `mnbt_home_dispatch()`
-3. 部署 `templates/default/home/index.php`
+3. 部署 `templates/classic/home/index.php`
 4. 老用户升级后默认 `home_enable=true`，立即获得内置主页（若已启用 shop_frontend，行为不变）
 
 ---

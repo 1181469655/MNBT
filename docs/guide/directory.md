@@ -82,7 +82,8 @@ MNBT 采用模块化目录组织：`admin/`（管理后台）、`user/`（用户
 │   ├── THEME_DEV.md          # 主题开发手册
 │   ├── active_user_theme     # 当前用户端主题名
 │   ├── active_admin_theme    # 当前管理端主题名
-│   └── default/              # 官方默认主题
+│   ├── classic/              # 官方经典主题（原 default，冻结维护）
+│   └── tdesign/              # 默认主题（Vue3 SPA）
 │       ├── theme.json
 │       ├── user/             # 用户控制面板视图
 │       └── admin/            # 管理后台视图

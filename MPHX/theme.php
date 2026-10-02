@@ -1,8 +1,9 @@
 <?php
 /**
- * MNBT 主题系统（用户端 + 管理端 + Docker 端）
- * 目录: templates/{theme}/user/ 、templates/{theme}/admin/ 、templates/{theme}/docker/
- * 缺页自动回退到 templates/default/{scope}/
+ * MNBT 主题系统（用户端 + 管理端 + Docker 端 + 主页）
+ * 目录: templates/{theme}/user/ 、templates/{theme}/admin/ 、templates/{theme}/docker/ 、templates/{theme}/home/
+ * V1.87 起 TDesign（SPA）为默认主题；classic（原 default，jQuery 服务端渲染）冻结保留、不再维护，
+ * 缺页自动回退到 templates/{MNBT_THEME_DEFAULT}/{scope}/
  */
 
 if (!defined('IN_CRONLITE')) {
@@ -10,7 +11,7 @@ if (!defined('IN_CRONLITE')) {
 }
 
 define('MNBT_THEME_ROOT', ROOT . 'templates/');
-define('MNBT_THEME_DEFAULT', 'default');
+define('MNBT_THEME_DEFAULT', 'tdesign');
 
 // 主题可注册的菜单渲染器：scope => callback(array $items): string
 $GLOBALS['mnbt_theme_menu_renderers'] = ['user' => null, 'admin' => null, 'docker' => null];

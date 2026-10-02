@@ -1,0 +1,83 @@
+/* 支付设置页 - 插件化付款方式管理 */
+.mn-pay-note {
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  color: #075985;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.mn-pay-note a {
+  color: #0369a1;
+}
+.mn-pay-note ol {
+  padding-left: 18px;
+  margin: 4px 0 0;
+}
+.mn-pay-note ol li {
+  margin-bottom: 2px;
+}
+
+.mn-pay-plugin-card {
+  margin-top: 16px;
+}
+.mn-pay-plugin-card:first-of-type {
+  margin-top: 0;
+}
+.mn-pay-plugin-title {
+  flex: 1;
+  min-width: 0;
+}
+.mn-pay-plugin-title h4 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.mn-pay-slug {
+  font-size: 11px;
+  background: #f1f5f9;
+  color: #64748b;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 400;
+}
+.mn-pay-settings-btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.mn-pay-methods-table thead th {
+  font-size: 12px;
+  color: #64748b;
+}
+.mn-pay-methods-table td code {
+  font-size: 11px;
+  background: #f1f5f9;
+  color: #64748b;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+.mn-pay-methods-table .pay-method-name,
+.mn-pay-methods-table .pay-method-icon,
+.mn-pay-methods-table .pay-method-sort {
+  border-radius: 6px;
+  border-color: #e2e8f0;
+}
+.mn-pay-methods-table .pay-method-name:focus,
+.mn-pay-methods-table .pay-method-icon:focus,
+.mn-pay-methods-table .pay-method-sort:focus {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+/* 未启用的行淡化 */
+.mn-pay-methods-table tr:not(:has(.pay-method-enable:checked)) td:not(:first-child) {
+  opacity: 0.55;
+}
+.mn-pay-methods-table .custom-switch {
+  margin: 0;
+  min-height: auto;
+  padding-left: 2.2rem;
+}

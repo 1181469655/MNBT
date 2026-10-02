@@ -55,7 +55,7 @@ templates/my_skin/
 |------|------|
 | `default` | 默认(jQuery + Bootstrap) |
 
-未提供的页面会**自动回退**到 `templates/default/` 同名文件。
+未提供的页面会**自动回退**到 `templates/classic/` 同名文件。
 
 ---
 

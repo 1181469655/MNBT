@@ -60,7 +60,7 @@ description: tdesign 主题与 PHP 的对接:三端入口映射、__TD_BOOT__ �
 | `/user/monitor_log.php` | `#/monitor/log` |
 | `/user/notice.php` | `#/notice` |
 | `/user/webgl.php` | `#/deploy` |
-| `/user/ftp.php` | `#/ftp`(iframe 嵌入默认主题) |
+| `/user/ftp.php` | `#/ftp`(V1.87 起 SPA 原生文件管理) |
 | `/user/plugin.php?p=xxx&page=yyy` | `#/plugin?p=xxx&page=yyy`(iframe 在 layout 内加载) |
 
 ## 主页入口映射(home scope)
@@ -179,7 +179,7 @@ SPA 的 `home/api/http.js` 以 `routeRequest` 封装请求 `{routeBase} + path`,
 | 首页 | `indexconf`(站点配置+流量+空间)、`refresh_space`(刷新空间) |
 | 站点设置 | `set_init`(PHP列表)、`phpxg`(切PHP)、`hqjt`(伪静态)、`setwjt`、`getssl` / `setssl` / `clossl`、`fdl`、`gzip`、`cache`、`mrwd`、`yxml` |
 | 密码 / SQL | `xgpass`(改密码)、`mysqlcz`(SQL权限) |
-| 文件管理 | `ftp` 系列(由默认主题 ftp.php 处理) |
+| 文件管理 | `file_*` 系列(user/api/file.php,V1.86 重构;FTP 系列 gn 已废弃) |
 | SQL 备份 | `database` 系列 |
 | 监控 | `monitor` 系列 |
 | 站点统计 | `site_stats`(act=overview/uri_rank/ip_rank/errors/trend/spider/client/method/recent) |

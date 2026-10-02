@@ -1,16 +1,14 @@
 <?php
 /**
  * TDesign 管理后台 SPA 公共启动片段
- * 注入 window.__TD_BOOT__ 并挂载构建产物
+ * 注入 window.__TD_BOOT__ 并经 vue3-sfc-loader 免构建挂载（V1.87，见 ../assets/td-boot.js）
  */
 if (!defined('IN_CRONLITE')) {
 	exit('Access Denied');
 }
 
-$td_dist = __DIR__ . '/dist';
-$td_js   = $td_dist . '/assets/index.js';
-$td_css  = $td_dist . '/assets/index.css';
-$td_ver  = is_file($td_js) ? (string)@filemtime($td_js) : (string)time();
+$td_boot_file = __DIR__ . '/../assets/td-boot.js';
+$td_ver = is_file($td_boot_file) ? (string)@filemtime($td_boot_file) : (string)time();
 
 $boot = [
 	'siteName'     => $conf['name'] ?? 'MNBT',
@@ -25,7 +23,10 @@ $boot = [
 	'logoIndex'    => mnbt_asset_url('admin_logo/logo.index.png'),
 	'auther'       => $conf['auther'] ?? '',
 	'theme'        => 'tdesign',
-	'version'      => '0.3.0',
+	'version'      => '0.4.0',
+	'scope'        => 'admin',
+	'themeBase'    => '../templates/tdesign/',
+	'vendorBase'   => mnbt_asset_url('vendor/'),
 	'entry'        => $td_entry ?? 'dashboard',
 	'hash'         => $td_hash ?? '',
 	'pluginMenuHtml' => '',
@@ -165,27 +166,23 @@ function _tdboot_render_plugin_leafs($leafs)
 <title><?= htmlspecialchars(($title ?? '管理后台') . ' · ' . ($conf['name'] ?? 'MNBT'), ENT_QUOTES, 'UTF-8') ?></title>
 <link rel="icon" href="<?= htmlspecialchars(mnbt_asset_url('images/logo-ico.png'), ENT_QUOTES, 'UTF-8') ?>" type="image/ico" />
 <link rel="stylesheet" href="<?= htmlspecialchars(mnbt_asset_url('css/materialdesignicons.min.css'), ENT_QUOTES, 'UTF-8') ?>" />
-<?php if (is_file($td_css)): ?>
-<link rel="stylesheet" href="<?= htmlspecialchars(mnbt_theme_url('dist/assets/index.css', 'admin'), ENT_QUOTES, 'UTF-8') ?>?v=<?= $td_ver ?>" />
-<?php endif; ?>
+<link rel="stylesheet" href="<?= htmlspecialchars(mnbt_asset_url('vendor/tdesign/tdesign.min.css'), ENT_QUOTES, 'UTF-8') ?>" />
 <style>
   html, body, #app { margin: 0; padding: 0; height: 100%; background: #f2f3f5; }
-  .td-boot-missing { max-width: 540px; margin: 12vh auto; padding: 32px; border-radius: 12px; background: #fff; border: 1px solid #e7e7e7; font-family: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; color: #1a2e28; }
-  .td-boot-missing h2 { margin: 0 0 12px; font-size: 18px; color: #d54941; }
-  .td-boot-missing code { background: #f3f3f3; padding: 2px 8px; border-radius: 4px; font-size: 13px; }
-  .td-boot-missing p { margin: 10px 0; line-height: 1.7; font-size: 14px; }
+  .td-boot-msg { max-width: 540px; margin: 12vh auto; padding: 32px; border-radius: 12px; background: #fff; border: 1px solid #e7e7e7; font-family: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; color: #1a2e28; text-align: center; }
+  .td-boot-msg h2 { margin: 0 0 12px; font-size: 18px; color: #d54941; }
+  .td-boot-msg pre { text-align: left; white-space: pre-wrap; word-break: break-all; background: #f3f3f3; padding: 12px; border-radius: 6px; font-size: 12px; max-height: 320px; overflow: auto; }
+  .td-boot-msg p { margin: 10px 0; line-height: 1.7; font-size: 14px; color: #4b5b5b; }
+  .td-boot-spinner { width: 36px; height: 36px; margin: 8px auto 12px; border: 3px solid #dcdcdc; border-top-color: #0052d9; border-radius: 50%; animation: td-boot-spin 0.8s linear infinite; }
+  @keyframes td-boot-spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
 <div id="app">
-<?php if (!is_file($td_js)): ?>
-  <div class="td-boot-missing">
-    <h2>TDesign 管理后台尚未构建</h2>
-    <p>请在服务器或本机执行:</p>
-    <p><code>cd templates/tdesign/spa &amp;&amp; npm install &amp;&amp; npm run build:admin</code></p>
-    <p>构建产物应位于 <code>templates/tdesign/admin/dist/</code></p>
+  <div id="td-boot-status" class="td-boot-msg td-boot-loading">
+    <div class="td-boot-spinner"></div>
+    <p>正在加载管理后台…</p>
   </div>
-<?php endif; ?>
 </div>
 <script>
 window.__TD_BOOT__ = <?= json_encode($boot, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
@@ -197,8 +194,12 @@ if (window.__TD_BOOT__.hash) {
 }
 <?php endif; ?>
 </script>
-<?php if (is_file($td_js)): ?>
-<script type="module" src="<?= htmlspecialchars(mnbt_theme_url('dist/assets/index.js', 'admin'), ENT_QUOTES, 'UTF-8') ?>?v=<?= $td_ver ?>"></script>
-<?php endif; ?>
+<script src="<?= htmlspecialchars(mnbt_asset_url('vendor/vue/vue.global.prod.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(mnbt_asset_url('vendor/vue-router/vue-router.global.prod.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(mnbt_asset_url('vendor/axios/axios.min.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(mnbt_asset_url('vendor/tdesign/tdesign.min.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(mnbt_asset_url('vendor/echarts/echarts.min.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(mnbt_asset_url('vendor/vue3-sfc-loader/vue3-sfc-loader.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(mnbt_theme_url('assets/td-boot.js', 'admin'), ENT_QUOTES, 'UTF-8') ?>?v=<?= $td_ver ?>"></script>
 </body>
 </html>

@@ -8,15 +8,13 @@
  *   $plans（套餐卡）/ $blocks（插件扩展区块）
  *   $url($path) 路由 URL / $coreUrl($path) 核心文件 URL
  *
- * 本入口加载 home SPA 构建产物（templates/tdesign/home/dist/），
+ * 本入口经 vue3-sfc-loader 免构建加载 home SPA 源码（templates/tdesign/spa/src，V1.87），
  * 售卖系统全部页面（商店/订单/资产/余额/账户）由 SPA 通过 API 渲染。
  */
 if (!defined('IN_CRONLITE')) { exit('Access Denied'); }
 
-$td_dist = __DIR__ . '/dist';
-$td_js   = $td_dist . '/assets/index.js';
-$td_css  = $td_dist . '/assets/index.css';
-$td_ver  = is_file($td_js) ? (string)@filemtime($td_js) : (string)time();
+$td_boot_file = __DIR__ . '/../assets/td-boot.js';
+$td_ver = is_file($td_boot_file) ? (string)@filemtime($td_boot_file) : (string)time();
 
 $boot = [
 	'siteTitle'    => $site_title ?? 'MNBT',
@@ -67,7 +65,10 @@ $boot = [
 	'base'         => function_exists('mnbt_home_base') ? mnbt_home_base() : '',
 	'conf'         => $conf ?? [],
 	'theme'        => 'tdesign',
-	'version'      => '0.3.0',
+	'version'      => '0.4.0',
+	'scope'        => 'home',
+	'themeBase'    => 'templates/tdesign/',
+	'vendorBase'   => 'imsetes/vendor/',
 	'entry'        => 'landing',
 ];
 
@@ -84,33 +85,32 @@ $boot['coreBase']  = function_exists('mnbt_home_core_url') ? mnbt_home_core_url(
 <title><?= htmlspecialchars($site_title ?? 'MNBT', ENT_QUOTES, 'UTF-8') ?></title>
 <?php if (!empty($favicon)): ?><link rel="icon" href="<?= htmlspecialchars($favicon, ENT_QUOTES, 'UTF-8') ?>" /><?php endif; ?>
 <link rel="stylesheet" href="<?= htmlspecialchars(mnbt_asset_url('css/materialdesignicons.min.css'), ENT_QUOTES, 'UTF-8') ?>" />
-<?php if (is_file($td_css)): ?>
-<link rel="stylesheet" href="<?= htmlspecialchars(mnbt_theme_url('dist/assets/index.css', 'home'), ENT_QUOTES, 'UTF-8') ?>?v=<?= $td_ver ?>" />
-<?php endif; ?>
+<link rel="stylesheet" href="imsetes/vendor/tdesign/tdesign.min.css" />
 <style>
   html, body, #app { margin: 0; padding: 0; min-height: 100%; }
-  .td-boot-missing { max-width: 540px; margin: 12vh auto; padding: 32px; border-radius: 12px; background: #fff; border: 1px solid #e7e7e7; font-family: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; color: #1a2e28; }
-  .td-boot-missing h2 { margin: 0 0 12px; font-size: 18px; color: #d54941; }
-  .td-boot-missing code { background: #f3f3f3; padding: 2px 8px; border-radius: 4px; font-size: 13px; }
-  .td-boot-missing p { margin: 10px 0; line-height: 1.7; font-size: 14px; }
+  .td-boot-msg { max-width: 540px; margin: 12vh auto; padding: 32px; border-radius: 12px; background: #fff; border: 1px solid #e7e7e7; font-family: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; color: #1a2e28; text-align: center; }
+  .td-boot-msg h2 { margin: 0 0 12px; font-size: 18px; color: #d54941; }
+  .td-boot-msg pre { text-align: left; white-space: pre-wrap; word-break: break-all; background: #f3f3f3; padding: 12px; border-radius: 6px; font-size: 12px; max-height: 320px; overflow: auto; }
+  .td-boot-msg p { margin: 10px 0; line-height: 1.7; font-size: 14px; color: #4b5b5b; }
+  .td-boot-spinner { width: 36px; height: 36px; margin: 8px auto 12px; border: 3px solid #dcdcdc; border-top-color: #0052d9; border-radius: 50%; animation: td-boot-spin 0.8s linear infinite; }
+  @keyframes td-boot-spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
 <div id="app">
-<?php if (!is_file($td_js)): ?>
-  <div class="td-boot-missing">
-    <h2>TDesign 主页主题尚未构建</h2>
-    <p>请在服务器或本机执行:</p>
-    <p><code>cd templates/tdesign/spa &amp;&amp; npm install &amp;&amp; npm run build:home</code></p>
-    <p>构建产物应位于 <code>templates/tdesign/home/dist/</code></p>
+  <div id="td-boot-status" class="td-boot-msg td-boot-loading">
+    <div class="td-boot-spinner"></div>
+    <p>正在加载…</p>
   </div>
-<?php endif; ?>
 </div>
 <script>
 window.__TD_BOOT__ = <?= json_encode($boot, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
 </script>
-<?php if (is_file($td_js)): ?>
-<script type="module" src="<?= htmlspecialchars(mnbt_theme_url('dist/assets/index.js', 'home'), ENT_QUOTES, 'UTF-8') ?>?v=<?= $td_ver ?>"></script>
-<?php endif; ?>
+<script src="imsetes/vendor/vue/vue.global.prod.js"></script>
+<script src="imsetes/vendor/vue-router/vue-router.global.prod.js"></script>
+<script src="imsetes/vendor/axios/axios.min.js"></script>
+<script src="imsetes/vendor/tdesign/tdesign.min.js"></script>
+<script src="imsetes/vendor/vue3-sfc-loader/vue3-sfc-loader.js"></script>
+<script src="templates/tdesign/assets/td-boot.js?v=<?= $td_ver ?>"></script>
 </body>
 </html>

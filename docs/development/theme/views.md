@@ -107,7 +107,7 @@ Docker 控制台是独立于用户端/管理端的第三套视图体系,有独�
 |--------|------|
 | 页面入口 | `docker/console.php`、`docker/appstore.php` 等 |
 | AJAX 后端 | `docker/ajax.php` |
-| CSS 样式 | `templates/default/docker/assets/docker.css` |
+| CSS 样式 | `templates/classic/docker/assets/docker.css` |
 
 **主题 scope 注册**:`docker` scope 在 `MPHX/theme.php` 中注册,与 `user`/`admin` 独立。`theme.json` 可声明 `"scope": ["user", "admin", "docker"]`。
 

@@ -20,7 +20,7 @@ description: 主题引擎行为细节、混合 UI 框架主题策略、官方主
 ### 8.1 解析顺序(以用户端 `sy` 为例)
 
 1. `templates/{当前主题}/user/sy.php`
-2. 若不存在:`templates/default/user/sy.php`
+2. 若不存在:回退引擎默认主题 `templates/tdesign/user/sy.php`(V1.87 起 `MNBT_THEME_DEFAULT = 'tdesign'`)
 3. 仍不存在:输出错误 `Theme view not found`
 
 ### 8.2 主题名校验
@@ -119,8 +119,9 @@ Layui 的 `layui-container`、`layui-row`、`layui-card` 与 Bootstrap 的 `cont
 
 | 主题 | 目录 | 技术栈 | 覆盖范围 |
 |------|------|--------|----------|
-| `default` | `templates/default/` | Light Year Admin(Bootstrap 4 + jQuery) | 全部页面 |
-| `layui` | `templates/layui/` | Layui 2.9 + Bootstrap 回退栈 | head/login/index/sy(其余回退 default) |
+| `tdesign` | `templates/tdesign/` | Vue 3 + TDesign(vue3-sfc-loader 免构建) | 全部页面(V1.87 起为系统默认主题) |
+| `classic` | `templates/classic/` | Light Year Admin(Bootstrap 4 + jQuery) | 全部页面(冻结维护,原 `default`)|
+| `layui` | `templates/layui/` | Layui 2.9 + Bootstrap 回退栈 | head/login/index/sy(其余回退默认主题) |
 
 `layui` 主题是**混合栈**示例:保留 Bootstrap 以兼容回退页,新增 Layui 用于框架壳与登录页,覆盖样式将主色调统一为 Layui 蓝(`#1e9fff`)。
 
