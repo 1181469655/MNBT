@@ -29,7 +29,6 @@ if($egn=='setapicompat') {
 }
 if($egn=='setkzmb') {
 	$name=daddslashes($_POST['name']);
-	$ftp=daddslashes($_POST['ftp']);
 	$yzm=daddslashes($_POST['yzm']);
 	$kg=daddslashes($_POST['kg']);
 	$bq=daddslashes($_POST['bq']);
@@ -44,8 +43,8 @@ if($egn=='setkzmb') {
 	}
 	$auther=md5($date);
 	logjl($user,'控制面板设置','对主机的控制面板进行了修改','修改成功',$DB);
-	$sql="update `MN_config` set `name` =?, `hxw` =?, `yzme` =?, `kzmbqk` =?, `hxp` =?, `auther` =? where `id`=?";
-	if($DB->query_prepare($sql,[$name,$ftp,$yzm,$kg,$bq,$auther,$siteid]))json_exit('修改成功'); else json_exit('修改失败'.$DB->error());
+	$sql="update `MN_config` set `name` =?, `yzme` =?, `kzmbqk` =?, `hxp` =?, `auther` =? where `id`=?";
+	if($DB->query_prepare($sql,[$name,$yzm,$kg,$bq,$auther,$siteid]))json_exit('修改成功'); else json_exit('修改失败'.$DB->error());
 	return;
 }
 if($egn=='setpaymethods') {

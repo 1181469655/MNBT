@@ -58,8 +58,7 @@ MNBT 采用模块化目录组织：`admin/`（管理后台）、`user/`（用户
 │   ├── ftp.php               # 在线文件管理
 │   ├── mysql.php             # SQL 管理面板
 │   ├── sqlgl.php             # SQL 数据备份
-│   ├── pay.php               # 支付处理
-│   └── amftp/                # AMFTP 文件管理器
+│   └── pay.php               # 支付处理
 │
 ├── MPHX/                     # 核心框架
 │   ├── common.php            # 全局初始化（数据库/配置/错误日志）

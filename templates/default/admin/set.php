@@ -136,31 +136,13 @@ function setapicompat() {
     <div class="mn-set-icon"><i class="mdi mdi-view-dashboard-outline"></i></div>
     <div>
       <h4>控制面板</h4>
-      <p>名称、FTP 面板、Logo 与开关</p>
+      <p>名称、Logo 与开关</p>
     </div>
   </div>
   <div class="mn-set-card-bd">
     <div class="mn-set-field">
       <label for="kzmbname">控制面板名称</label>
       <input type="text" name="kzmbname" id="kzmbname" value="<?php echo $conf['name']; ?>" class="form-control" placeholder="请在这填写控制面板的名称" required/>
-    </div>
-    <div class="mn-set-field">
-      <label for="ftp">FTP 操作面板</label>
-      <select class="form-control" id="ftp" name="ftp" size="1">
-        <?php
-        $acd = '';
-        $acd2 = '';
-        if ($conf['hxw'] == '' || $conf['hxw'] == 'amftp') {
-          $acd = 'selected';
-        } else {
-          $acd2 = 'selected';
-        }
-        echo '
-        <option value="amftp" ' . $acd . '>AMFTP 操作面板</option>
-        <option value="mnftp" ' . $acd2 . '>MN 操作面板（推荐）</option>
-        ';
-        ?>
-      </select>
     </div>
     <div class="mn-set-field">
       <label for="bq">显示版权</label>
@@ -214,7 +196,7 @@ function setapicompat() {
       <button class="btn btn-primary btn-block" type="button" onclick="setkzmb()"><i class="mdi mdi-content-save-outline"></i> 保存修改</button>
     </div>
     <div class="mn-set-note">
-      AMFTP 仅支持本机宝塔；MN 面板支持本地与远程。不上传 Logo 则沿用原图。上传后请清理浏览器/CDN 缓存。
+      在线文件管理由系统内置（基于宝塔节点 API）。不上传 Logo 则沿用原图。上传后请清理浏览器/CDN 缓存。
     </div>
   </div>
 </div>

@@ -32,13 +32,12 @@ description: user/ajax.php 用户控制面板 AJAX 接口（站点配置、文�
 | `gn` | 功能 | 必需参数 | 返回 |
 |------|------|----------|------|
 | `phpxg` | 切换 PHP 版本 | `php`（版本号） | `code` |
-| `sqldr` | 设置运行目录 | `dr`（路径） | `code` |
+| `sqldr` | 导入 SQL 文件到主机数据库 | `path`、`filename` | `code` |
 | `xgmrwd` | 修改默认文档 | `mrwd`（逗号分隔） | `code` |
 | `hqjt` | 获取伪静态规则 | 无 | `code`/规则列表 |
 | `setwjt` | 设置伪静态规则 | `wjt`（模板名） | `code` |
 | `tjmmfw` | 添加密码访问目录 | `ml`、`user`、`pass` | `code` |
 | `scmmfw` | 删除密码访问目录 | `ml` | `code` |
-| `ftpjy` | FTP 禁用/启用 | `qk` | `code` |
 | `xgpass` | 修改 FTP/面板密码 | `pass` | `code` |
 | `setyxml` | 设置运行目录 | `yxml` | `code` |
 | `setgzip` / `gzip` | 设置 Gzip 配置 | Gzip 相关参数 | `code` |
@@ -50,27 +49,42 @@ description: user/ajax.php 用户控制面板 AJAX 接口（站点配置、文�
 
 文件：user/api/file.php
 
-| `gn` | 功能 | 必需参数 | 返回 |
-|------|------|----------|------|
-| `listfile` | 获取目录文件列表 | `path` | `code`、文件数组 |
-| `hqwj` | 获取文件内容 | `path`、`name` | `code`、内容 |
-| `setwj` | 保存文件内容 | `path`、`name`、`content` | `code` |
-| `xjwj` | 新建文件 | `ml`、`wjname` | `code` |
-| `xjwjj` | 新建文件夹 | `ml`、`wjname` | `code` |
-| `ftpsc` | 删除文件/目录 | `lx`（file/dir）、`path`、`name` | `code` |
-| `ftpscxz` | 批量删除 | `path`、`idsz`（数组） | `code` |
-| `setname` | 重命名 | `path`、`name`、`newname` | `code` |
-| `filecp` | 复制文件 | `path`、`name`、`newpath` | `code` |
-| `fileys` | 压缩文件 | `path`、`name`、`zipname` | `code` |
-| `fileupload` | 上传文件（分片） | `path`、`name`、`file`、`fesw`、`zsize` | `error`、`size`、`msg` |
-| `file_upload_size` | 获取上传限制 | 无 | `code`、`size` |
-| `hqdx` | 获取目录大小 | `path` | `code`、`size` |
+> V1.86 重构：动作名与参数对齐宝塔官方 `/files` 接口（[docs.bt.cn/api/files](https://docs.bt.cn/api/files/)）。
+> 路径一律为**站点相对路径**（以 `/` 开头，站点根目录为 `/`），服务端统一规范化并拒绝 `..` 穿越。
+> 响应统一为 `{success, qk, code, msg, data...}`（`qk=1` 成功 / `qk=4` 失败，数据字段随响应平铺返回）。
+
+| `gn` | 功能 | 对应宝塔 action | 主要参数 |
+|------|------|-----------------|----------|
+| `file_list` | 目录列表（分页/排序） | `GetDir` | `path`、`page`、`limit`、`sort`（name/size/mtime）、`sortOrder` |
+| `file_read` | 读取文件内容 | `GetFileBody` | `path`（含文件名） |
+| `file_save` | 保存文件内容 | `SaveFileBody` | `path`、`content`（原样不转义） |
+| `file_create` | 新建文件/文件夹 | `CreateFile` / `CreateDir` | `path`、`name`、`type`（file/dir） |
+| `file_delete` | 删除单个文件/目录 | `DeleteFile` / `DeleteDir` | `path`、`name`、`type`（file/dir） |
+| `file_delete_batch` | 批量删除 | `SetBatchData`（type=4） | `path`、`names`（数组） |
+| `file_rename` | 重命名 | `MvFile`（rename） | `path`、`oldname`、`newname` |
+| `file_copy` | 复制/剪切并粘贴 | `CopyFile` + `SetBatchData` | `ypath`、`xpath`、`names`、`type`（copy/cut） |
+| `file_compress` | 压缩 | `Zip` | `path`、`names`、`type`（zip/tar.gz/rar/7z）、`dest` |
+| `file_unzip` | 解压 | `UnZip` | `path`、`name`、`dest`、`password`、`coding`（UTF-8/GBK） |
+| `file_size` | 文件/目录大小 | `get_path_size` | `path` |
+| `file_upload_prepare` | 断点续传偏移查询 | `upload_file_exists` | `path`、`name`、`size` |
+| `file_upload` | 分片上传 | `upload` | `path`、`name`、`start`、`size`、`file`（分片数据） |
+| `file_download` | 生成外链下载地址（计入当月流量） | `create_download_url` | `path`、`name` |
+| `file_access` | 查询文件权限 | `GetFileAccess` | `path` |
+| `file_access_set` | 修改文件权限 | `SetFileAccess` | `path`、`access`（八进制，如 644/755） |
+| `recycle_list` | 回收站列表与开关状态 | `Get_Recycle_bin` | `page` |
+| `recycle_restore` | 恢复回收站文件 | `Re_Recycle_bin` | `rname` |
+| `recycle_delete` | 彻底删除回收站文件 | `Delete_Recycle_bin` | `rname` |
+| `recycle_clear` | 清空回收站 | `Close_Recycle_bin` | 无 |
+| `recycle_switch` | 切换文件回收站开关 | `Recycle_bin` | 无 |
 
 **安全限制：**
 
-- 路径必须以 `/` 开头
-- 文件名不能包含 `/`
-- 禁止操作 `.user.ini`
+- 路径必须以 `/` 开头；服务端规范化后拒绝 `..`、反斜杠与空字节，所有操作被限制在用户站点目录内
+- 文件名不能包含 `/`、`\`、空字节或控制字符
+- 禁止创建/修改/删除/重命名/上传 `.user.ini`
+- 删除或重命名运行目录、域名绑定子目录会被拦截（bt_api 内置保护）
+- 上传受网页空间配额（`MN_zj.hxa`）约束；文件下载计入当月流量（`MN_zj.llmax`）
+- 所有写操作均写入 `MN_log` 操作日志
 
 ---
 

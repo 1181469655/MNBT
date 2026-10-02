@@ -3,7 +3,7 @@
     <div class="td-page-head">
       <div>
         <h3 class="td-page-title"><i class="mdi mdi-view-dashboard-outline"></i>控制面板设置</h3>
-        <p class="td-page-subtitle">面板名称、FTP 模块、版权与开关</p>
+        <p class="td-page-subtitle">面板名称、版权与开关</p>
       </div>
     </div>
 
@@ -12,7 +12,7 @@
         <div class="td-set-icon"><i class="mdi mdi-view-dashboard-outline"></i></div>
         <div>
           <h4>控制面板</h4>
-          <p>名称、FTP 面板、Logo 与开关</p>
+          <p>名称、Logo 与开关</p>
         </div>
       </div>
       <div class="td-set-card-bd">
@@ -23,15 +23,6 @@
               <t-input v-model="form.name" placeholder="请在这填写控制面板的名称" clearable>
                 <template #prefix-icon><i class="mdi mdi-rename-box"></i></template>
               </t-input>
-            </div>
-
-            <div class="td-form-row">
-              <label>FTP 操作面板</label>
-              <t-select v-model="form.hxw">
-                <t-option value="amftp" label="AMFTP 操作面板" />
-                <t-option value="mnftp" label="MN 操作面板(推荐)" />
-              </t-select>
-              <div class="td-form-hint">AMFTP 仅支持本机宝塔;MN 面板支持本地与远程</div>
             </div>
 
             <div class="td-form-row">
@@ -86,7 +77,6 @@ const loading = ref(false)
 
 const form = reactive({
   name: conf.name || '',
-  hxw: conf.hxw || 'amftp',
   hxp: conf.hxp || '',
   yzme: conf.yzme === 'true',
   kzmbqk: conf.kzmbqk === 'true',
@@ -100,7 +90,6 @@ async function save() {
   loading.value = true
   const r = await setPanel({
     name: form.name,
-    ftp: form.hxw,
     yzm: form.yzme ? 'true' : 'false',
     kg: form.kzmbqk ? 'true' : 'false',
     bq: form.hxp,

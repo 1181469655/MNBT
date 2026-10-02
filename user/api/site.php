@@ -107,19 +107,6 @@ if($egn=='setwjt') {
 	}
 	return;
 }
-if($egn=='ftpjy') {
-	//解压文件
-	$ywj=$_POST['jywj'] ?? '';
-	$jyd=$_POST['jyd'] ?? '';
-	$jypass=$_POST['jymm'] ?? '';
-	$jybm=$_POST['wjbm'] ?? '';
-	if(substr($jyd,0,1)!='/')exit('{"code":"解压到的目录格式错误！"}');
-	include("../class.php");
-	$api = new bt_api($btipe,$btkeye);
-	$r_data = $api->GetLogsjywj($os_xt.$yhc['sqldz'].$ywj,$os_xt.$yhc['sqldz'].$jyd,$jybm,$jypass);
-	json_exit('解压成功');
-	return;
-}
 if($egn=='xgpass') {
 	//修改密码
 	$ftpmm=daddslashes($_POST['ftp'] ?? '');

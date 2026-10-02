@@ -156,4 +156,3 @@ Docker 控制台是独立于用户端/管理端的第三套视图体系,有独�
 | `admin/ajax.php`、`admin/api/*` | JSON API |
 | `user/pay.php` 等 | 支付跳转(V1.81 P3 起回调由支付插件路由处理) |
 | `user/mysql.php` | 跳转 phpMyAdmin |
-| `user/amftp/*` | 独立文件管理器 |

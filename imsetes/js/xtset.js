@@ -74,7 +74,6 @@ msloadingde();
 
 function setkzmb() {
 var name=kzmbname.value;
-var ftpxt=ftp.value;
 var yzm=yzmkzmb.checked;
 var kg=kzmbkg.checked;
 var bqr=bq.value;
@@ -93,9 +92,8 @@ formdata.append("gn","setkzmb");
 formdata.append("loa",la.files[0]);
 formdata.append("lob",lb.files[0]);
 formdata.append("loc",lc.files[0]);
-formdata.append("bq",bqr); 
-formdata.append("name",name); 
-formdata.append("ftp",ftpxt);
+formdata.append("bq",bqr);
+formdata.append("name",name);
 formdata.append("yzm",yzm);
 formdata.append("kg",kg);
 

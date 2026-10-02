@@ -1,9 +1,23 @@
 ---
 title: 更新日志
-description: MNBT 版本更新记录（V1.85 ~ V1.60）
+description: MNBT 版本更新记录（V1.86 ~ V1.60）
 ---
 
 # 更新日志
+
+## V1.86
+
+**文件管理功能重构：彻底移除 AMFTP，全面对齐宝塔官方 API**
+
+- **移除 AMFTP**：整个 `user/amftp/` 子系统（97 个文件）删除。AMFTP 基于裸 FTP 协议、凭据经隐藏表单明文提交、独立会话鉴权，绕过 MNBT 的配额与审计体系，且其 `Amysql/Config.php` 本就缺失。文件管理统一由内置的宝塔 API 方案承担；`MN_config.hxw` 引擎开关不再读写（后台设置项同步移除，数据库字段保留但弃用）
+- **后端重写 `user/api/file.php`**：动作名与参数对齐宝塔官方文件接口（docs.bt.cn/api/files），21 个动作：`file_list / file_read / file_save / file_create / file_delete / file_delete_batch / file_rename / file_copy / file_compress / file_unzip / file_size / file_upload_prepare / file_upload / file_download / file_access / file_access_set / recycle_list / recycle_restore / recycle_delete / recycle_clear / recycle_switch`
+- **路径安全加固（重要）**：旧版仅校验"路径以 / 开头"，`/..` 即可穿越站点根目录，读写、外链下载节点任意文件；新版统一走 `mnbt_file_norm_path()` 规范化（拒绝 `..`、反斜杠、空字节、控制字符），并把节点返回的 `PATH` 与请求路径强一致校验，异常时强制回落站点根目录
+- **文件下载入口合并**：`user/wjxz.php` 删除，下载并入 `gn=file_download`（外链创建、密码外链重开、流量计入 `MN_zj.llmax` 的逻辑保持不变，并补齐同样的穿越校验）
+- **解压增强**：`ftpjy`（site.php）并入 `file_unzip`，压缩类型按扩展名自动识别 zip / tar.gz / rar（旧版硬编码 zip），解压结果如实回报；`bt_api::GetLogsjywj()` 增加可选 `$type` 参数（向后兼容）
+- **新增回收站管理**：回收站列表 / 恢复 / 彻底删除 / 清空 / 开关，封装 `recycle_list / recycle_restore / recycle_clear / recycle_switch / recycle_delete`（`MPHX/bt_api.php`），参数与官方文档一致
+- **新增文件权限查看/修改**：`GetFileAccess` / `SetFileAccess` 封装与界面入口
+- **前端重写**：`templates/default/user/ftp.php` 全部重写（TDesign 主题经 iframe 复用该页自动生效）——目录面包屑导航、分页/排序表格、同名文件覆盖确认、上传进度条与取消、在线编辑器（主题记忆）、回收站弹窗、权限弹窗，输出统一走 HTML 转义（修复旧版文件名注入 XSS）；旧版 `imsetes/js/upload.js` 替换为 `imsetes/js/mnbt-uploader.js`（自适应分片 1MB→8MB、断点续传、速度/剩余时间回调）
+- **其它修复**：旧版复制/压缩等操作 `exit()` 后才写日志的顺序错误；`dirfiles()` 补齐缺失索引兜底，消除 PHP8 未定义索引告警；后台「控制面板设置」保存脚本 `xtset.js` 不再读取已删除的 FTP 面板下拉框
 
 ## V1.85
 

@@ -357,13 +357,13 @@ function ary_asd($mn_conf){
 	$printarry = [];
 	    foreach($data as $val) {
 	        $arr = []; //为本次循环新建一个数组存放本条次数据
-	        $valarr = explode(";", $val);
+	        $valarr = explode(";", (string)$val);
 	        if($valarr[0]=='.user.ini' && $type=='file'){$userinisf=1; continue;}        //防跨站配置文件不用显示给用户
 	        $arr['name'] = $valarr[0]; //文件名
 	        $arr['type'] = $type; //文件类型
-	        $arr['mtime'] = $valarr[2]; //修改时间戳
-	        $arr['size'] = $valarr[1]; //文件大小
-	        $arr['download']=$valarr[6];         //是否外链分享
+	        $arr['mtime'] = $valarr[2] ?? 0; //修改时间戳
+	        $arr['size'] = $valarr[1] ?? 0; //文件大小
+	        $arr['download']=$valarr[6] ?? 0;         //是否外链分享
 	        $printarry[] = $arr; //数组存储
 	        unset($arr);
 	    }

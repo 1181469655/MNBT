@@ -705,7 +705,7 @@ class bt_api
         return json_decode($this->HttpPostCookie($url, $p_data), true);
     }
 
-    public function GetLogsjywj($sfile, $dfile, $coding, $password)
+    public function GetLogsjywj($sfile, $dfile, $coding, $password, $type = 'zip')
     {
         $url = $this->BT_PANEL . '/files?action=UnZip';
         $p_data = $this->GetKeyData();
@@ -713,7 +713,7 @@ class bt_api
         $p_data['dfile'] = $dfile;
         $p_data['coding'] = $coding;
         $p_data['password'] = $password;
-        $p_data['type'] = 'zip';
+        $p_data['type'] = $type;
         return json_decode($this->HttpPostCookie($url, $p_data), true);
     }
 
@@ -778,6 +778,71 @@ class bt_api
         $url = $this->BT_PANEL . '/files?action=remove_download_url';
         $p_data = $this->GetKeyData();
         $p_data['id'] = $id;
+        return json_decode($this->HttpPostCookie($url, $p_data), true);
+    }
+
+    // --------------------------------------------------------------------
+    //  回收站（docs.bt.cn/api/files）
+    // --------------------------------------------------------------------
+
+    public function recycle_list($page = '1')
+    {
+        $url = $this->BT_PANEL . '/files?action=Get_Recycle_bin';
+        $p_data = $this->GetKeyData();
+        $p_data['p'] = $page;
+        return json_decode($this->HttpPostCookie($url, $p_data), true);
+    }
+
+    public function recycle_restore($path, $rpath = '')
+    {
+        $url = $this->BT_PANEL . '/files?action=Re_Recycle_bin';
+        $p_data = $this->GetKeyData();
+        $p_data['path'] = $path;
+        if ($rpath !== '') $p_data['rpath'] = $rpath;
+        return json_decode($this->HttpPostCookie($url, $p_data), true);
+    }
+
+    public function recycle_clear()
+    {
+        $url = $this->BT_PANEL . '/files?action=Close_Recycle_bin';
+        $p_data = $this->GetKeyData();
+        return json_decode($this->HttpPostCookie($url, $p_data), true);
+    }
+
+    public function recycle_switch()
+    {
+        // 官方 Recycle_bin 动作：不带参数即切换文件回收站开关
+        $url = $this->BT_PANEL . '/files?action=Recycle_bin';
+        $p_data = $this->GetKeyData();
+        return json_decode($this->HttpPostCookie($url, $p_data), true);
+    }
+
+    public function recycle_delete($path)
+    {
+        $url = $this->BT_PANEL . '/files?action=Delete_Recycle_bin';
+        $p_data = $this->GetKeyData();
+        $p_data['path'] = $path;
+        return json_decode($this->HttpPostCookie($url, $p_data), true);
+    }
+
+    // --------------------------------------------------------------------
+    //  文件权限（docs.bt.cn/api/files）
+    // --------------------------------------------------------------------
+
+    public function file_access_get($path)
+    {
+        $url = $this->BT_PANEL . '/files?action=GetFileAccess';
+        $p_data = $this->GetKeyData();
+        $p_data['path'] = $path;
+        return json_decode($this->HttpPostCookie($url, $p_data), true);
+    }
+
+    public function file_access_set($path, $access)
+    {
+        $url = $this->BT_PANEL . '/files?action=SetFileAccess';
+        $p_data = $this->GetKeyData();
+        $p_data['path'] = $path;
+        $p_data['access'] = $access;
         return json_decode($this->HttpPostCookie($url, $p_data), true);
     }
 
