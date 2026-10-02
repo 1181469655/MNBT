@@ -71,11 +71,8 @@ description: user/ajax.php 用户控制面板 AJAX 接口（站点配置、文�
 | `file_download` | 生成外链下载地址（计入当月流量） | `create_download_url` | `path`、`name` |
 | `file_access` | 查询文件权限 | `GetFileAccess` | `path` |
 | `file_access_set` | 修改文件权限 | `SetFileAccess` | `path`、`access`（八进制，如 644/755） |
-| `recycle_list` | 回收站列表与开关状态 | `Get_Recycle_bin` | `page` |
-| `recycle_restore` | 恢复回收站文件 | `Re_Recycle_bin` | `rname` |
-| `recycle_delete` | 彻底删除回收站文件 | `Delete_Recycle_bin` | `rname` |
-| `recycle_clear` | 清空回收站 | `Close_Recycle_bin` | 无 |
-| `recycle_switch` | 切换文件回收站开关 | `Recycle_bin` | 无 |
+
+> **回收站已下线（安全原因）**：宝塔 `Get_Recycle_bin` 等接口返回的是**节点全局**回收站（含其他站点删除的文件），无法按站点隔离，且"清空/开关"作用于整个节点。用户端 `recycle_*` 动作与 `bt_api` 对应方法已删除；用户删除的文件仍进入节点回收站，需要恢复时由站点管理员在宝塔面板操作。
 
 **安全限制：**
 

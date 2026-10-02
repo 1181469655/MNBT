@@ -782,50 +782,6 @@ class bt_api
     }
 
     // --------------------------------------------------------------------
-    //  回收站（docs.bt.cn/api/files）
-    // --------------------------------------------------------------------
-
-    public function recycle_list($page = '1')
-    {
-        $url = $this->BT_PANEL . '/files?action=Get_Recycle_bin';
-        $p_data = $this->GetKeyData();
-        $p_data['p'] = $page;
-        return json_decode($this->HttpPostCookie($url, $p_data), true);
-    }
-
-    public function recycle_restore($path, $rpath = '')
-    {
-        $url = $this->BT_PANEL . '/files?action=Re_Recycle_bin';
-        $p_data = $this->GetKeyData();
-        $p_data['path'] = $path;
-        if ($rpath !== '') $p_data['rpath'] = $rpath;
-        return json_decode($this->HttpPostCookie($url, $p_data), true);
-    }
-
-    public function recycle_clear()
-    {
-        $url = $this->BT_PANEL . '/files?action=Close_Recycle_bin';
-        $p_data = $this->GetKeyData();
-        return json_decode($this->HttpPostCookie($url, $p_data), true);
-    }
-
-    public function recycle_switch()
-    {
-        // 官方 Recycle_bin 动作：不带参数即切换文件回收站开关
-        $url = $this->BT_PANEL . '/files?action=Recycle_bin';
-        $p_data = $this->GetKeyData();
-        return json_decode($this->HttpPostCookie($url, $p_data), true);
-    }
-
-    public function recycle_delete($path)
-    {
-        $url = $this->BT_PANEL . '/files?action=Delete_Recycle_bin';
-        $p_data = $this->GetKeyData();
-        $p_data['path'] = $path;
-        return json_decode($this->HttpPostCookie($url, $p_data), true);
-    }
-
-    // --------------------------------------------------------------------
     //  文件权限（docs.bt.cn/api/files）
     // --------------------------------------------------------------------
 

@@ -27,6 +27,8 @@ export class ChunkUploader {
   constructor(file, path, opts = {}) {
     this.file = file
     this.path = path || '/'
+    // name 可由调用方覆盖上传文件名（拖拽上传改名用），默认取 file.name
+    this.name = opts.name || file.name
     this.opts = opts
     this.offset = 0
     this.chunk = CHUNK_INIT
@@ -42,13 +44,18 @@ export class ChunkUploader {
 
   async start() {
     this.startTime = Date.now()
-    const prep = await uploadPrepare(this.path, this.file.name, this.file.size)
+    const prep = await uploadPrepare(this.path, this.name, this.file.size)
     if (this.stopped) return
     if (!prep.ok) {
       this._error(prep.code || '无法开始上传')
       return
     }
     this.offset = Math.min(prep.size || 0, this.file.size)
+    // onPrepare 返回 false 表示不允许把数据续写进目标端已存在的文件（防污染同名文件）
+    if (this.offset > 0 && typeof this.opts.onPrepare === 'function' && this.opts.onPrepare(this.offset) === false) {
+      this._error('目标目录已存在同名文件')
+      return
+    }
     this._progress()
     await this._loop()
   }
@@ -60,7 +67,7 @@ export class ChunkUploader {
       const blob = this.file.slice(this.offset, end)
       let raw
       try {
-        raw = await uploadChunk(this.path, this.file.name, this.offset, this.file.size, blob, this.controller.signal)
+        raw = await uploadChunk(this.path, this.name, this.offset, this.file.size, blob, this.controller.signal)
       } catch (e) {
         if (this.stopped) return
         this._error((e && e.message) || '网络错误，分片上传失败')

@@ -7,7 +7,7 @@
  *
  * 通用约定：
  * - 仅处理 $egn 命中白名单的请求，其余请求直接返回，由 ajax.php 继续分发；
- * - 除回收站外，路径一律使用“站点相对路径”（以 / 开头，站点根目录为 /），
+ * - 路径一律使用“站点相对路径”（以 / 开头，站点根目录为 /），
  *   后端统一规范化，禁止 .. 穿越，确保用户只能操作自己站点目录内的文件；
  * - 响应统一为 {success, qk, code, msg, data...}，qk=1 成功 / qk=4 失败；
  * - 每个写操作均写入 MN_log 操作日志。
@@ -19,7 +19,6 @@ $file_actions = [
     'file_compress', 'file_unzip', 'file_size',
     'file_upload_prepare', 'file_upload', 'file_download',
     'file_access', 'file_access_set',
-    'recycle_list', 'recycle_restore', 'recycle_delete', 'recycle_clear', 'recycle_switch',
 ];
 if (!in_array($egn, $file_actions, true)) {
     return;
@@ -513,51 +512,4 @@ if ($egn === 'file_access_set') {
     logjl($yhc['user'], '文件权限', '将' . $path . '权限设置为' . $access, $ok ? '修改成功' : '修改失败：' . (is_array($r) ? (string)($r['msg'] ?? '未知错误') : '未知错误'), $DB);
     if ($ok) json_exit_success('修改成功');
     json_exit_error(is_array($r) ? (string)($r['msg'] ?? '修改失败') : '修改失败');
-}
-
-// ---------------------------------------------------------------------------
-//  回收站（docs.bt.cn/api/files → Get_Recycle_bin / Re_Recycle_bin /
-//  Delete_Recycle_bin / Close_Recycle_bin / Recycle_bin）
-// ---------------------------------------------------------------------------
-
-if ($egn === 'recycle_list') {
-    $page = (string)max(1, (int)($_POST['page'] ?? 1));
-    $r = $api->recycle_list($page);
-    if (!is_array($r)) $r = [];
-    exit(json_encode([
-        'qk' => 1,
-        'code' => '获取成功',
-        'list' => is_array($r['list'] ?? null) ? array_values($r['list']) : [],
-        'status' => !empty($r['status']),
-        'status_db' => !empty($r['status_db']),
-    ], JSON_UNESCAPED_UNICODE));
-}
-
-if ($egn === 'recycle_restore' || $egn === 'recycle_delete') {
-    $rname = trim((string)($_POST['rname'] ?? ''));
-    if ($rname === '' || strpos($rname, '/') !== false || strpos($rname, '\\') !== false || strpos($rname, '..') !== false) {
-        json_exit_error('参数错误！');
-    }
-    $r = $egn === 'recycle_restore' ? $api->recycle_restore($rname) : $api->recycle_delete($rname);
-    $ok = mnbt_file_is_ok(is_array($r) ? $r : []);
-    $lx = $egn === 'recycle_restore' ? '恢复回收站文件' : '删除回收站文件';
-    logjl($yhc['user'], '回收站', $lx . $rname, $ok ? '操作成功' : '操作失败：' . (is_array($r) ? (string)($r['msg'] ?? '未知错误') : '未知错误'), $DB);
-    if ($ok) json_exit_success('操作成功');
-    json_exit_error(is_array($r) ? (string)($r['msg'] ?? '操作失败') : '操作失败');
-}
-
-if ($egn === 'recycle_clear') {
-    $r = $api->recycle_clear();
-    $ok = mnbt_file_is_ok(is_array($r) ? $r : []);
-    logjl($yhc['user'], '回收站', '清空了回收站', $ok ? '操作成功' : '操作失败：' . (is_array($r) ? (string)($r['msg'] ?? '未知错误') : '未知错误'), $DB);
-    if ($ok) json_exit_success('回收站已清空');
-    json_exit_error(is_array($r) ? (string)($r['msg'] ?? '操作失败') : '操作失败');
-}
-
-if ($egn === 'recycle_switch') {
-    $r = $api->recycle_switch();
-    $ok = mnbt_file_is_ok(is_array($r) ? $r : []);
-    logjl($yhc['user'], '回收站', '切换了文件回收站开关', $ok ? '操作成功' : '操作失败', $DB);
-    if ($ok) json_exit_success((string)($r['msg'] ?? '设置成功'));
-    json_exit_error(is_array($r) ? (string)($r['msg'] ?? '操作失败') : '操作失败');
 }

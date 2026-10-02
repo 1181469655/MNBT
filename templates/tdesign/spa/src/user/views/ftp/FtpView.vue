@@ -3,16 +3,28 @@
     <div class="td-page-head">
       <div>
         <h3 class="td-page-title"><i class="mdi mdi-folder-multiple-outline"></i>在线文件管理</h3>
-        <p class="td-page-subtitle">基于宝塔节点 API，支持断点续传、回收站与在线编辑</p>
+        <p class="td-page-subtitle">基于宝塔节点 API，支持断点续传与在线编辑</p>
       </div>
-      <div class="td-ftp-actions">
-        <t-button theme="default" variant="outline" size="small" @click="go('/')">
-          <i class="mdi mdi-home-outline"></i> 根目录
-        </t-button>
-        <t-button theme="default" variant="outline" size="small" @click="reload">
-          <i class="mdi mdi-refresh"></i> 刷新
-        </t-button>
-      </div>
+    </div>
+
+    <div class="td-ftp-pathbar">
+      <t-button theme="default" variant="outline" size="small" :disabled="path === '/'" title="返回上级" @click="go(parentPath)">
+        <i class="mdi mdi-arrow-up"></i>
+      </t-button>
+      <t-button theme="default" variant="outline" size="small" @click="go('/')">
+        <i class="mdi mdi-home-outline"></i> 根目录
+      </t-button>
+      <t-button theme="default" variant="outline" size="small" @click="reload">
+        <i class="mdi mdi-refresh"></i> 刷新
+      </t-button>
+      <t-breadcrumb max-item-width="160" class="td-ftp-crumb">
+        <t-breadcrumb-item @click="go('/')">根目录</t-breadcrumb-item>
+        <t-breadcrumb-item
+          v-for="seg in crumbs"
+          :key="seg.path"
+          @click="go(seg.path)"
+        >{{ seg.name }}</t-breadcrumb-item>
+      </t-breadcrumb>
     </div>
 
     <div class="td-table-wrap">
@@ -26,28 +38,33 @@
         <t-button theme="primary" size="small" @click="openUpload">
           <i class="mdi mdi-cloud-upload-outline"></i> 上传
         </t-button>
+        <span class="td-ftp-hint td-ftp-dragtip"><i class="mdi mdi-file-move-outline"></i> 可将文件直接拖入列表上传</span>
+        <span class="td-toolbar-spacer"></span>
+        <t-button v-show="clipboard" theme="success" size="small" @click="paste">
+          <i class="mdi mdi-content-paste"></i> 粘贴（{{ clipboard ? clipboard.names.length : 0 }} 项）
+        </t-button>
         <t-button v-show="selection.length > 0" theme="info" size="small" @click="openCompress">
           <i class="mdi mdi-zip-box-outline"></i> 压缩选中
         </t-button>
         <t-button v-show="selection.length > 0" theme="danger" size="small" @click="removeEntries(selection)">
           <i class="mdi mdi-window-close"></i> 删除选中
         </t-button>
-        <t-button v-show="clipboard" theme="success" size="small" @click="paste">
-          <i class="mdi mdi-content-paste"></i> 粘贴（{{ clipboard ? clipboard.names.length : 0 }} 项）
-        </t-button>
-        <t-button theme="default" size="small" @click="recycleVisible = true">
-          <i class="mdi mdi-delete-restore"></i> 回收站
-        </t-button>
-        <t-breadcrumb max-item-width="160" class="td-ftp-crumb">
-          <t-breadcrumb-item @click="go('/')">根目录</t-breadcrumb-item>
-          <t-breadcrumb-item
-            v-for="seg in crumbs"
-            :key="seg.path"
-            @click="go(seg.path)"
-          >{{ seg.name }}</t-breadcrumb-item>
-        </t-breadcrumb>
       </div>
 
+      <div v-if="dq.active" class="td-ftp-dragbar">
+        <span class="td-ftp-dragbar-title">拖拽上传 {{ dq.idx + 1 }}/{{ dq.total }} · {{ dq.name }}</span>
+        <t-progress :percentage="dq.percent" size="small" class="td-ftp-dragbar-bar" />
+        <span class="td-ftp-hint">{{ dq.text }} · {{ dq.speed }} · 剩余 {{ dq.rest }}</span>
+        <t-button theme="danger" variant="outline" size="small" @click="cancelDragUpload">取消</t-button>
+      </div>
+
+      <div
+        class="td-ftp-dropzone"
+        @dragenter.prevent="onDragEnter"
+        @dragover.prevent="onDragOver"
+        @dragleave="onDragLeave"
+        @drop.prevent="onDrop"
+      >
       <t-table
         row-key="name"
         :data="rows"
@@ -56,8 +73,7 @@
         :pagination="pagination"
         :selected-row-keys="selectedKeys"
         table-layout="auto"
-        stripe
-        bordered
+        hover
         @page-change="onPageChange"
         @sort-change="onSortChange"
         @select-change="onSelectChange"
@@ -100,39 +116,27 @@
               theme="default" variant="outline" size="small" title="下载"
               @click="download(row)"
             ><i class="mdi mdi-cloud-download-outline"></i></t-button>
-            <t-button theme="default" variant="outline" size="small" title="重命名" @click="openRename(row)">
-              <i class="mdi mdi-pencil-outline"></i>
-            </t-button>
-            <t-button theme="default" variant="outline" size="small" title="复制" @click="clip([row], 'copy')">
-              <i class="mdi mdi-content-copy"></i>
-            </t-button>
-            <t-button theme="default" variant="outline" size="small" title="剪切" @click="clip([row], 'cut')">
-              <i class="mdi mdi-content-cut"></i>
-            </t-button>
-            <t-button
-              v-if="row.type === 'file' && isArchive(row.name)"
-              theme="default" variant="outline" size="small" title="解压"
-              @click="openUnzip(row)"
-            ><i class="mdi mdi-arrow-up-bold-box"></i></t-button>
-            <t-button
-              v-if="row.type === 'file' && extOf(row.name) === 'sql'"
-              theme="default" variant="outline" size="small" title="导入到数据库"
-              @click="confirmImportSql(row)"
-            ><i class="mdi mdi-import mdi-rotate-90"></i></t-button>
-            <t-button
-              v-if="row.type === 'file' && isImage(row.name)"
-              theme="default" variant="outline" size="small" title="预览图片"
-              @click="previewImage(row)"
-            ><i class="mdi mdi-image-search-outline"></i></t-button>
-            <t-button theme="default" variant="outline" size="small" title="修改权限" @click="openPerm(row)">
-              <i class="mdi mdi-lock-open-outline"></i>
-            </t-button>
+            <t-dropdown
+              trigger="click"
+              :options="moreOptions(row)"
+              @click="onMoreClick($event, row)"
+            >
+              <t-button theme="default" variant="outline" size="small" title="更多操作">
+                <i class="mdi mdi-dots-horizontal"></i>
+              </t-button>
+            </t-dropdown>
             <t-button theme="danger" variant="outline" size="small" title="删除" @click="removeEntries([row])">
               <i class="mdi mdi-window-close"></i>
             </t-button>
           </div>
         </template>
       </t-table>
+
+        <div v-if="dropActive" class="td-ftp-drop-mask">
+          <i class="mdi mdi-cloud-upload-outline mdi-36px"></i>
+          <p>松开上传 {{ dropCount }} 个文件到 {{ path }}</p>
+        </div>
+      </div>
     </div>
 
     <!-- 上传 -->
@@ -267,38 +271,27 @@
       </template>
     </t-dialog>
 
-    <!-- 回收站 -->
-    <t-dialog v-model:visible="recycleVisible" header="文件回收站" width="820px" @opened="loadRecycle">
-      <div class="td-ftp-recycle-head">
-        <span class="td-ftp-hint">删除的文件先进入节点回收站；恢复还原到原位置，删除则彻底清除。</span>
-        <div class="td-ftp-recycle-switch">
-          <span>回收站开关</span>
-          <t-switch :value="recycleOn" :loading="recycleSwitching" @change="toggleRecycle" />
-        </div>
-      </div>
-      <t-table
-        row-key="rname"
-        :data="recycleRows"
-        :columns="recycleColumns"
-        :loading="recycleLoading"
-        size="small"
-        table-layout="auto"
-        stripe
-      >
-        <template #empty>
-          <div class="td-empty"><i class="mdi mdi-delete-off"></i> 回收站为空</div>
-        </template>
-        <template #operate="{ row }">
-          <div class="td-row-actions">
-            <t-button theme="success" variant="outline" size="small" @click="confirmRecycleRestore(row)">恢复</t-button>
-            <t-button theme="danger" variant="outline" size="small" @click="confirmRecycleDelete(row)">删除</t-button>
-          </div>
-        </template>
-      </t-table>
-      <template #footer>
-        <t-button theme="danger" :loading="recycleClearing" @click="clearRecycle">清空回收站</t-button>
-        <t-button theme="default" @click="recycleVisible = false">关闭</t-button>
-      </template>
+    <!-- 拖拽上传：同名文件逐个确认 -->
+    <t-dialog
+      :visible="dup.visible"
+      header="存在同名文件"
+      width="440px"
+      :close-on-overlay-click="false"
+      :close-on-esc-keydown="false"
+      :cancel-btn="null"
+      :confirm-btn="{ content: '确定', theme: 'primary' }"
+      @confirm="resolveDup"
+      @close="resolveDup"
+    >
+      <p class="td-ftp-hint">
+        正在上传 <b>{{ dup.name }}</b>（{{ fmtSize(dup.size) }}），当前目录已存在同名文件{{ dup.existing ? '（' + fmtSize(dup.existing.size) + '）' : '' }}。
+      </p>
+      <t-radio-group v-model="dup.choice">
+        <t-radio value="overwrite">覆盖（删除服务器同名文件后重传）</t-radio>
+        <t-radio value="skip">跳过该文件</t-radio>
+        <t-radio value="rename">改名后上传</t-radio>
+      </t-radio-group>
+      <t-input v-if="dup.choice === 'rename'" v-model="dup.newName" placeholder="新文件名" class="td-ftp-dup-rename" />
     </t-dialog>
   </div>
 </template>
@@ -308,8 +301,7 @@ import { ref, computed, onMounted, h } from 'vue'
 import { MessagePlugin, DialogPlugin } from 'tdesign-vue-next'
 import {
   listDir, readFile, saveFile, createEntry, deleteOne, deleteBatch, rename,
-  copyPaste, compress, unzip, dirSize, fileDownload, getAccess, setAccess,
-  recycleList, recycleRestore, recycleDelete, recycleClear, recycleSwitch, importSql,
+  copyPaste, compress, unzip, dirSize, fileDownload, getAccess, setAccess, importSql,
 } from '@/user/api/ftp'
 import { ChunkUploader } from '@/user/utils/uploader'
 import { loadCodeMirror, cmThemeCss } from '@/user/utils/codemirror'
@@ -427,8 +419,40 @@ const columns = [
   { colKey: 'name', title: '文件名称', sorter: true, minWidth: 260, ellipsis: true },
   { colKey: 'size', title: '大小', sorter: true, width: 110 },
   { colKey: 'mtime', title: '修改时间', sorter: true, width: 170 },
-  { colKey: 'operate', title: '操作', width: 300, fixed: 'right' },
+  { colKey: 'operate', title: '操作', width: 150, fixed: 'right' },
 ]
+
+const parentPath = computed(() => {
+  const p = path.value
+  const i = p.lastIndexOf('/')
+  return i <= 0 ? '/' : p.slice(0, i)
+})
+
+function moreOptions(row) {
+  const out = [
+    { content: '重命名', value: 'rename' },
+    { content: '复制', value: 'copy' },
+    { content: '剪切', value: 'cut' },
+  ]
+  if (row.type === 'file') {
+    if (isArchive(row.name)) out.push({ content: '解压', value: 'unzip' })
+    if (extOf(row.name) === 'sql') out.push({ content: '导入到数据库', value: 'sql' })
+    if (isImage(row.name)) out.push({ content: '预览图片', value: 'preview' })
+  }
+  out.push({ content: '修改权限', value: 'perm' })
+  return out
+}
+
+function onMoreClick(item, row) {
+  const v = item && item.value
+  if (v === 'rename') openRename(row)
+  else if (v === 'copy') clip([row], 'copy')
+  else if (v === 'cut') clip([row], 'cut')
+  else if (v === 'unzip') openUnzip(row)
+  else if (v === 'sql') confirmImportSql(row)
+  else if (v === 'preview') previewImage(row)
+  else if (v === 'perm') openPerm(row)
+}
 
 async function load() {
   loading.value = true
@@ -567,7 +591,7 @@ function removeEntries(list) {
   const names = list.map((r) => r.name)
   const confirm = DialogPlugin.confirm({
     header: '删除确认',
-    body: `确定要删除选中的 ${names.length} 项吗？文件将进入节点回收站。`,
+    body: `确定要删除选中的 ${names.length} 项吗？文件将进入节点回收站，如需恢复请联系站点管理员。`,
     confirmBtn: { content: '确定删除', theme: 'danger' },
     onConfirm: async () => {
       let r
@@ -901,98 +925,171 @@ async function doPerm() {
 }
 
 // ------------------------------------------------------------------
-// 回收站
+// 拖拽上传（队列串行 + 同名确认，复用 ChunkUploader）
 // ------------------------------------------------------------------
-const recycleVisible = ref(false)
-const recycleRows = ref([])
-const recycleLoading = ref(false)
-const recycleOn = ref(false)
-const recycleSwitching = ref(false)
-const recycleClearing = ref(false)
+const dropActive = ref(false)
+const dropCount = ref(0)
+let dragDepth = 0
+let dragDir = '/'
+let dragQueue = []
+let dragUploader = null
+let dupResolve = null
+const dq = ref({ active: false, idx: 0, total: 0, name: '', percent: 0, text: '', speed: '', rest: '' })
+const dup = ref({ visible: false, name: '', size: 0, existing: null, choice: 'skip', newName: '' })
 
-const recycleColumns = [
-  { colKey: 'name', title: '文件名', minWidth: 160, ellipsis: true },
-  { colKey: 'dir', title: '原位置', minWidth: 180, ellipsis: true },
-  { colKey: 'size', title: '大小', width: 100 },
-  { colKey: 'mtime', title: '删除时间', width: 160 },
-  { colKey: 'operate', title: '操作', width: 140 },
-]
-
-async function loadRecycle() {
-  recycleLoading.value = true
-  const r = await recycleList()
-  recycleLoading.value = false
-  if (!r.ok) return
-  recycleOn.value = !!r.raw.status
-  recycleRows.value = (r.raw.list || []).map((it) => {
-    const rname = it.rname || String(it.path || '').split('/').pop() || ''
-    return {
-      rname,
-      name: it.filename || rname,
-      dir: it.dname || '-',
-      size: Number(it.size) || 0,
-      mtime: it.mtime || 0,
-    }
-  })
+function onDragEnter(e) {
+  if (!e.dataTransfer || !Array.from(e.dataTransfer.types || []).includes('Files')) return
+  dragDepth += 1
+  dropActive.value = true
+}
+function onDragOver(e) {
+  if (!e.dataTransfer || !Array.from(e.dataTransfer.types || []).includes('Files')) return
+  dropActive.value = true
+  dropCount.value = (e.dataTransfer.items && e.dataTransfer.items.length) || 0
+}
+function onDragLeave() {
+  dragDepth = Math.max(0, dragDepth - 1)
+  if (dragDepth === 0) dropActive.value = false
 }
 
-function confirmRecycleRestore(row) {
-  const confirm = DialogPlugin.confirm({
-    header: '恢复文件',
-    body: `确定将 [${row.name}] 恢复到原位置吗？`,
-    onConfirm: async () => {
-      const r = await recycleRestore(row.rname)
-      if (r.ok) {
-        MessagePlugin.success('恢复成功')
-        confirm.destroy()
-        loadRecycle()
-      }
-    },
-  })
-}
-
-function confirmRecycleDelete(row) {
-  const confirm = DialogPlugin.confirm({
-    header: '彻底删除',
-    body: `确定要彻底删除 [${row.name}] 吗？删除后不可恢复！`,
-    confirmBtn: { content: '确定删除', theme: 'danger' },
-    onConfirm: async () => {
-      const r = await recycleDelete(row.rname)
-      if (r.ok) {
-        MessagePlugin.success('删除成功')
-        confirm.destroy()
-        loadRecycle()
-      }
-    },
-  })
-}
-
-async function clearRecycle() {
-  const confirm = DialogPlugin.confirm({
-    header: '清空回收站',
-    body: '确定要清空节点回收站吗？所有文件将被永久删除、不可恢复！',
-    confirmBtn: { content: '确定清空', theme: 'danger' },
-    onConfirm: async () => {
-      recycleClearing.value = true
-      const r = await recycleClear()
-      recycleClearing.value = false
-      if (r.ok) {
-        MessagePlugin.success('回收站已清空')
-        confirm.destroy()
-        loadRecycle()
-      }
-    },
-  })
-}
-
-async function toggleRecycle() {
-  recycleSwitching.value = true
-  const r = await recycleSwitch()
-  recycleSwitching.value = false
-  if (r.ok) {
-    MessagePlugin.success(r.code || '设置成功')
-    loadRecycle()
+function onDrop(e) {
+  dropActive.value = false
+  dragDepth = 0
+  const list = Array.from((e.dataTransfer && e.dataTransfer.files) || [])
+  const files = list.filter((f) => f.size > 0)
+  if (list.length > files.length) {
+    MessagePlugin.warning(`暂不支持拖入文件夹，已跳过 ${list.length - files.length} 项`)
   }
+  if (!files.length) return
+  if (dq.value.active) {
+    MessagePlugin.warning('已有拖拽上传任务进行中，请等待完成')
+    return
+  }
+  startDragUpload(files)
+}
+
+function dupOfName(name) {
+  return rows.value.find((r) => r.name === name) || null
+}
+
+function suggestName(name) {
+  const dot = name.lastIndexOf('.')
+  const base = dot > 0 ? name.slice(0, dot) : name
+  const ext = dot > 0 ? name.slice(dot) : ''
+  let i = 1
+  let n = base + '(' + i + ')' + ext
+  while (dupOfName(n)) { i += 1; n = base + '(' + i + ')' + ext }
+  return n
+}
+
+function askDup(file, existing) {
+  dup.value = {
+    visible: true,
+    name: file.name,
+    size: file.size,
+    existing,
+    choice: 'skip',
+    newName: suggestName(file.name),
+  }
+  return new Promise((resolve) => { dupResolve = resolve })
+}
+
+function resolveDup() {
+  const d = dup.value
+  if (!d.visible || !dupResolve) return
+  if (d.choice === 'rename') {
+    const nn = String(d.newName || '').trim()
+    if (!nn || /[\\/]/.test(nn)) {
+      MessagePlugin.error('新文件名无效')
+      return
+    }
+    finishDup({ choice: 'rename', name: dupOfName(nn) ? suggestName(nn) : nn })
+    return
+  }
+  finishDup({ choice: d.choice })
+}
+
+function finishDup(result) {
+  dup.value.visible = false
+  const r = dupResolve
+  dupResolve = null
+  if (r) r(result)
+}
+
+async function startDragUpload(files) {
+  dragDir = path.value
+  dragQueue = []
+  for (const f of files) {
+    const existing = dupOfName(f.name)
+    const decision = existing ? await askDup(f, existing) : { choice: 'upload' }
+    if (decision.choice === 'skip') continue
+    if (decision.choice === 'overwrite') dragQueue.push({ file: f, name: f.name, overwrite: true })
+    else if (decision.choice === 'rename') dragQueue.push({ file: f, name: decision.name, overwrite: false })
+    else dragQueue.push({ file: f, name: f.name, overwrite: false })
+  }
+  if (!dragQueue.length) {
+    MessagePlugin.info('没有需要上传的文件')
+    return
+  }
+  dq.value = { active: true, idx: 0, total: dragQueue.length, name: '', percent: 0, text: '', speed: '', rest: '' }
+  runNextDrag()
+}
+
+function nextDrag() {
+  dq.value.idx += 1
+  runNextDrag()
+}
+
+function finishDragUpload(msg) {
+  dq.value = { active: false, idx: 0, total: 0, name: '', percent: 0, text: '', speed: '', rest: '' }
+  dragQueue = []
+  dragUploader = null
+  if (msg) MessagePlugin.success(msg)
+  load()
+}
+
+function runNextDrag() {
+  const item = dragQueue[dq.value.idx]
+  if (!item) {
+    finishDragUpload('拖拽上传完成')
+    return
+  }
+  dq.value.name = item.name
+  dq.value.percent = 0
+  const up = new ChunkUploader(item.file, dragDir, {
+    name: item.name,
+    onProgress: (p, speed, text, rest) => {
+      dq.value.percent = p
+      dq.value.speed = speed
+      dq.value.text = text
+      dq.value.rest = rest || '—'
+    },
+    // 服务端已存在同名文件（如在其他分页、列表页检测不到）一律中止，绝不续写污染
+    onPrepare: () => false,
+    onDone: nextDrag,
+    onError: (msg) => {
+      MessagePlugin.error(`${item.name}：${msg}`)
+      nextDrag()
+    },
+  })
+  dragUploader = up
+  if (item.overwrite) {
+    deleteOne(dragDir, item.name, 'file').then((r) => {
+      if (r.ok) {
+        up.start()
+      } else {
+        MessagePlugin.error(`${item.name}：删除旧文件失败，已跳过（${r.code || '未知错误'}）`)
+        nextDrag()
+      }
+    })
+  } else {
+    up.start()
+  }
+}
+
+function cancelDragUpload() {
+  if (dragUploader) dragUploader.stop()
+  finishDragUpload('已取消拖拽上传')
 }
 
 // ------------------------------------------------------------------
@@ -1099,19 +1196,38 @@ onMounted(load)
 </script>
 
 <style scoped>
-.td-ftp-actions {
+.td-ftp-pathbar {
   display: flex;
+  align-items: center;
   gap: 8px;
-}
-.td-ftp-toolbar {
-  flex-wrap: wrap;
-  row-gap: 8px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  background: var(--td-surface);
+  border: 1px solid var(--td-border);
+  border-radius: var(--td-radius-lg);
+  box-shadow: var(--td-shadow);
 }
 .td-ftp-crumb {
-  margin-left: auto;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  white-space: nowrap;
+  scrollbar-width: thin;
+}
+.td-ftp-crumb::-webkit-scrollbar {
+  height: 4px;
+}
+.td-ftp-crumb::-webkit-scrollbar-thumb {
+  background: #d6dce5;
+}
+.td-ftp-dragtip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 4px;
 }
 .td-ftp-enter {
-  color: #1d7a53;
+  color: #0052d9;
   font-weight: 500;
   text-decoration: none;
   display: inline-flex;
@@ -1181,18 +1297,47 @@ onMounted(load)
   max-width: 100%;
   max-height: 60vh;
 }
-.td-ftp-recycle-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
+.td-ftp-dropzone {
+  position: relative;
 }
-.td-ftp-recycle-switch {
+:deep(.t-table--hoverable tbody tr:hover > td) {
+  background: #f5f8ff;
+}
+.td-ftp-drop-mask {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(0, 82, 217, 0.06);
+  border: 2px dashed #0052d9;
+  color: #0052d9;
+  font-size: 15px;
+}
+.td-ftp-dragbar {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  background: #f2f6ff;
+  border: 1px solid #d9e4ff;
   font-size: 13px;
+}
+.td-ftp-dragbar-title {
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 260px;
+}
+.td-ftp-dragbar-bar {
+  width: 240px;
+}
+.td-ftp-dup-rename {
+  margin-top: 8px;
 }
 </style>

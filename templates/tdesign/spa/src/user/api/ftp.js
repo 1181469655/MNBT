@@ -57,16 +57,6 @@ export const getAccess = (path) => call('file_access', { path })
 
 export const setAccess = (path, access) => call('file_access_set', { path, access })
 
-export const recycleList = () => call('recycle_list')
-
-export const recycleRestore = (rname) => call('recycle_restore', { rname })
-
-export const recycleDelete = (rname) => call('recycle_delete', { rname })
-
-export const recycleClear = () => call('recycle_clear')
-
-export const recycleSwitch = () => call('recycle_switch')
-
 /** 从文件管理器导入 SQL 文件（site.php 的 sqldr） */
 export const importSql = (path, filename) => call('sqldr', { path, filename })
 

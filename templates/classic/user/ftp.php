@@ -31,7 +31,9 @@ mnbt_theme_include('head');
                         <button type="button" class="btn btn-info m-r-5" id="fm-btn-compress" style="display:none;"><i class="mdi mdi-zip-box-outline"></i> 压缩选中</button>
                         <button type="button" class="btn btn-danger m-r-5" id="fm-btn-delete" style="display:none;"><i class="mdi mdi-window-close"></i> 删除选中</button>
                         <button type="button" class="btn btn-success m-r-5" id="fm-btn-paste" style="display:none;"><i class="mdi mdi-content-paste"></i> 粘贴</button>
+                        <!-- V1.87 安全加固：宝塔回收站为节点全局数据，不对租户开放
                         <button type="button" class="btn btn-secondary m-r-5" data-toggle="modal" data-target="#fm-recycle"><i class="mdi mdi-delete-restore"></i> 回收站</button>
+                        -->
                         <button type="button" class="btn btn-default m-r-5" id="fm-btn-refresh"><i class="mdi mdi-refresh"></i> 刷新</button>
                         <span class="float-right mt-1" id="fm-breadcrumb"></span>
                     </div>
@@ -183,7 +185,7 @@ mnbt_theme_include('head');
     </div>
 </div>
 
-<!--回收站-->
+<!--回收站（V1.87 安全加固：节点全局功能，已下线，入口按钮与 JS 同步注释）
 <div class="modal fade" id="fm-recycle" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
@@ -211,6 +213,7 @@ mnbt_theme_include('head');
         </div>
     </div>
 </div>
+-->
 
 <!-- 引入CodeMirror -->
 <script type="text/javascript" src="<?=mnbt_asset_url('codemirror/lib/codemirror.js')?>"></script>
@@ -939,8 +942,9 @@ mnbt_theme_include('head');
     });
 
     // ------------------------------------------------------------------
-    //  回收站
+    //  回收站（V1.87 安全加固：后端 recycle_* 动作已删除，整块注释停用）
     // ------------------------------------------------------------------
+    /*
     function recycleRow(item) {
         var rname = item.rname || String(item.path || '').split('/').pop();
         var name = item.filename || rname;
@@ -1041,6 +1045,7 @@ mnbt_theme_include('head');
             }
         });
     });
+    */
 
     // ------------------------------------------------------------------
     //  在线编辑器
