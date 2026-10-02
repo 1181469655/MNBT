@@ -1,9 +1,21 @@
 ---
 title: 更新日志
-description: MNBT 版本更新记录（V1.86 ~ V1.60）
+description: MNBT 版本更新记录（V1.87 ~ V1.60）
 ---
 
 # 更新日志
+
+## V1.87
+
+**安全加固**
+
+- **监控/定时入口鉴权升级**：`jk.php` / `jk_monitor.php` / `docker_cron.php` 新增 `?t=<unix>&sign=<hash_hmac('sha256','<脚本名>|<t>',API密钥)>` 鉴权方式（±300 秒有效，`mnbt_cron_auth_check()`）；旧 `?my=` 查询串**过渡期仍可用**但记录弃用日志（密钥不再建议出现在访问日志/代理中）；后台「教程与监控」两套主题的命令展示同步更新为 HMAC 签名命令
+- **管理员密码 bcrypt 化（惰性迁移）**：`MN_config.pwd` 支持 bcrypt 哈希存储（`mnbt_admin_password_verify/hash`），首次用旧明文密码登录成功即自动升级并写审计日志；后台改密、安装向导均直接落哈希，不再存明文（用户侧 `MN_zj.pass` 为 FTP 密码、须明文展示，不参与）。**升级后管理员需重新登录一次**
+- **安装器加固**：`config.php` / `MPHX/SQ.php` 写入改为 `var_export`，杜绝 POST 原文拼接进 PHP 源码的代码注入窗口；删除安装 API 内 335 行永远不会执行的旧版向导 HTML（`$do` 分支），未知 action 返回 JSON
+- **pay.php 补 CSRF 校验**：全站唯一未过 CSRF 的 POST 端点收口（classic 部署表单经注入脚本自动携带 token，正常流程无感）
+- **BT cookie jar 迁出 web 根**：`api/cookie/` → `runtime/bt_cookie/`（`mnbt_bt_cookie_file()`，含旧文件一次性迁移），新增 `runtime/.htaccess` 与 `api/cookie/.htaccess` 拒绝 Web 访问（nginx 用户请在站点配置加 `location ~* ^/(runtime|api/cookie)/ { deny all; }`）；更新器保留清单同步
+- **360safe WAF 修正**：API/定时/安装入口按请求路径豁免正则拦截（自带鉴权且 POST 体含建站/SQL 内容属正常业务，原 `webscan_white` 白名单因要求查询串为空而基本失效）；`webscan_slog` 从空实现改为真实落盘 `runtime/logs/waf.log`
+- jk.php 全部 `$_GET['gn']` 读取补兜底，消除 PHP8 未定义索引告警
 
 ## V1.86
 
@@ -28,15 +40,6 @@ description: MNBT 版本更新记录（V1.86 ~ V1.60）
 - **缺口补齐**：tdesign 新增 `user/head.php` / `admin/head.php` 插件页壳（Bootstrap/lyear，与 classic 同构）及配套 CSS 资产；新增 `user/ftp.php` 包装视图；滑块验证码图集迁至 `tdesign/docker/assets/`；`_router.php` MIME 表补 vue/svg/webp/json/woff2；孤儿控制器 `admin/bt_php.php` 删除（底层函数与 AJAX 动作保留）
 - **SCSS 预编译**：`theme.scss` / `home.scss` 编译为 CSS 提交，SCSS 源移除（loader 不支持浏览器端 sass）；echarts 按需引入改为 UMD 全局桥接
 - 主题元信息 `theme.json` 升至 0.4.0；文档同步（tdesign.md / tdesign-php.md / engine / guide / home / views / directory）
-
-**安全加固（第一批，V1.86 内追加）**
-
-- **监控/定时入口鉴权升级**：`jk.php` / `jk_monitor.php` / `docker_cron.php` 新增 `?t=<unix>&sign=<hash_hmac('sha256','<脚本名>|<t>',API密钥)>` 鉴权方式（±300 秒有效，`mnbt_cron_auth_check()`）；旧 `?my=` 查询串**过渡期仍可用**但记录弃用日志（密钥不再建议出现在访问日志/代理中）；后台「教程与监控」两套主题的命令展示同步更新为 HMAC 签名命令
-- **管理员密码 bcrypt 化（惰性迁移）**：`MN_config.pwd` 支持 bcrypt 哈希存储（`mnbt_admin_password_verify/hash`），首次用旧明文密码登录成功即自动升级并写审计日志；后台改密、安装向导均直接落哈希，不再存明文（用户侧 `MN_zj.pass` 为 FTP 密码、须明文展示，不参与）。**升级后管理员需重新登录一次**
-- **安装器加固**：`config.php` / `MPHX/SQ.php` 写入改为 `var_export`，杜绝 POST 原文拼接进 PHP 源码的代码注入窗口；删除安装 API 内 335 行永远不会执行的旧版向导 HTML（`$do` 分支），未知 action 返回 JSON
-- **pay.php 补 CSRF 校验**：全站唯一未过 CSRF 的 POST 端点收口（classic 部署表单经注入脚本自动携带 token，正常流程无感）
-- **BT cookie jar 迁出 web 根**：`api/cookie/` → `runtime/bt_cookie/`（`mnbt_bt_cookie_file()`，含旧文件一次性迁移），新增 `runtime/.htaccess` 与 `api/cookie/.htaccess` 拒绝 Web 访问（nginx 用户请在站点配置加 `location ~* ^/(runtime|api/cookie)/ { deny all; }`）；更新器保留清单同步
-- **360safe WAF 修正**：API/定时/安装入口按请求路径豁免正则拦截（自带鉴权且 POST 体含建站/SQL 内容属正常业务，原 `webscan_white` 白名单因要求查询串为空而基本失效）；`webscan_slog` 从空实现改为真实落盘 `runtime/logs/waf.log`
 
 ## V1.85
 
