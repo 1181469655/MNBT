@@ -20,6 +20,113 @@ function mnbt_updater_defaults()
 	return ['repo' => '1181469655/MNBT', 'mirrors' => ['https://gh-proxy.com/'], 'github_token' => ''];
 }
 
+/**
+ * 更新流程的 8 个阶段（key/label）；步骤条 UI 与后端埋点共用同一份顺序
+ * 每一步都可能没有百分比（pct=null），前端此时只显示"进行中"的动画
+ */
+function mnbt_updater_steps()
+{
+	return [
+		['key' => 'prepare',  'label' => '准备'],
+		['key' => 'check',    'label' => '检查更新'],
+		['key' => 'download', 'label' => '下载更新包'],
+		['key' => 'verify',   'label' => '校验包'],
+		['key' => 'backup',   'label' => '备份本地配置'],
+		['key' => 'extract',  'label' => '覆盖站点文件'],
+		['key' => 'migrate',  'label' => '执行迁移 SQL'],
+		['key' => 'finalize', 'label' => '收尾还原'],
+	];
+}
+
+/** 进度文件绝对路径（放 runtime/temp/update_tmp 下，和临时 zip 同目录） */
+function mnbt_updater_progress_path()
+{
+	return rtrim(mnbt_updater_root(), '/') . '/runtime/temp/update_tmp/progress.json';
+}
+
+/** 初始化进度：写全量骨架，清掉上一次可能残留的终态 */
+function mnbt_updater_progress_reset()
+{
+	$now = time();
+	$data = [
+		'running' => 1, 'ok' => null,
+		'step' => 'prepare', 'step_index' => 0, 'step_label' => '准备',
+		'detail' => '', 'pct' => null, 'message' => '',
+		'started_at' => $now, 'updated_at' => $now,
+		'steps' => mnbt_updater_steps(),
+	];
+	mnbt_updater_progress_write_raw($data);
+}
+
+/**
+ * 更新某个进度字段（合并写入）；step 传字符串时同步刷 step_index/step_label
+ * @param array $patch 允许键：step/detail/pct/message/ok/running
+ */
+function mnbt_updater_progress($patch)
+{
+	$data = mnbt_updater_progress_read();
+	if (!is_array($data) || empty($data['steps'])) {
+		mnbt_updater_progress_reset();
+		$data = mnbt_updater_progress_read();
+		if (!is_array($data)) return;
+	}
+	$steps = $data['steps'];
+	if (isset($patch['step'])) {
+		$data['step'] = (string)$patch['step'];
+		for ($i = 0; $i < count($steps); $i++) {
+			if ($steps[$i]['key'] === $data['step']) {
+				$data['step_index'] = $i;
+				$data['step_label'] = $steps[$i]['label'];
+				break;
+			}
+		}
+		unset($patch['step']);
+	}
+	foreach ($patch as $k => $v) $data[$k] = $v;
+	$data['updated_at'] = time();
+	mnbt_updater_progress_write_raw($data);
+}
+
+/** 结束：running=0，写终态 ok 与 message；不清文件，让前端最后一次轮询能拿到 */
+function mnbt_updater_progress_finish($ok, $message = '')
+{
+	mnbt_updater_progress(['running' => 0, 'ok' => $ok ? 1 : 0, 'message' => (string)$message]);
+}
+
+/** 节流写：下载/解压这类高频回调每 >=N 毫秒才真的落盘一次 */
+function mnbt_updater_progress_throttle($key, $patch, $ms = 400)
+{
+	$now_ms = (int)floor(microtime(true) * 1000);
+	if (!isset($GLOBALS['mnbt_updater_progress_throttle'])) $GLOBALS['mnbt_updater_progress_throttle'] = [];
+	$last = $GLOBALS['mnbt_updater_progress_throttle'][$key] ?? 0;
+	if ($now_ms - $last < $ms) return;
+	$GLOBALS['mnbt_updater_progress_throttle'][$key] = $now_ms;
+	mnbt_updater_progress($patch);
+}
+
+/** 读进度（供 egn=upprogress 只读接口用）；文件缺失/损坏时返回 null */
+function mnbt_updater_progress_read()
+{
+	$p = mnbt_updater_progress_path();
+	if (!is_file($p)) return null;
+	$raw = @file_get_contents($p);
+	if ($raw === false || $raw === '') return null;
+	$j = json_decode($raw, true);
+	return is_array($j) ? $j : null;
+}
+
+/** 原子写：临时文件 + rename；失败静默（进度是锦上添花，不该拖垮主流程） */
+function mnbt_updater_progress_write_raw($data)
+{
+	$p = mnbt_updater_progress_path();
+	$dir = dirname($p);
+	if (!is_dir($dir) && !@mkdir($dir, 0755, true)) return;
+	$json = json_encode($data, JSON_UNESCAPED_UNICODE);
+	$tmp = $dir . '/progress.tmp_' . getmypid();
+	if (@file_put_contents($tmp, $json) === false) return;
+	@rename($tmp, $p);
+}
+
 /** 读 cf_up.php 的 $mn_conf（页面已 include 时直接复用，避免重复读文件） */
 function mnbt_updater_read_conf()
 {
@@ -468,9 +575,10 @@ function mnbt_updater_cache_put($cfg, $cur, $out, $ttl = 1800)
 
 /**
  * 流式下载压缩包到临时文件：逐跳校验地址、校验 zip 魔数与字节数，失败即删除
+ * 进度回写通过 CURLOPT_PROGRESSFUNCTION，$label 用于告知调用方当前是哪个候选源
  * @return bool
  */
-function mnbt_updater_download($url, $dest, $cfg, &$err)
+function mnbt_updater_download($url, $dest, $cfg, &$err, $label = '')
 {
 	$err = '';
 	if (!function_exists('curl_init')) {
@@ -486,6 +594,7 @@ function mnbt_updater_download($url, $dest, $cfg, &$err)
 	$cur = (string)$url;
 	$ok = false;
 	$heads = [];
+	$prefix = $label !== '' ? ($label . ' · ') : '';
 	for ($hop = 0; $hop < 6; $hop++) {
 		if (!mnbt_updater_url_safe($cur, $cfg, $err)) break;
 		$heads = [];
@@ -509,6 +618,25 @@ function mnbt_updater_download($url, $dest, $cfg, &$err)
 				$heads[strtolower(trim(substr($line, 0, $p)))] = trim(substr($line, $p + 1));
 			}
 			return $len;
+		});
+		// 进度回调：只回写节流后的 bytes/total，dltotal=0 表示还没拿到 Content-Length
+		curl_setopt($ch, CURLOPT_NOPROGRESS, false);
+		curl_setopt($ch, CURLOPT_PROGRESSFUNCTION, function ($ch2, $dl_total, $dl_done) use ($prefix, $hop) {
+			$total = (int)$dl_total;
+			$got = (int)$dl_done;
+			if ($total > 0) {
+				$pct = max(0, min(100, (int)floor($got * 100 / $total)));
+				mnbt_updater_progress_throttle('dl', [
+					'detail' => $prefix . '已下 ' . mnbt_updater_human_bytes($got) . ' / ' . mnbt_updater_human_bytes($total),
+					'pct' => $pct,
+				], 400);
+			} else {
+				mnbt_updater_progress_throttle('dl', [
+					'detail' => $prefix . ($hop > 0 ? ('跳转第 ' . ($hop + 1) . ' 跳，已下 ') : '已下 ') . mnbt_updater_human_bytes($got),
+					'pct' => null,
+				], 800);
+			}
+			return 0;
 		});
 		$res = curl_exec($ch);
 		$cerr = curl_error($ch);
@@ -563,6 +691,16 @@ function mnbt_updater_download($url, $dest, $cfg, &$err)
 		@unlink($dest);
 	}
 	return $ok;
+}
+
+/** 字节数转人类可读（进度回写与前端展示共用），不带小数以缩小 JSON */
+function mnbt_updater_human_bytes($n)
+{
+	$n = (int)$n;
+	if ($n < 1024) return $n . ' B';
+	if ($n < 1048576) return round($n / 1024, 1) . ' KB';
+	if ($n < 1073741824) return round($n / 1048576, 1) . ' MB';
+	return round($n / 1073741824, 2) . ' GB';
 }
 
 /** 相对跳转地址转绝对 */
@@ -693,6 +831,7 @@ function mnbt_updater_mkdir($dir)
 
 /**
  * 逐条目解压（需要剥顶层目录时 extractTo 做不到，所以统一走这里）
+ * 每 32 个条目或 400ms 节流回写一次进度，让用户看到覆盖进度
  * @return bool
  */
 function mnbt_updater_extract($file, $root, $strip, &$err)
@@ -705,6 +844,12 @@ function mnbt_updater_extract($file, $root, $strip, &$err)
 	}
 	$n = (int)$zip->numFiles;
 	for ($i = 0; $i < $n; $i++) {
+		if (($i & 31) === 0) {
+			mnbt_updater_progress_throttle('ex', [
+				'detail' => '已写入 ' . ($i + 1) . ' / ' . $n . ' 条目',
+				'pct' => $n > 0 ? (int)floor($i * 100 / $n) : null,
+			], 400);
+		}
 		$e = $zip->statIndex($i);
 		$name = isset($e['name']) ? (string)$e['name'] : '';
 		if (!mnbt_updater_entry_safe($name)) {
@@ -757,7 +902,9 @@ function mnbt_updater_extract($file, $root, $strip, &$err)
 /** 需要备份还原的本地文件：装完就有、包里有但不能被覆盖 */
 function mnbt_updater_local_files()
 {
-	return ['config.php', 'cf_up.php', 'MPHX/SQ.php', 'install/install.lock'];
+	// active_*_theme：管理员选择的主题跨更新保留（V1.87）
+	return ['config.php', 'cf_up.php', 'MPHX/SQ.php', 'install/install.lock',
+		'templates/active_user_theme', 'templates/active_admin_theme', 'templates/active_docker_theme', 'templates/active_home_theme'];
 }
 
 /** 需要备份还原的本地目录：包里可能带着作者的数据，整目录换回来 */
@@ -940,6 +1087,10 @@ function mnbt_updater_guard_shutdown()
 {
 	$g = $GLOBALS['mnbt_updater_guard'] ?? null;
 	if (!is_array($g) || empty($g['running'])) return;
+	// 中断/致命错误场景：把进度终态落盘，避免前端永远看到"进行中"
+	if (function_exists('mnbt_updater_progress_finish')) {
+		mnbt_updater_progress_finish(false, '更新中断（服务器超时或致命错误），已回滚到更新前状态');
+	}
 	mnbt_updater_guard_rollback();
 }
 

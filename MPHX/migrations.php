@@ -235,9 +235,12 @@ function mnbt_migrations_find($dir)
 /**
  * 执行迁移链：只跑「游标 < 版本 <= 目标」的迁移，按升序，成功一个记一个。
  * 中途失败即停止并保留后续文件（游标停在最后成功版本，修复后重跑可续）。
+ * @param callable|null $on_progress 进度回调，签名为 fn(array $ev)；
+ *        $ev 结构：{type:'start',total:N,files:[..]} | {type:'file',index:0-based,name,version}
+ *                 | {type:'done',applied:[..]}
  * @return array 已成功应用的迁移文件名列表
  */
-function mnbt_migrations_run($dbconfig, $dir, $target, &$err)
+function mnbt_migrations_run($dbconfig, $dir, $target, &$err, $on_progress = null)
 {
 	$applied = array();
 	$err = '';
@@ -247,9 +250,17 @@ function mnbt_migrations_run($dbconfig, $dir, $target, &$err)
 	if ($db === null) { $err = $conn_err; return $applied; }
 	if (!mnbt_migrations_ensure($db, $err)) { $db->close(); return $applied; }
 	$cursor = mnbt_migrations_cursor($db);
+	$queue = array();
 	foreach ($files as $f) {
-		if ($f['version'] > $target) break;     // 已按版本升序，后续都超目标
-		if ($f['version'] <= $cursor) continue;  // 游标之前的高水位已应用
+		if ($f['version'] > $target) break;
+		if ($f['version'] <= $cursor) continue;
+		$queue[] = $f;
+	}
+	if ($on_progress) call_user_func($on_progress, ['type' => 'start', 'total' => count($queue), 'files' => $queue]);
+	$idx = 0;
+	foreach ($queue as $f) {
+		if ($on_progress) call_user_func($on_progress, ['type' => 'file', 'index' => $idx, 'name' => $f['name'], 'version' => $f['version']]);
+		$idx++;
 		$sql = @file_get_contents($f['file']);
 		if ($sql === false) { $err = '无法读取迁移文件 ' . $f['name']; break; }
 		$stmts = mnbt_sql_statements($sql);
@@ -260,6 +271,7 @@ function mnbt_migrations_run($dbconfig, $dir, $target, &$err)
 	}
 	$db->close();
 	if ($err !== '') return array(); // 有错：整链视为失败，交由上层保留文件、提示手工处理
+	if ($on_progress) call_user_func($on_progress, ['type' => 'done', 'applied' => $applied]);
 	return $applied;
 }
 

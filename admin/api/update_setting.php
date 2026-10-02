@@ -48,4 +48,17 @@ if($egn=='upcheck') {
 	exit(json_encode(mnbt_updater_check(!empty($_POST['force']), 60), JSON_UNESCAPED_UNICODE));
 	return;
 }
+if($egn=='upprogress') {
+	include_once("../MPHX/BL.php");
+	include_once("../MPHX/github_updater.php");
+	// 只读进度文件；文件不存在说明当前没有更新在跑，也不启动流程
+	$p = mnbt_updater_progress_read();
+	if (!is_array($p)) {
+		exit(json_encode(['ok'=>1,'running'=>0,'has'=>0], JSON_UNESCAPED_UNICODE));
+	}
+	$p['ok'] = 1;
+	$p['has'] = 1;
+	exit(json_encode($p, JSON_UNESCAPED_UNICODE));
+	return;
+}
 return;
