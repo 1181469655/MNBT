@@ -640,7 +640,11 @@ function mnbt_updater_download($url, $dest, $cfg, &$err, $label = '')
 		curl_setopt($ch, CURLOPT_HEADER, false);
 		curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false);
 		curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
-		curl_setopt($ch, CURLOPT_TIMEOUT, 300);
+		curl_setopt($ch, CURLOPT_TIMEOUT, 180);
+		// 装死自动断：连续 20 秒速度低于 10 KB/s 就放弃这个候选源，切下一个
+		// 国内到 Cloudflare 前置的镜像经常连上但不发首字节，靠 TIMEOUT=300 会白等 5 分钟
+		curl_setopt($ch, CURLOPT_LOW_SPEED_LIMIT, 10240);
+		curl_setopt($ch, CURLOPT_LOW_SPEED_TIME, 20);
 		curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
 		curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
 		curl_setopt($ch, CURLOPT_HTTPHEADER, [

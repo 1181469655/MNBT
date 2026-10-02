@@ -61,7 +61,7 @@ if($egn=='update') {
 	$zip_file = $tmp_dir.'/gxwj-'.mt_rand(100000,999999).'.zip';
 	mnbt_updater_guard('zip',$zip_file);
 
-	// 3. 下载：Release 附件优先，回落自动源码包；每个来源按 github 直连、配置镜像顺序依次尝试
+	// 3. 下载：Release 附件优先，回落自动源码包；每个来源按 source_policy 决定的顺序依次尝试
 	mnbt_updater_progress(['step'=>'download','detail'=>'准备下载','pct'=>0]);
 	$used = null;
 	$tried = [];
@@ -75,7 +75,9 @@ if($egn=='update') {
 			$used = $c;
 			break;
 		}
+		// 失败原因落进度：前端能看到"上一个候选为什么跳走"，不再一片黑
 		$tried[] = $label.'：'.$e;
+		mnbt_updater_progress(['detail'=>$prefix.' 失败：'.$e.'　→ 切换下一个候选','pct'=>null]);
 	}
 	if($used === null) {
 		mnbt_updater_progress_finish(false, '更新包下载失败');
