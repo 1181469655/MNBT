@@ -146,7 +146,7 @@ $upd_channel = !empty($mnbt_update['channel_label']) ? $mnbt_update['channel_lab
   </div>
 
   <div class="mn-upd-card">
-    <div class="mn-upd-hd"><i class="mdi mdi-text-box-outline"></i>更新日志</div>
+    <div class="mn-upd-hd"><i class="mdi mdi-file-document-outline"></i>更新日志</div>
     <div class="mn-upd-bd">
 <?php if ($upd_log !== ''): ?>
       <pre class="mn-upd-log"><?=htmlspecialchars($upd_log)?></pre>
@@ -157,7 +157,7 @@ $upd_channel = !empty($mnbt_update['channel_label']) ? $mnbt_update['channel_lab
   </div>
 
   <div class="mn-upd-card">
-    <div class="mn-upd-hd"><i class="mdi mdi-cog-outline"></i>更新设置</div>
+    <div class="mn-upd-hd"><i class="mdi mdi-settings"></i>更新设置</div>
     <div class="mn-upd-bd">
       <div class="mn-upd-field">
         <label for="upd_repo">GitHub 仓库</label>

@@ -101,7 +101,7 @@
         <div v-else class="td-set-card">
           <div class="td-set-card-hd">
             <div class="td-set-icon" style="background: #f5f6f8; color: #8c8c8c">
-              <i class="mdi mdi-cloud-off"></i>
+              <i class="mdi mdi-cloud-alert"></i>
             </div>
             <div>
               <h4>{{ info.msg || '暂时无法检查更新' }}</h4>
@@ -114,7 +114,7 @@
         <div v-if="info.uplog" class="td-set-card">
           <div class="td-set-card-hd">
             <div class="td-set-icon" style="background: #eff6ff; color: #2563eb">
-              <i class="mdi mdi-text-box-outline"></i>
+              <i class="mdi mdi-file-document-outline"></i>
             </div>
             <div>
               <h4>更新日志</h4>
@@ -174,7 +174,7 @@
       <div class="td-set-card">
         <div class="td-set-card-hd">
           <div class="td-set-icon" style="background: #eff6ff; color: #2563eb">
-            <i class="mdi mdi-cog-outline"></i>
+            <i class="mdi mdi-settings"></i>
           </div>
           <div>
             <h4>更新设置</h4>
