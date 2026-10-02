@@ -101,7 +101,8 @@
     // ------------------------------------------------------------------
     //  文件获取：无扩展名导入按 node 顺序探测；结果按 URL 记忆
     // ------------------------------------------------------------------
-    var CANDIDATES = ['', '.js', '/index.js', '.vue', '.css', '.json'];
+    // 无扩展名导入按候选探测；不再探测 ''（会命中目录本身：自动补 '/' → 目录列表 403 / 长挂起）
+    var CANDIDATES = ['.js', '/index.js', '.vue', '.css', '.json'];
     var filePromises = Object.create(null);
 
     function fetchFile(path) {
@@ -129,32 +130,47 @@
         pathResolve: pathResolve,
 
         // 图片等静态资产：import bg from '@/shared/assets/x.webp' → 返回 URL 字符串
+        // 须返回裸字符串：loader 会自动包一层 default，返回 {default:url} 反而渲染成 [object Object]
+        // 裸 .css import：loader 内置不处理，需在此注入 <style> 并返回空模块
         handleModule: function (type, getContentData, path) {
             if (['.webp', '.jpg', '.jpeg', '.png', '.gif', '.svg', '.ico'].indexOf(type) !== -1) {
-                return Promise.resolve({ default: new URL(String(path), window.location.href).href });
+                return Promise.resolve(new URL(String(path), window.location.href).href);
             }
-            return Promise.resolve(null);
+            if (type === '.css') {
+                return getContentData(false).then(function (css) {
+                    options.addStyle(String(css || ''));
+                    return {};
+                });
+            }
+            // 必须 resolve undefined：loader 用 === undefined 判断，返回 null 会被当作模块结果短路内置编译
+            return Promise.resolve(undefined);
         },
 
         getFile: function (path) {
             var base = String(path);
-            var attempt = 0;
+            // 已带扩展名直接命中；否则按候选后缀探测（见 CANDIDATES 注释）
+            var list = extOf(base) ? [base] : CANDIDATES.map(function (s) { return base + s; });
+            var i = 0;
 
             function tryNext() {
-                if (attempt >= CANDIDATES.length) {
+                if (i >= list.length) {
                     return Promise.reject(new Error('模块不存在: ' + base));
                 }
-                var p = base + CANDIDATES[attempt++];
+                var p = list[i++];
                 return fetchFile(p).then(function (res) {
+                    var ext = extOf(p);
                     return {
                         path: p,
-                        type: extOf(p) || '.js',
+                        // loader 内部仅 .mjs 走 babel sourceType:"module"，.js 按 script 解析会报 import 语法错；
+                        // 磁盘上保持 .js，仅把 type 标为 .mjs 让其按 ES 模块编译
+                        type: ext === '.js' ? '.mjs' : (ext || '.js'),
                         getContentData: function (asBinary) {
                             return asBinary ? res.arrayBuffer() : res.text();
                         }
                     };
                 }).catch(function (e) {
-                    if (e.status === 404) return tryNext();
+                    // 任何 HTTP 错误（404/403/5xx）都换下一个候选：目录命中、WAF 拦截等都不该中断探测
+                    if (e.status) return tryNext();
                     throw e;
                 });
             }
@@ -184,7 +200,9 @@
         return;
     }
 
-    var entry = normPath(srcBase + 'main-' + scope + '.js');
+    // 只传相对 src 根的 './x.js'：loader 根调用 refPath 为空，pathResolve 会以 srcBase 为基准解析；
+    // 若传完整相对路径（../templates/...）会被再次基于 srcBase 拼接，导致路径翻倍 404
+    var entry = './main-' + scope + '.js';
     setStatus('正在加载应用模块…');
 
     loadModule(entry, options).then(function () {

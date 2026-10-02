@@ -195,6 +195,6 @@ if (window.__TD_BOOT__.hash) {
 <script src="<?= htmlspecialchars(mnbt_asset_url('vendor/tdesign/tdesign.min.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(mnbt_asset_url('vendor/echarts/echarts.min.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(mnbt_asset_url('vendor/vue3-sfc-loader/vue3-sfc-loader.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
-<script src="<?= htmlspecialchars(mnbt_theme_url('assets/td-boot.js', 'user'), ENT_QUOTES, 'UTF-8') ?>?v=<?= $td_ver ?>"></script>
+<script src="../templates/tdesign/assets/td-boot.js?v=<?= $td_ver ?>"></script>
 </body>
 </html>
