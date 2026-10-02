@@ -16,6 +16,9 @@ if($egn=='update') {
 
 	mnbt_updater_guard_start();
 	mnbt_updater_progress_reset();
+	// 释放 PHP session 排它锁：否则本 worker 一路跑到更新结束，前端 upprogress 轮询
+	// 会卡在 common.php 的 session_start() 上完全拿不到进度
+	if (session_status() === PHP_SESSION_ACTIVE) @session_write_close();
 	// PHP-FPM 下把 HTTP 会话提前结束：客户端秒回 202，nginx 计时器归零；
 	// 真正的更新在同进程继续跑，只靠 progress.json 反馈；后续 json_exit 输出会被丢弃但不影响
 	$mnbt_upd_async = function_exists('fastcgi_finish_request');

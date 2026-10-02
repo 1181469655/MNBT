@@ -14,10 +14,10 @@ function mnbt_updater_root()
 	return defined('ROOT') ? ROOT : rtrim(str_replace('\\', '/', dirname(__DIR__)), '/') . '/';
 }
 
-/** 默认配置：仓库与镜像 */
+/** 默认配置：仓库与镜像；下载策略默认镜像优先（国内服务器直连基本不通） */
 function mnbt_updater_defaults()
 {
-	return ['repo' => '1181469655/MNBT', 'mirrors' => ['https://gh-proxy.com/'], 'github_token' => ''];
+	return ['repo' => '1181469655/MNBT', 'mirrors' => ['https://gh-proxy.com/'], 'github_token' => '', 'source_policy' => 'mirror_first'];
 }
 
 /**
@@ -171,7 +171,15 @@ function mnbt_updater_norm_mirror($mirror)
 	return $mirror;
 }
 
-/** 更新配置：仓库、镜像列表、Token；缺省值兜底 */
+/** 下载策略枚举：非法值回落默认 mirror_first */
+function mnbt_updater_norm_policy($policy)
+{
+	$policy = strtolower(trim((string)$policy));
+	$allow = ['mirror_first', 'github_first', 'mirror_only', 'github_only'];
+	return in_array($policy, $allow, true) ? $policy : 'mirror_first';
+}
+
+/** 更新配置：仓库、镜像列表、Token、下载策略；缺省值兜底 */
 function mnbt_updater_config()
 {
 	$mn_conf = mnbt_updater_read_conf();
@@ -197,14 +205,21 @@ function mnbt_updater_config()
 	$token = trim((string)($up['github_token'] ?? ''));
 	if ($token !== '' && !preg_match('#^[A-Za-z0-9._\-]{1,128}$#', $token)) $token = '';
 
-	return ['repo' => $repo, 'mirrors' => $mirrors, 'github_token' => $token];
+	$policy = isset($up['source_policy']) ? mnbt_updater_norm_policy($up['source_policy']) : $def['source_policy'];
+	// 没配镜像时 mirror_first / mirror_only 都无意义，退回到直连
+	if (!$mirrors) {
+		if ($policy === 'mirror_first' || $policy === 'mirror_only') $policy = 'github_only';
+	}
+
+	return ['repo' => $repo, 'mirrors' => $mirrors, 'github_token' => $token, 'source_policy' => $policy];
 }
 
 /**
  * 回写 cf_up.php 的 update 段，其余键原样保留（参照 admin/api/repair.php 的 ary_asd 写法）
  * @param string|null $token null 表示保持原值不变
+ * @param string|null $policy null 表示保持原值不变
  */
-function mnbt_updater_save_config($repo, $mirrors, $token = null)
+function mnbt_updater_save_config($repo, $mirrors, $token = null, $policy = null)
 {
 	$repo = mnbt_updater_norm_repo($repo);
 	if ($repo === '') return ['ok' => 0, 'error' => '仓库格式不正确，应为 owner/repo'];
@@ -221,6 +236,10 @@ function mnbt_updater_save_config($repo, $mirrors, $token = null)
 			return ['ok' => 0, 'error' => 'Token 含非法字符，只允许字母、数字与 . _ -'];
 		}
 	}
+	$policy_new = $policy === null ? null : mnbt_updater_norm_policy($policy);
+	if ($policy_new !== null && !$clean && ($policy_new === 'mirror_first' || $policy_new === 'mirror_only')) {
+		return ['ok' => 0, 'error' => '选了镜像相关策略但镜像列表是空的，请至少填一个镜像，或改回 GitHub 直连'];
+	}
 
 	$mn_conf = mnbt_updater_read_conf();
 	$old = isset($mn_conf['update']) && is_array($mn_conf['update']) ? $mn_conf['update'] : [];
@@ -228,6 +247,7 @@ function mnbt_updater_save_config($repo, $mirrors, $token = null)
 		'repo' => $repo,
 		'mirrors' => array_values($clean),
 		'github_token' => $token_new === null ? (string)($old['github_token'] ?? '') : $token_new,
+		'source_policy' => $policy_new === null ? mnbt_updater_norm_policy($old['source_policy'] ?? '') : $policy_new,
 	];
 
 	$kr_sxy = ary_asd($mn_conf);
@@ -368,8 +388,8 @@ function mnbt_updater_api_once($url, $cfg, $send_token)
 }
 
 /**
- * 调用 GitHub API：先直连 api.github.com，失败再按镜像顺序尝试
- * 国内环境直连 api.github.com 常常不通，但镜像可以代理它，所以这里也要有镜像兜底
+ * 调用 GitHub API：按 source_policy 决定直连与镜像顺序
+ * 国内环境直连 api.github.com 常常不通，默认走镜像优先
  */
 function mnbt_updater_api_get($path, $cfg)
 {
@@ -378,11 +398,13 @@ function mnbt_updater_api_get($path, $cfg)
 		$out['error'] = '服务器未启用 curl 扩展';
 		return $out;
 	}
-	$direct = 'https://api.github.com' . $path;
-	$urls = [['url' => $direct, 'token' => true]];
+	$direct = ['url' => 'https://api.github.com' . $path, 'token' => true];
+	$mirror_list = [];
 	foreach ($cfg['mirrors'] as $m) {
-		$urls[] = ['url' => $m . $direct, 'token' => false];
+		// Token 绝不发给镜像，只对 api.github.com 直连有效
+		$mirror_list[] = ['url' => $m . 'https://api.github.com' . $path, 'token' => false];
 	}
+	$urls = mnbt_updater_order_sources($direct, $mirror_list, $cfg['source_policy']);
 	$errs = [];
 	foreach ($urls as $u) {
 		$r = mnbt_updater_api_once($u['url'], $cfg, $u['token']);
@@ -392,6 +414,18 @@ function mnbt_updater_api_get($path, $cfg)
 	}
 	$out['error'] = '接口请求失败（' . implode(' / ', $errs) . '）';
 	return $out;
+}
+
+/** 按策略把"直连"和"镜像列表"拼成一个有序尝试序列 */
+function mnbt_updater_order_sources($direct, $mirror_list, $policy)
+{
+	switch ($policy) {
+		case 'github_only':   return [$direct];
+		case 'mirror_only':   return $mirror_list;
+		case 'github_first':  return array_merge([$direct], $mirror_list);
+		case 'mirror_first':
+		default:              return $mirror_list ? array_merge($mirror_list, [$direct]) : [$direct];
+	}
 }
 
 /**
@@ -433,7 +467,7 @@ function mnbt_updater_pick_asset($assets)
 
 /**
  * 下载候选地址：包来源优先级为 release 自定义 zip 附件 > GitHub 自动源码包；
- * 每个来源再按 github.com 直连、配置镜像顺序依次尝试
+ * 每个来源再按 source_policy 决定 github 直连与镜像的尝试顺序
  */
 function mnbt_updater_candidates($cfg, $tag, $asset_url)
 {
@@ -455,10 +489,13 @@ function mnbt_updater_candidates($cfg, $tag, $asset_url)
 
 	$out = [];
 	foreach ($srcs as $s) {
-		$out[] = ['type' => $s['type'], 'label' => $s['label'], 'url' => $s['url'], 'via' => 'github', 'mirror' => ''];
+		$direct = ['type' => $s['type'], 'label' => $s['label'], 'url' => $s['url'], 'via' => 'github', 'mirror' => ''];
+		$mirror_list = [];
 		foreach ($cfg['mirrors'] as $m) {
-			$out[] = ['type' => $s['type'], 'label' => $s['label'], 'url' => $m . $s['url'], 'via' => 'mirror', 'mirror' => $m];
+			$mirror_list[] = ['type' => $s['type'], 'label' => $s['label'], 'url' => $m . $s['url'], 'via' => 'mirror', 'mirror' => $m];
 		}
+		$ordered = mnbt_updater_order_sources($direct, $mirror_list, $cfg['source_policy']);
+		foreach ($ordered as $o) $out[] = $o;
 	}
 	return $out;
 }

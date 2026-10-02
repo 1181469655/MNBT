@@ -27,16 +27,22 @@ if($egn=='upset') {
 		$token = trim((string)$_POST['github_token']);
 	}
 
-	$res = mnbt_updater_save_config($repo, $mirrors, $token);
+	// 下载策略：前端提交才改，否则保持原值
+	$policy = isset($_POST['source_policy']) && $_POST['source_policy'] !== ''
+		? (string)$_POST['source_policy']
+		: null;
+
+	$res = mnbt_updater_save_config($repo, $mirrors, $token, $policy);
 	if(!$res['ok']) json_exit_error($res['error']);
 
 	$cfg = mnbt_updater_config();
-	logjl($user ?? '', '系统更新', '更新仓库设为 '.$cfg['repo'].'，镜像 '.count($cfg['mirrors']).' 个', '保存成功', $DB);
+	logjl($user ?? '', '系统更新', '更新仓库设为 '.$cfg['repo'].'，镜像 '.count($cfg['mirrors']).' 个，策略 '.$cfg['source_policy'], '保存成功', $DB);
 	json_exit('保存成功', [
 		'qk' => 1,
 		'repo' => $cfg['repo'],
 		'mirrors' => $cfg['mirrors'],
 		'has_token' => $cfg['github_token']!=='' ? 1 : 0,
+		'source_policy' => $cfg['source_policy'],
 	]);
 	return;
 }

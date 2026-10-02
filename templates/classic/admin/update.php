@@ -6,6 +6,14 @@ $upd_can = !empty($mnbt_update['can_update']);
 $upd_log = trim((string)($mnbt_update['body'] ?? ''));
 $upd_mirror_txt = implode("\n", $mnbt_upcfg['mirrors']);
 $upd_token_set = !empty($mnbt_update['has_token']);
+$upd_policy = isset($mnbt_upcfg['source_policy']) ? $mnbt_upcfg['source_policy'] : 'mirror_first';
+$upd_policy_labels = [
+	'mirror_first' => '镜像优先（推荐国内服务器）',
+	'github_first' => 'GitHub 优先',
+	'mirror_only'  => '仅用镜像',
+	'github_only'  => '仅用 GitHub 直连',
+];
+$upd_policy_desc = isset($upd_policy_labels[$upd_policy]) ? $upd_policy_labels[$upd_policy] : $upd_policy;
 ?>
 <style>
 /* 系统更新页：直角蓝白，不用蓝底色块与装饰竖条 */
@@ -39,6 +47,10 @@ $upd_token_set = !empty($mnbt_update['has_token']);
 .mn-upd-row .btn { border-radius: 0; flex-shrink: 0; }
 .mn-upd-note { background: #f8fafc; border: 1px solid #eef1f5; padding: 12px 14px; font-size: 12px; color: #64748b; line-height: 1.8; }
 .mn-upd-note code { background: #fff; padding: 1px 4px; border: 1px solid #e8ecf1; }
+.mn-upd-policy { display: flex; flex-wrap: wrap; gap: 8px; }
+.mn-upd-policy-item { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid #e2e8f0; background: #fff; font-size: 13px; color: #334155; font-weight: normal; cursor: pointer; margin: 0; }
+.mn-upd-policy-item input { margin: 0; accent-color: #2563eb; }
+.mn-upd-policy-item:has(input:checked) { border-color: #2563eb; background: #eff6ff; color: #1d4ed8; }
 /* 更新进度面板：直角、细边框、蓝白，不加装饰竖条 */
 .mn-upd-prog { margin-top: 16px; padding: 14px 16px; border: 1px solid #e8ecf1; background: #fff; }
 .mn-upd-prog-hd { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 10px; }
@@ -94,7 +106,12 @@ $upd_token_set = !empty($mnbt_update['has_token']);
       <table class="mn-upd-kv">
         <tr><td>更新仓库</td><td><?=htmlspecialchars($mnbt_update['repo'])?></td></tr>
         <tr><td>包来源</td><td><?=htmlspecialchars($upd_ok ? $mnbt_update['source_label'] : '—')?><?=($upd_ok && !empty($mnbt_update['asset_size'])) ? '（' . number_format($mnbt_update['asset_size'] / 1048576, 1) . ' MB）' : ''?></td></tr>
-        <tr><td>下载通道</td><td>github.com 直连<?=!empty($mnbt_update['mirrors']) ? '，失败后依次尝试：' . htmlspecialchars(implode('、', $mnbt_update['mirrors'])) : ''?></td></tr>
+        <tr><td>下载通道</td><td><?=htmlspecialchars($upd_policy_desc)?><?php
+			if ($upd_policy !== 'github_only'):
+				if (!empty($mnbt_update['mirrors'])) echo ' · 镜像：' . htmlspecialchars(implode('、', $mnbt_update['mirrors']));
+			endif;
+			if ($upd_policy === 'github_first' || $upd_policy === 'mirror_first') echo ' · 失败自动切换到另一种来源';
+		?></td></tr>
 <?php if ($upd_ok && !empty($mnbt_update['asset_url'])): ?>
         <tr><td>附件地址</td><td><?=htmlspecialchars($mnbt_update['asset_url'])?></td></tr>
 <?php endif; ?>
@@ -161,7 +178,21 @@ $upd_token_set = !empty($mnbt_update['has_token']);
 <?php endforeach; ?>
         </div>
         <button class="btn btn-outline-secondary" type="button" onclick="updAddMirror()"><i class="mdi mdi-plus"></i> 添加镜像</button>
-        <small>按顺序依次尝试：先 github.com 直连，再按上面的顺序走镜像。镜像地址填 <code>https://gh-proxy.com/</code> 这种带协议的形式，会在原地址前面加前缀。</small>
+        <small>镜像地址填 <code>https://gh-proxy.com/</code> 这种带协议的形式，会在原地址前面加前缀。具体是否使用镜像、顺序如何，看下面"下载策略"。</small>
+      </div>
+
+      <div class="mn-upd-field">
+        <label>下载策略</label>
+        <div class="mn-upd-policy">
+          <?php $pol_map = ['mirror_first'=>'镜像优先（推荐国内服务器）','github_first'=>'GitHub 优先','mirror_only'=>'仅用镜像','github_only'=>'仅用 GitHub 直连']; ?>
+          <?php foreach ($pol_map as $pk => $pv): ?>
+          <label class="mn-upd-policy-item">
+            <input type="radio" name="upd_source_policy" value="<?=htmlspecialchars($pk)?>" <?=($upd_policy === $pk ? 'checked' : '')?>>
+            <span><?=htmlspecialchars($pv)?></span>
+          </label>
+          <?php endforeach; ?>
+        </div>
+        <small>国内服务器直连 GitHub 大概率超时，建议保持"镜像优先"；"仅用镜像"能彻底避免 GitHub 超时拖时间；"仅用 GitHub"适合海外或有代理的服务器。</small>
       </div>
 
       <div class="mn-upd-field">
@@ -224,10 +255,12 @@ function saveUpdSetting() {
   if (tk && tk.value !== '') data['github_token'] = $.trim(tk.value);
   var cl = document.getElementById('upd_clear_token');
   if (cl && cl.checked) data['clear_token'] = '1';
+  var polEl = document.querySelector('input[name="upd_source_policy"]:checked');
+  if (polEl) data['source_policy'] = polEl.value;
   msloading();
   $.post('./ajax.php', data, function (date) {
     msloadingde();
-    var jsoe = JSON.parse(date);
+    var jsoe = typeof date === 'string' ? JSON.parse(date) : date;
     if (jsoe.qk == 1 || jsoe.code == '保存成功') {
       msalert(1, '保存成功', 2500);
       setTimeout(function () { window.location.href = 'update.php'; }, 1200);
@@ -273,7 +306,7 @@ function up() {
   data["gn"] = "update";
   $.post('./ajax.php', data, function (date) {
     var jsoe;
-    try { jsoe = JSON.parse(date); } catch (e) { jsoe = { _parse_fail: 1, code: '返回内容解析失败：' + String(date).slice(0, 160) }; }
+    try { jsoe = typeof date === 'string' ? JSON.parse(date) : date; } catch (e) { jsoe = { _parse_fail: 1, code: '返回内容解析失败：' + String(date).slice(0, 160) }; }
     // 异步模式：HTTP 只回 202/started，终态完全靠 progress.json
     if (jsoe && Number(jsoe.async) === 1) {
       updProg.state.detail = '后端已启动，等待进度反馈…';
@@ -296,13 +329,15 @@ function up() {
 // 更新进度面板的状态与渲染：从 egn=upprogress 拉后端写好的 progress.json 再画步骤条
 var updProg = {
   state: null, pollTimer: null, elapsedTimer: null, stopAll: null, finalize: null, pollBusy: false,
-  STALL_MS: 300 * 1000, MAX_WAIT_MS: 8 * 60 * 1000,
+  // 卡死判定：progress.json 里 updated_at 5 分钟不动 = 后端死了
+  // 总时长兜底：30 分钟仍未终态 = 前端不再等，但只提示不判失败（后端可能仍在跑）
+  STALL_MS: 300 * 1000, MAX_WAIT_MS: 30 * 60 * 1000,
   poll: function () {
     if (updProg.pollBusy || !updProg.state || updProg.state.terminal) return;
     updProg.pollBusy = true;
     $.post('./ajax.php', { gn: 'upprogress' }, function (raw) {
       var p;
-      try { p = JSON.parse(raw); } catch (e) { return; }
+      try { p = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch (e) { return; }
       if (!p || Number(p.has) !== 1) return;
       // 后端 progress.json 是权威状态：running=0 才算终态
       updProg.state.steps = p.steps || updProg.state.steps;
@@ -324,9 +359,9 @@ var updProg = {
         updProg.finalize(false, '进度已 5 分钟未更新，后端可能崩溃或超时；本地配置与后台目录在关闭时会自动还原，请刷新后台确认站点状态。');
         return;
       }
-      // 总等待时长上限：从 startedAt 起 8 分钟仍未终态，判定为异常
+      // 总等待兜底：30 分钟仍未终态，前端放弃等待；后端可能仍在跑，靠 progress.json 自锁防并发
       if (updProg.state.startedAt && (nowSec - updProg.state.startedAt) * 1000 > updProg.MAX_WAIT_MS) {
-        updProg.finalize(false, '更新已运行 8 分钟仍未结束，超出预期。请手动刷新后台确认；若已回滚可稍后重试。');
+        updProg.finalize(false, '已等满 30 分钟仍无终态，前端停止轮询。请稍后刷新后台查看版本号是否已升；如仍未升级，可去服务器看 runtime/temp/update_tmp/progress.json 确认后端状态。');
         return;
       }
       updProg.render();
