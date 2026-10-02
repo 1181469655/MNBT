@@ -293,6 +293,77 @@ function mnbt_api_compat_mode()
 	return isset($conf['api_compat']) && (string)$conf['api_compat'] === '1';
 }
 
+// ---------------------------------------------------------------------------
+//  监控/定时入口鉴权（jk.php / jk_monitor.php / docker_cron.php）
+//  新方式：?t=<unix秒>&sign=hash_hmac('sha256', '<脚本名>|<t>', API密钥)，±300 秒有效
+//  过渡期：旧 ?my=<API密钥> 仍接受，但记录弃用日志并回显 X-MNBT-Auth-Deprecated
+//  背景：查询串里的密钥会落进访问日志/代理，务必引导切换
+// ---------------------------------------------------------------------------
+function mnbt_cron_signature($script, $time)
+{
+	global $conf;
+	return hash_hmac('sha256', $script . '|' . (string)$time, (string)($conf['api'] ?? ''));
+}
+
+function mnbt_cron_auth_check($script)
+{
+	global $conf;
+	$secret = (string)($conf['api'] ?? '');
+	if ($secret === '') return false;
+
+	$t = isset($_GET['t']) ? (int)$_GET['t'] : 0;
+	$sign = isset($_GET['sign']) ? (string)$_GET['sign'] : '';
+	if ($t > 0 && $sign !== '') {
+		if (abs(time() - $t) > 300) return false;
+		return hash_equals(mnbt_cron_signature($script, $t), $sign);
+	}
+
+	$legacy = isset($_GET['my']) ? (string)$_GET['my'] : '';
+	if ($legacy !== '' && hash_equals($secret, $legacy)) {
+		error_log('[MNBT cron] ' . $script . ' 仍在使用 ?my= 查询串鉴权（密钥已暴露在访问日志中），请尽快切换为 ?t=<unix>&sign=<hmac> 方式');
+		if (!headers_sent()) @header('X-MNBT-Auth-Deprecated: legacy-query-key');
+		return true;
+	}
+	return false;
+}
+
+// ---------------------------------------------------------------------------
+//  管理员密码（惰性迁移：明文存储在首次登录成功后升级为 bcrypt 哈希）
+//  MN_zj.pass 为 FTP 密码、须明文展示给用户，不参与本机制
+// ---------------------------------------------------------------------------
+function mnbt_admin_password_is_hash($stored)
+{
+	return is_string($stored) && strlen($stored) === 60 && strncmp($stored, '$2y$', 4) === 0;
+}
+
+function mnbt_admin_password_hash($plain)
+{
+	return password_hash((string)$plain, PASSWORD_DEFAULT);
+}
+
+/** 校验管理员密码：哈希存储走 password_verify；明文历史数据兼容原始输入与 daddslashes 转义形态 */
+function mnbt_admin_password_verify($plain, $stored)
+{
+	$plain = (string)$plain;
+	$stored = (string)$stored;
+	if ($stored === '') return false;
+	if (mnbt_admin_password_is_hash($stored)) return password_verify($plain, $stored);
+	return hash_equals($stored, $plain) || hash_equals($stored, daddslashes($plain));
+}
+
+/** BT 面板 cookie jar 路径：runtime/bt_cookie（web 根下的 api/cookie 会话 cookie 可被直读；含旧目录一次性迁移） */
+function mnbt_bt_cookie_file($panel_url)
+{
+	$dir = ROOT . 'runtime/bt_cookie/';
+	if (!is_dir($dir)) @mkdir($dir, 0755, true);
+	$file = $dir . md5((string)$panel_url) . '.cookie';
+	if (!is_file($file)) {
+		$legacy = ROOT . 'api/cookie/' . md5((string)$panel_url) . '.cookie';
+		if (is_file($legacy)) @rename($legacy, $file);
+	}
+	return $file;
+}
+
 function send_post($url, $post_data) {
   if(!is_array($post_data)) $post_data=[];
   $postdata = http_build_query($post_data);

@@ -17,17 +17,21 @@
                 <b>提示:</b> 当前未配置 API 密钥,请先在「API 设置」生成密钥后再使用监控功能。
               </div>
 
-              <div v-for="m in monitorItems" :key="m.path" class="mono-block">
+              <div v-for="m in monitorItems" :key="m.cmd" class="mono-block">
                 <div class="mono-head">
                   <strong>{{ m.title }}</strong>
                   <span class="td-text-mute td-text-xs">{{ m.freq }}</span>
                 </div>
                 <div class="mono-desc td-text-mute td-text-sm">{{ m.desc }}</div>
                 <div class="td-code-block mono-url">
-                  <span>{{ m.url }}</span>
-                  <t-button theme="primary" variant="text" size="small" @click="copy(m.url)">
+                  <span>{{ m.cmd }}</span>
+                  <t-button theme="primary" variant="text" size="small" @click="copy(m.cmd)">
                     <i class="mdi mdi-content-copy"></i> 复制
                   </t-button>
+                </div>
+                <div class="td-text-mute td-text-xs">
+                  旧版静态链接（弃用，密钥会暴露在访问日志中）:
+                  <span class="td-mono">{{ m.legacyUrl }}</span>
                 </div>
               </div>
             </div>
@@ -119,45 +123,27 @@ const active = ref('monitor')
 const monitorItems = computed(() => {
   if (!apiKey.value) return []
   const my = apiKey.value
-  const items = [
-    {
-      title: '网页监控',
-      path: 'jk.php?my=' + my + '&gn=web',
-      desc: '上报网页可用性数据,统计站点在线状态',
-      freq: '建议频率:1 分钟 / 次',
-    },
-    {
-      title: 'SQL 监控',
-      path: 'jk.php?my=' + my + '&gn=sql',
-      desc: '上报数据库可用性与连接耗时',
-      freq: '建议频率:1 分钟 / 次',
-    },
-    {
-      title: '负载监控',
-      path: 'jk.php?my=' + my + '&gn=fh',
-      desc: '上报系统负载、CPU、内存使用率',
-      freq: '建议频率:1 分钟 / 次',
-    },
-    {
-      title: '负载历史',
-      path: 'jk.php?my=' + my + '&gn=fhq',
-      desc: '查询历史负载曲线数据',
-      freq: '查询接口,无需定时',
-    },
-    {
-      title: '监控主机删除',
-      path: 'jk.php?my=' + my + '&gn=ywjkdel',
-      desc: '触发监控到期主机的删除 / 暂停策略',
-      freq: '建议频率:1 小时 / 次',
-    },
-    {
-      title: '综合监控入口',
-      path: 'jk_monitor.php?my=' + my,
-      desc: '综合监控上报与查询入口',
-      freq: '视具体监控场景而定',
-    },
+  // V1.87：HMAC 签名命令（密钥不进访问日志）；旧 ?my= 静态链接过渡期仍可用
+  const mk = (script, gn, title, desc, freq) => {
+    const urlPart = gn ? `${script}.php?gn=${gn}` : `${script}.php`
+    const payload = script.replace(/\.php$/, '')
+    const cmd = `php -r '$t=time();echo file_get_contents("${baseHttpUrl}${urlPart}&t=".$t+"&sign=".hash_hmac("sha256","${payload}|".$t,"${my}"));'`
+    return {
+      title,
+      desc,
+      freq,
+      cmd,
+      legacyUrl: baseHttpUrl + script + '.php?my=' + my + (gn ? '&gn=' + gn : ''),
+    }
+  }
+  return [
+    mk('jk.php', 'web', '网页监控', '上报网页可用性数据,统计站点在线状态', '建议频率:1 分钟 / 次'),
+    mk('jk.php', 'sql', 'SQL 监控', '上报数据库可用性与连接耗时', '建议频率:1 分钟 / 次'),
+    mk('jk.php', 'fh', '负载监控', '上报系统负载、CPU、内存使用率', '建议频率:1 分钟 / 次'),
+    mk('jk.php', 'fhq', '负载历史', '查询历史负载曲线数据', '查询接口,无需定时'),
+    mk('jk.php', 'ywjkdel', '监控主机删除', '触发监控到期主机的删除 / 暂停策略', '建议频率:1 小时 / 次'),
+    mk('jk_monitor.php', '', '综合监控入口', '综合监控上报与查询入口', '视具体监控场景而定'),
   ]
-  return items.map((it) => ({ ...it, url: baseHttpUrl + it.path }))
 })
 
 async function copy(text) {

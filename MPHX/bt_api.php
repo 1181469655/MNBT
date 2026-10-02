@@ -1510,7 +1510,7 @@ class bt_api
 
     private function HttpPostCookie($url, $data, $timeout = 60, $connectTimeout = 10)
     {
-        $cookie_file = ROOT . 'api/cookie/' . md5($this->BT_PANEL) . '.cookie';
+        $cookie_file = mnbt_bt_cookie_file($this->BT_PANEL);
         if (!is_dir(dirname($cookie_file))) {
             @mkdir(dirname($cookie_file), 0755, true);
         }

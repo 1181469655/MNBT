@@ -418,7 +418,8 @@ status=running → container_status=running（同步到 MN_docker_user）
 
 ```bash
 # 建议每 30 分钟执行
-curl "http://your-domain/docker_cron.php?my=YOUR_API_KEY"
+// 推荐：HMAC 签名（±300 秒有效；兼容旧 ?my=，已弃用）
+php -r '$t=time();echo file_get_contents("http://your-domain/docker_cron.php?t=".$t."&sign=".hash_hmac("sha256","docker_cron|".$t,"YOUR_API_KEY"));'
 ```
 
 三阶段软删：`active→expired`（到期）→ `pruned`（满 7 天删容器）→ 物理删除（再满 7 天）。

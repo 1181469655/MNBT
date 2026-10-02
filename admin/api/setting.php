@@ -80,13 +80,13 @@ if($egn=='setpaymethods') {
 	return;
 }
 if($egn=='gl') {
-	$yuser=daddslashes($_POST['yuser']);
-	$ypass=daddslashes($_POST['ypass']);
-	$xuser=daddslashes($_POST['xuser']);
-	$xpass=daddslashes($_POST['xpass']);
+	$yuser=trim((string)($_POST['yuser'] ?? ''));
+	$ypass=(string)($_POST['ypass'] ?? '');
+	$xuser=trim((string)($_POST['xuser'] ?? ''));
+	$xpass=(string)($_POST['xpass'] ?? '');
 	if(mb_strlen($xuser)<4 && mb_strlen($xuser)!=0 || mb_strlen($xpass)<6 && mb_strlen($xpass)!=0 )json_exit('错误！新的账号必须大于或等于4位！新的密码必须大于或等于6位！');
 	if(empty($xuser) && empty($xpass))json_exit('新的账号或密码不能都为空！');
-	if($yuser!=$conf['user'] || $ypass!=$conf['pwd']) {
+	if($yuser!=$conf['user'] || !mnbt_admin_password_verify($ypass, $conf['pwd'])) {
 		json_exit('您输入的原账号或密码错误！');
 	}
 	if(empty($xuser)) {
@@ -97,10 +97,10 @@ if($egn=='gl') {
 	if(empty($xpass)) {
 		$gpwd=$conf['pwd'];
 	} else {
-		$gpwd=$xpass;
+		$gpwd=mnbt_admin_password_hash($xpass);
 	}
 	$sql="update `MN_config` set `user` =?, `pwd` =? where `id`=?";
-	logjl($user,'管理修改','修改前账号'.$yuser.'修改前密码'.$ypass,'登陆成功',$DB);
+	logjl($user,'管理修改','修改前账号'.$yuser.'修改前密码******','操作成功',$DB);
 	if($DB->query_prepare($sql,[$guser,$gpwd,$siteid]))json_exit('修改成功'); else json_exit('修改失败'.$DB->error());
 	return;
 }

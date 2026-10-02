@@ -36,7 +36,7 @@ description: Docker 容器托管模块的架构、数据表、入口与到期软
 | `admin/docker.php` | 后台管理（用户/套餐/节点容器三 Tab） |
 | `admin/api/docker.php` | 后台 AJAX（docker_user_* / docker_plan_* / docker_node_*） |
 | `api/docker.php` | 对外开通 API（gn=kt，鉴权同 api/api.php） |
-| `docker_cron.php` | 到期软删定时任务（建议每 30 分钟：`/docker_cron.php?my=API密钥`） |
+| `docker_cron.php` | 到期软删定时任务（建议每 30 分钟：`/docker_cron.php?t=<unix>&sign=<HMAC>`，命令见后台教程；兼容旧 `?my=`，已弃用） |
 
 ## 到期软删流程
 

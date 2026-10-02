@@ -24,7 +24,19 @@ function webscan_error() {
  *  数据统计回传
  */
 function webscan_slog($logs) {
-  //日志记录
+  // V1.87：真实落盘到 runtime/logs/waf.log（原为空实现，拦截行为不可追溯）
+  $dir = dirname(__DIR__, 2) . '/runtime/logs/';
+  if (!is_dir($dir)) @mkdir($dir, 0755, true);
+  $f = @fopen($dir . 'waf.log', 'a');
+  if (!$f) return true;
+  @fwrite($f, sprintf("%s\t%s\t%s\t%s\t%s\t%s\n",
+    isset($logs['time']) ? $logs['time'] : date('Y-m-d H:i:s'),
+    isset($logs['ip']) ? $logs['ip'] : '-',
+    isset($logs['method']) ? $logs['method'] : '-',
+    isset($logs['request_url']) ? $logs['request_url'] : (isset($logs['page']) ? $logs['page'] : '-'),
+    isset($logs['rkey']) ? $logs['rkey'] : '-',
+    isset($logs['rdata']) ? substr((string)$logs['rdata'], 0, 300) : '-'));
+  @fclose($f);
   return true;
 }
 /**
@@ -124,6 +136,22 @@ function webscan_white($webscan_white_name,$webscan_white_url=array()) {
   }
 
   return true;
+}
+
+// MNBT V1.87：以下入口自带鉴权（HMAC 签名 / API 密钥），其 POST 体含建站、SQL、
+// 配置等内容属正常业务，正则黑名单会误杀（如建站向导、SQL 导入）；按请求路径豁免。
+// 注意：不能用 webscan_white 的 url 白名单——它要求查询串为空，而 API/定时入口几乎都带参数。
+$mnbt_waf_exempt_paths = array(
+  '/api/api.php', '/api/node.php', '/api/docker.php',
+  '/jk.php', '/jk_monitor.php', '/docker_cron.php',
+  '/install/index.php', '/install/install.api.php',
+);
+$mnbt_waf_path = parse_url(isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '', PHP_URL_PATH);
+foreach ($mnbt_waf_exempt_paths as $mnbt_waf_p) {
+  if ($mnbt_waf_p !== '' && $mnbt_waf_path !== '' && strpos($mnbt_waf_path, $mnbt_waf_p) !== false) {
+    $webscan_switch = false;
+    break;
+  }
 }
 
 if ($webscan_switch&&webscan_white($webscan_white_directory,$webscan_white_url)) {

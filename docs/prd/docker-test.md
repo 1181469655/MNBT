@@ -264,7 +264,7 @@ curl -X POST "http://YOUR_DOMAIN/api/docker.php?gn=kt" \
 宝塔面板 → 计划任务 → 添加：
 - 类型：访问 URL
 - 周期：每 30 分钟
-- URL：`http://YOUR_DOMAIN/docker_cron.php?my=YOUR_API_KEY`
+- URL：`http://YOUR_DOMAIN/docker_cron.php?t=<unix>&sign=<HMAC>`（兼容旧 `?my=`，已弃用）
 
 ### 6.2 手动触发测试
 

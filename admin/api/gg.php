@@ -96,7 +96,7 @@ if($egn=='update') {
 		json_exit_error('更新包校验失败：'.$zerr);
 	}
 
-	// 5. 备份本地文件：config.php、cf_up.php、MPHX/SQ.php、install/install.lock、api/cookie/
+	// 5. 备份本地文件：config.php、cf_up.php、install/install.lock、runtime/bt_cookie/
 	mnbt_updater_progress(['step'=>'backup','detail'=>'备份 config.php、cf_up.php 等本地文件','pct'=>null]);
 	$bak_dir = $tmp_dir.'/bak_'.mt_rand(100000,999999);
 	$backup = mnbt_updater_backup_local($root_sl,$bak_dir,$bk_err);

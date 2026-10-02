@@ -3,7 +3,9 @@
  * 网页空间及数据库空间和流量使用情况监控文件
  * 会自动判断是否超出大小以及暂停超出的站点
  * 建议10分钟执行一次（不建议低于1分钟）
- * 访问地址：http://搭建此系统的网站域名/jk.php?my=后台设置的api密钥&gn=需要监控的功能(wq为数据库空间和网页，fh为流量监控)
+ * 访问地址（推荐，HMAC 签名，±300 秒有效）：
+ *   /jk.php?t=<unix秒>&sign=<hash_hmac('sha256','jk|<t>',API密钥)>&gn=需要监控的功能(wq为数据库空间和网页，fh为流量监控)
+ * 兼容旧 ?my=API密钥（已弃用：密钥会暴露在访问日志中，过渡期仍可用）
  * 2022©梦奈
  */
 include("./MPHX/common.php");
@@ -12,7 +14,7 @@ if($mn_conf['xf']['qk'])
 {
     exit('由于更新后必须进行一次系统修复，暂时无法使用这功能！');
 }
-if($_GET['my']!=$conf['api'])
+if(!mnbt_cron_auth_check('jk'))
 {
     exit('密钥错误');
 }
@@ -85,7 +87,7 @@ if ($bt_rows) {
     }
 }
 
-if($_GET['gn']=='web'){		//WEB监控
+if(($_GET['gn'] ?? '')=='web'){		//WEB监控
 $all_zj=$DB->get_all_prepare("SELECT * FROM MN_zj");
 $ztzj='0';
 $ztyh_arr=[];
@@ -111,7 +113,7 @@ jk_toggle_site($webkj>$web_kjr['max'], $web_kjr['dq']<$web_kjr['max'], $api, $yh
 }
 echo '执行完成，有'.$ztzj.'个主机由于网页空间超过被暂停他们分别是：'.implode('，', $ztyh_arr);
 
-}elseif($_GET['gn']=='sql'){		//数据库空间监控
+}elseif(($_GET['gn'] ?? '')=='sql'){		//数据库空间监控
 
 $all_zj=$DB->get_all_prepare("SELECT * FROM MN_zj");
 $ztzj='0';
@@ -139,7 +141,7 @@ jk_toggle_site($adft>$sql_kjr['max'], $sql_kjr['dq']<$sql_kjr['max'], $api, $yhc
 }
 echo '执行完成，有'.$ztzj.'个主机由于数据库空间超过被暂停他们分别是：'.implode('，', $ztyh_arr);
 
-}elseif($_GET['gn']=='fh'){		//流量监控
+}elseif(($_GET['gn'] ?? '')=='fh'){		//流量监控
 $all_zj=$DB->get_all_prepare("SELECT * FROM MN_zj");
 $ztzj='0';
 $ztyh_arr=[];
@@ -180,7 +182,7 @@ jk_toggle_site($r_js['dq']>=$max_bytes, $r_jy['dq']<$max_bytes, $api, $yhc, $ztz
 }
 echo '执行完成，有'.$ztzj.'个主机由于流量超过被暂停他们分别是：'.implode('，', $ztyh_arr);
 
-}elseif($_GET['gn']=='fhq'){		//清除统计的流量使用量（推荐每个月执行一次）
+}elseif(($_GET['gn'] ?? '')=='fhq'){		//清除统计的流量使用量（推荐每个月执行一次）
 $all_zj=$DB->get_all_prepare("SELECT * FROM MN_zj");
 foreach ($all_zj as $yhc)
 {
@@ -201,7 +203,7 @@ $DB->query_prepare("update `MN_zj` set `llmax` =? where `id`=?", [json_encode($r
 echo '执行完成，所有主机的月使用流量清零完毕！';
 
 }
-elseif($_GET['gn'] == "ywjkdel")
+elseif(($_GET['gn'] ?? '') == "ywjkdel")		//清除不使用的主机
 {
     include_once("./mail.php");
     $all_zj=$DB->get_all_prepare("SELECT * FROM MN_zj");

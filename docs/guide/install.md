@@ -62,7 +62,7 @@ description: 环境要求、安装部署步骤与快速开始
 
 | 任务类型 | 执行周期 | 执行命令 |
 |---------|---------|---------|
-| 访问 URL | 每分钟 | `http://你的域名/jk_monitor.php?my=API密钥` |
+| 访问命令 | 每分钟 | `php -r '$t=time();echo file_get_contents("http://你的域名/jk_monitor.php?t=".$t."&sign=".hash_hmac("sha256","jk_monitor|".$t,"API密钥"));'`（宝塔计划任务-Shell 脚本；兼容旧 `?my=`，已弃用） |
 
 API 密钥可在管理后台 → 系统设置 → API 接口中查看。
 

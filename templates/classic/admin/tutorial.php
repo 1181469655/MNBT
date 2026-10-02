@@ -118,22 +118,26 @@ if($_GET['gn']=='' || !isset($_GET['gn'])){?>
 			  echo '<span><code>请您在系统设置->APi设置里面把api密钥生成并且保存后再来此处设置监控！</code></span><br>';
 			  }else{
 			  echo '
-			  <span>在您把系统设置->APi密钥修改后这里的链接也会重置！需要您重新设置定时任务(监控)中的链接！后才能正常运行！</span><br>
-              <code class="wbcchh">'.$url.'/jk.php?my='.$conf['api'].'&gn=web</code><br/>
-              <span>此为计算所有主机网页空间使用情况的链接，推荐设置为10分钟执行一次</span><br/>
-              <code class="wbcchh">'.$url.'/'.'jk.php?my='.$conf['api'].'&gn=sql</code><br/>
-              <span>此为计算所有主机数据库空间使用情况的链接，推荐设置为10分钟执行一次</span><br/>
-              <code class="wbcchh">'.$url.'/'.'jk.php?my='.$conf['api'].'&gn=fh</code><br/>
-              <span>此为计算所有主机流量使用情况的链接，推荐设置为10分钟执行一次</span><br/>
-              <code class="wbcchh">'.$url.'/'.'jk.php?my='.$conf['api'].'&gn=fhq</code><br/>
-              <span>此为清除所有主机流量使用情况的链接，推荐设置为每月1日执行一次</span><br/>
-              <code class="wbcchh">'.$url.'/'.'jk.php?my='.$conf['api'].'&gn=ywjkdel</code><br/>
-              <span>此为清除不使用的主机，推荐设置为每天执行一次</span><br/>
-              <code class="wbcchh">'.$url.'/'.'jk_monitor.php?my='.$conf['api'].'</code><br/>
-              <span>此为用户端URL监控、POST/GET/HEAD检测、资源阈值监控和通知任务，推荐设置为每15秒执行一次；如果监控工具不支持秒级执行，至少每分钟执行一次，但15秒任务会延迟检测</span><br/>
-              ';
-              }
-              ?>
+			  <span>在您把系统设置->APi密钥修改后这里的命令也会重置！需要您重新设置定时任务(监控)中的命令！后才能正常运行！</span><br>
+			  <span>V1.87 起推荐使用下方 HMAC 签名命令（密钥不再暴露在访问日志中）。复制到宝塔计划任务 → Shell 脚本即可执行：</span><br>';
+			  $mn_tasks = array(
+			    array('jk.php','web','此为计算所有主机网页空间使用情况，推荐设置为10分钟执行一次'),
+			    array('jk.php','sql','此为计算所有主机数据库空间使用情况，推荐设置为10分钟执行一次'),
+			    array('jk.php','fh','此为计算所有主机流量使用情况，推荐设置为10分钟执行一次'),
+			    array('jk.php','fhq','此为清除所有主机流量使用情况，推荐设置为每月1日执行一次'),
+			    array('jk.php','ywjkdel','此为清除不使用的主机，推荐设置为每天执行一次'),
+			    array('jk_monitor.php','','此为用户端URL监控、POST/GET/HEAD检测、资源阈值监控和通知任务，推荐设置为每15秒执行一次；如果监控工具不支持秒级执行，至少每分钟执行一次，但15秒任务会延迟检测'),
+			  );
+			  foreach ($mn_tasks as $mn_t) {
+			    list($mn_f, $mn_gn, $mn_desc) = $mn_t;
+			    $mn_urlq = $url.'/'.$mn_f.($mn_gn!=='' ? '?gn='.$mn_gn : '');
+			    $mn_payload = substr($mn_f, 0, -4);
+			    echo '<code class="wbcchh">php -r \'$t=time();echo file_get_contents("'.$mn_urlq.'&t=".$t."&sign=".hash_hmac("sha256","'.$mn_payload.'|".$t,"'.$conf['api'].'"));\'</code><br/>
+              <span>'.$mn_desc.'</span><br/>';
+			  }
+			  echo '<span>旧版静态链接（?my=密钥）过渡期仍可用，但密钥会暴露在访问日志中，请尽快切换为上方签名命令。</span><br>';
+			  }
+			  ?>
               </p>
             </div>
             <div class="tab-pane fade" id="gulong-fill" >

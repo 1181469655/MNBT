@@ -2,6 +2,7 @@
 @header('Content-Type: text/html; charset=UTF-8');
 include("../MPHX/common.php");
 if($islogins==1){}else exit("<script language='javascript'>window.location.href='./login.php';</script>");
+mnbt_csrf_validate_request();
 
 // V1.81 P3: 支付方式 type 格式为 {plugin}__{method}，如 epay__alipay
 $type = isset($_POST['type']) ? $_POST['type'] : '';
@@ -9,7 +10,8 @@ if ($type === '' || !function_exists('mnbt_pay_parse_type') || !mnbt_pay_parse_t
 	exit("<script language='javascript'>alert('请选择有效的支付方式');history.go(-1);</script>");
 }
 
-if($_POST['pay_lx']=='yjbs'){
+$pay_lx = isset($_POST['pay_lx']) ? $_POST['pay_lx'] : '';
+if($pay_lx=='yjbs'){
 $bs_id=daddslashes($_POST['id']);
 $bs_cx = $DB->get_row_prepare("SELECT * FROM `MN_bs` WHERE `id` = ? limit 1", [$bs_id]);
 }else{
@@ -22,7 +24,7 @@ $money = $bs_cx['jg'];
 $dada = date("Y-m-d H-i-s");
 $ip = $_SERVER["REMOTE_ADDR"] ?? '127.0.0.1';
 
-if($_POST['pay_lx']=='yjbs'){
+if($pay_lx=='yjbs'){
 //一键部署
 if($bs_cx['qk']==false)exit("<script language='javascript'>alert('该程序已下架！');history.go(-1);</script>");
 if(in_array($yhc['user'],json_decode($bs_cx['tj'],true)))exit("<script language='javascript'>alert('您已购买该程序！');history.go(-1);</script>");
@@ -40,7 +42,7 @@ $order_context = array(
 	'money'        => $money,
 	'type'         => $type,
 	'siteurl'      => $siteurl,
-	'pay_lx'       => $_POST['pay_lx'],
+		'pay_lx'       => $pay_lx,
 );
 
 $html = mnbt_pay_dispatch_gateway($type, $order_context);

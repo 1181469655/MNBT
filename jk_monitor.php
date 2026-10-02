@@ -1,11 +1,14 @@
 <?php
 /*
  * 用户端 URL 监控和通知任务
- * 建议每15秒执行一次：/jk_monitor.php?my=后台API密钥
+ * 建议每15秒执行一次
+ * 访问地址（推荐，HMAC 签名，±300 秒有效）：
+ *   /jk_monitor.php?t=<unix秒>&sign=<hash_hmac('sha256','jk_monitor|<t>',API密钥)>
+ * 兼容旧 ?my=API密钥（已弃用：密钥会暴露在访问日志中，过渡期仍可用）
  */
 include("./MPHX/common.php");
 include_once("./MPHX/monitor.function.php");
-if(($_GET['my'] ?? '') != $conf['api']) exit('密钥错误');
+if(!mnbt_cron_auth_check('jk_monitor')) exit('密钥错误');
 monitor_ensure_tables($DB);
 
 $now = date('Y-m-d H:i:s');

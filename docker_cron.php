@@ -1,7 +1,10 @@
 <?php
 /*
  * Docker 到期软删与物理清理定时任务
- * 建议每 30 分钟执行一次：/docker_cron.php?my=后台API密钥
+ * 建议每 30 分钟执行一次
+ * 访问地址（推荐，HMAC 签名，±300 秒有效）：
+ *   /docker_cron.php?t=<unix秒>&sign=<hash_hmac('sha256','docker_cron|<t>',API密钥)>
+ * 兼容旧 ?my=API密钥（已弃用：密钥会暴露在访问日志中，过渡期仍可用）
  *
  * 流程：
  *   1) active 但已到期 → qk=expired, expired_at=到期时间
@@ -10,7 +13,7 @@
  */
 include("./MPHX/common.php");
 include_once SYSTEM_ROOT . 'bt_docker.php';
-if (($_GET['my'] ?? '') != $conf['api']) exit('密钥错误');
+if (!mnbt_cron_auth_check('docker_cron')) exit('密钥错误');
 @header('Content-Type: text/plain; charset=UTF-8');
 
 $now = time();
