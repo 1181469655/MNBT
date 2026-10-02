@@ -9,15 +9,10 @@ if($egn=='upset') {
 	include("../cf_up.php");
 
 	$repo = trim((string)($_POST['repo'] ?? ''));
-	if($repo==='') json_exit_error('请填写更新仓库，格式为 owner/repo');
+	if($repo==='') json_exit_error('请填写 GitHub 仓库，格式为 owner/repo');
 
-	$mirrors_raw = $_POST['mirrors'] ?? '';
-	if(is_array($mirrors_raw)) {
-		$mirrors = $mirrors_raw;
-	} else {
-		$mirrors = preg_split('/\r\n|\r|\n|,/', (string)$mirrors_raw);
-	}
-	$mirrors = array_values(array_filter(array_map('trim', (array)$mirrors), function($v){ return $v!==''; }));
+	// Gitee 仓库允许留空（= 只走 GitHub）；格式校验交给 save_config
+	$gitee_repo = trim((string)($_POST['gitee_repo'] ?? ''));
 
 	// Token 留空表示保持原值，勾选清除才写空；任何场合都不回显明文
 	$token = null;
@@ -32,15 +27,15 @@ if($egn=='upset') {
 		? (string)$_POST['source_policy']
 		: null;
 
-	$res = mnbt_updater_save_config($repo, $mirrors, $token, $policy);
+	$res = mnbt_updater_save_config($repo, $gitee_repo, $token, $policy);
 	if(!$res['ok']) json_exit_error($res['error']);
 
 	$cfg = mnbt_updater_config();
-	logjl($user ?? '', '系统更新', '更新仓库设为 '.$cfg['repo'].'，镜像 '.count($cfg['mirrors']).' 个，策略 '.$cfg['source_policy'], '保存成功', $DB);
+	logjl($user ?? '', '系统更新', 'GitHub '.$cfg['repo'].' / Gitee '.($cfg['gitee_repo']===''?'未设置':$cfg['gitee_repo']).'，策略 '.$cfg['source_policy'], '保存成功', $DB);
 	json_exit('保存成功', [
 		'qk' => 1,
 		'repo' => $cfg['repo'],
-		'mirrors' => $cfg['mirrors'],
+		'gitee_repo' => $cfg['gitee_repo'],
 		'has_token' => $cfg['github_token']!=='' ? 1 : 0,
 		'source_policy' => $cfg['source_policy'],
 	]);
@@ -62,7 +57,7 @@ if($egn=='upprogress') {
 	if (!is_array($p)) {
 		exit(json_encode(['ok'=>1,'running'=>0,'has'=>0], JSON_UNESCAPED_UNICODE));
 	}
-	$p['ok'] = 1;
+	// V1.87：ok 字段是进度文件的真实终态（null=进行中/1=成功/0=失败），不能被端点覆盖
 	$p['has'] = 1;
 	exit(json_encode($p, JSON_UNESCAPED_UNICODE));
 	return;

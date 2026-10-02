@@ -16,6 +16,7 @@ description: MNBT 版本更新记录（V1.87 ~ V1.60）
 - **BT cookie jar 迁出 web 根**：`api/cookie/` → `runtime/bt_cookie/`（`mnbt_bt_cookie_file()`，含旧文件一次性迁移），新增 `runtime/.htaccess` 与 `api/cookie/.htaccess` 拒绝 Web 访问（nginx 用户请在站点配置加 `location ~* ^/(runtime|api/cookie)/ { deny all; }`）；更新器保留清单同步
 - **360safe WAF 修正**：API/定时/安装入口按请求路径豁免正则拦截（自带鉴权且 POST 体含建站/SQL 内容属正常业务，原 `webscan_white` 白名单因要求查询串为空而基本失效）；`webscan_slog` 从空实现改为真实落盘 `runtime/logs/waf.log`
 - jk.php 全部 `$_GET['gn']` 读取补兜底，消除 PHP8 未定义索引告警
+- **后台更新进度 UI 对齐（TDesign）**：UpdateView 移植 classic 的异步更新体验——`gn=update` 异步启动（`async=1`）+ 1.5 秒轮询 `gn=upprogress` 渲染步骤条/进度条/已用时间，HTTP 中断不再当作终态，5 分钟进度卡死与 30 分钟总等待兜底判定；设置页新增「下载策略」（镜像优先/GitHub 优先/仅镜像/仅直连）并修正过时的下载通道文案；修正 `upprogress` 端点覆盖 `ok` 终态字段导致更新失败被误报为成功的问题
 
 ## V1.86
 

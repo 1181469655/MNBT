@@ -48,6 +48,7 @@ $td_inject['updaterConfig'] = [
 	'repo'      => $mnbt_upcfg['repo'],
 	'mirrors'   => array_values($mnbt_upcfg['mirrors']),
 	'hasToken'  => $mnbt_upcfg['github_token'] !== '' ? 1 : 0,
+	'sourcePolicy' => isset($mnbt_upcfg['source_policy']) ? $mnbt_upcfg['source_policy'] : 'mirror_first',
 ];
 
 include __DIR__ . '/_spa_boot.php';
