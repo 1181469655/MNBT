@@ -16,6 +16,17 @@ if($egn=='update') {
 
 	mnbt_updater_guard_start();
 	mnbt_updater_progress_reset();
+	// PHP-FPM 下把 HTTP 会话提前结束：客户端秒回 202，nginx 计时器归零；
+	// 真正的更新在同进程继续跑，只靠 progress.json 反馈；后续 json_exit 输出会被丢弃但不影响
+	$mnbt_upd_async = function_exists('fastcgi_finish_request');
+	if ($mnbt_upd_async) {
+		if (!headers_sent()) @header('Content-Type: application/json; charset=UTF-8');
+		echo json_encode([
+			'qk' => 1, 'async' => 1, 'code' => 'started',
+			'message' => '更新已在后台启动，请在页面上看进度'
+		], JSON_UNESCAPED_UNICODE);
+		@fastcgi_finish_request();
+	}
 	$up_cfg = mnbt_updater_config();
 	// 用真实路径做文件操作，ROOT 万一是软链或大小写不同也不会把文件写到别处
 	$root_real = str_replace('\\', '/', realpath(rtrim(mnbt_updater_root(),'/')) ?: rtrim(mnbt_updater_root(),'/'));

@@ -245,71 +245,89 @@ function up() {
   if (btn) { btn.disabled = true; btn.style.opacity = .55; }
   var box = document.getElementById('upd_progress');
   if (box) box.style.display = 'block';
-  updProg.state = { startedAt: Math.floor(Date.now() / 1000), steps: [], stepIndex: -1, stepLabel: '准备', detail: '发起更新请求…', pct: null, running: true, ok: null, message: '' };
+  updProg.state = {
+    startedAt: Math.floor(Date.now() / 1000), steps: [], stepIndex: -1, stepLabel: '准备',
+    detail: '发起更新请求…', pct: null, running: true, ok: null, message: '',
+    lastUpdatedAt: Math.floor(Date.now() / 1000), terminal: false, httpNote: ''
+  };
   updProg.render();
   updProg.elapsedTimer = setInterval(function () { updProg.renderElapsed(); }, 1000);
   updProg.pollTimer = setInterval(function () { updProg.poll(); }, 1500);
-  // 第一次轮询延后 1s 触发，避免与主请求抢带宽
   setTimeout(function () { updProg.poll(); }, 1000);
   updProg.stopAll = function () {
     if (updProg.pollTimer) { clearInterval(updProg.pollTimer); updProg.pollTimer = null; }
     if (updProg.elapsedTimer) { clearInterval(updProg.elapsedTimer); updProg.elapsedTimer = null; }
   };
+  updProg.finalize = function (ok, message) {
+    if (updProg.state.terminal) return;
+    updProg.state.terminal = true;
+    updProg.state.running = false;
+    updProg.state.ok = ok ? 1 : 0;
+    updProg.state.message = message;
+    updProg.stopAll();
+    updProg.render();
+    if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+    if (ok) msalert(1, message, 6000); else msalert(4, message, 8000);
+  };
   let data = {};
   data["gn"] = "update";
   $.post('./ajax.php', data, function (date) {
-    updProg.stopAll();
     var jsoe;
-    try { jsoe = JSON.parse(date); } catch (e) { jsoe = { code: '返回内容解析失败：' + date }; }
+    try { jsoe = JSON.parse(date); } catch (e) { jsoe = { _parse_fail: 1, code: '返回内容解析失败：' + String(date).slice(0, 160) }; }
+    // 异步模式：HTTP 只回 202/started，终态完全靠 progress.json
+    if (jsoe && Number(jsoe.async) === 1) {
+      updProg.state.detail = '后端已启动，等待进度反馈…';
+      updProg.render();
+      return;
+    }
+    // 同步模式（没有 fastcgi_finish_request）：HTTP 响应即终态
     var okk = (jsoe.qk == 1 || jsoe.code === '更新成功～请手动刷新页面');
-    updProg.state.running = false;
-    updProg.state.ok = okk ? 1 : 0;
-    updProg.state.message = okk ? '更新成功～请手动刷新页面' : (jsoe.code || '更新失败');
-    if (okk && jsoe.source) {
-      updProg.state.message += '｜' + jsoe.source + (jsoe.via ? '（' + jsoe.via + '）' : '');
-    }
-    updProg.render();
-    if (btn) { btn.disabled = false; btn.style.opacity = ''; }
-    if (okk) {
-      msalert(1, updProg.state.message, 6000);
-    } else {
-      msalert(4, updProg.state.message, 8000);
-    }
+    var msg = okk ? '更新成功～请手动刷新页面' : (jsoe.code || '更新失败');
+    if (okk && jsoe.source) msg += '｜' + jsoe.source + (jsoe.via ? '（' + jsoe.via + '）' : '');
+    updProg.finalize(okk, msg);
   }).fail(function (xhr) {
-    updProg.stopAll();
-    updProg.state.running = false;
-    updProg.state.ok = 0;
-    updProg.state.message = '更新请求中断（HTTP ' + (xhr && xhr.status || '?') + '）。请刷新后台确认站点是否正常；本地配置与后台目录在中断时会自动还原。';
+    // HTTP 中断不代表后端死了：FPM 环境下后端仍在跑，非 FPM 环境靠 ignore_user_abort 也可能跑完；
+    // 前端继续按进度轮询，最多再等 8 分钟或直到 stall 判定，才归为失败
+    updProg.state.httpNote = 'HTTP ' + ((xhr && xhr.status) || '?') + '（连接已断，若后端仍在跑会自动继续，进度以页面为准）';
     updProg.render();
-    if (btn) { btn.disabled = false; btn.style.opacity = ''; }
-    msalert(4, updProg.state.message, 8000);
   });
 }
 
 // 更新进度面板的状态与渲染：从 egn=upprogress 拉后端写好的 progress.json 再画步骤条
 var updProg = {
-  state: null, pollTimer: null, elapsedTimer: null, stopAll: null, pollBusy: false,
+  state: null, pollTimer: null, elapsedTimer: null, stopAll: null, finalize: null, pollBusy: false,
+  STALL_MS: 300 * 1000, MAX_WAIT_MS: 8 * 60 * 1000,
   poll: function () {
-    if (updProg.pollBusy) return;
+    if (updProg.pollBusy || !updProg.state || updProg.state.terminal) return;
     updProg.pollBusy = true;
     $.post('./ajax.php', { gn: 'upprogress' }, function (raw) {
-      updProg.pollBusy = false;
       var p;
       try { p = JSON.parse(raw); } catch (e) { return; }
       if (!p || Number(p.has) !== 1) return;
-      // 后端 progress.json 是权威状态；本地只在终态时保留 message（防止下一次 reset 抹掉显示）
+      // 后端 progress.json 是权威状态：running=0 才算终态
       updProg.state.steps = p.steps || updProg.state.steps;
       updProg.state.stepIndex = typeof p.step_index === 'number' ? p.step_index : updProg.state.stepIndex;
       updProg.state.stepLabel = p.step_label || updProg.state.stepLabel;
       updProg.state.detail = p.detail || '';
       updProg.state.pct = (typeof p.pct === 'number' || p.pct === null) ? p.pct : updProg.state.pct;
       if (p.started_at) updProg.state.startedAt = Number(p.started_at);
+      var beUpdated = Number(p.updated_at) || 0;
+      if (beUpdated > (updProg.state.lastUpdatedAt || 0)) updProg.state.lastUpdatedAt = beUpdated;
       if (Number(p.running) === 0) {
-        updProg.state.running = false;
-        updProg.state.ok = Number(p.ok) === 1 ? 1 : 0;
-        if (p.message) updProg.state.message = p.message;
-      } else {
-        updProg.state.running = true;
+        var ok = Number(p.ok) === 1;
+        updProg.finalize(ok, p.message || (ok ? '更新完成' : '更新失败'));
+        return;
+      }
+      // 卡死判定：后端 progress.json 里 updated_at 5 分钟没动
+      var nowSec = Math.floor(Date.now() / 1000);
+      if (updProg.state.lastUpdatedAt && (nowSec - updProg.state.lastUpdatedAt) * 1000 > updProg.STALL_MS) {
+        updProg.finalize(false, '进度已 5 分钟未更新，后端可能崩溃或超时；本地配置与后台目录在关闭时会自动还原，请刷新后台确认站点状态。');
+        return;
+      }
+      // 总等待时长上限：从 startedAt 起 8 分钟仍未终态，判定为异常
+      if (updProg.state.startedAt && (nowSec - updProg.state.startedAt) * 1000 > updProg.MAX_WAIT_MS) {
+        updProg.finalize(false, '更新已运行 8 分钟仍未结束，超出预期。请手动刷新后台确认；若已回滚可稍后重试。');
+        return;
       }
       updProg.render();
     }).always(function () { updProg.pollBusy = false; });
@@ -342,6 +360,7 @@ var updProg = {
     if (detail) {
       var txt = s.detail || '';
       if (typeof s.pct === 'number' && s.running) txt += '　' + Math.max(0, Math.min(100, s.pct)) + '%';
+      if (s.httpNote && s.running) txt += (txt ? '　·　' : '') + s.httpNote;
       detail.textContent = txt;
     }
     if (list && s.steps && s.steps.length) {
