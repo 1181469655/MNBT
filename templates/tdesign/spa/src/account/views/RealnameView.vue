@@ -284,13 +284,10 @@ async function runOcr(blob) {
   ocrIdCard.value = ''
   try {
     const Tesseract = await loadOcrLib()
-    const base = boot.realnameOcrBase
     // 预处理：灰度 + 对比度增强
     const processed = await preprocessForOcr(blob)
+    // worker/core/lang 不显式指定：交给 tesseract.js 用与加载源同版本的内建 CDN 默认路径自动解析
     const result = await Tesseract.recognize(processed, 'chi_sim', {
-      workerPath: `${base}worker.min.js`,
-      corePath: `${base}tesseract-core.wasm.js`,
-      langPath: `${base}lang/`,
       logger: () => {},
       preserve_interword_spaces: '1',
       tessedit_pageseg_mode: '6', // PSM 6: 假设为统一文本块，适合身份证

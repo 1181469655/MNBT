@@ -51,3 +51,6 @@ docs/.vitepress/dist/
 admin/mnbt/*.docx
 admin/mnbt/*.zip
 /docs/docs/.vitepress/dist
+
+# tesseract.js OCR 资产改浏览器直连 CDN，不再入库（见 realname/views/apply.php 与 _spa_boot.php）
+app_plugins/realname/assets/ocr/

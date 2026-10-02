@@ -7,7 +7,9 @@ $page_title = '实名认证';
 $auth = $auth ?? null;
 ob_start();
 $submitUrl = realname_url('realname/api/submit');
-$ocrUrl = realname_asset_url('ocr/tesseract.min.js');
+// OCR 引擎改为浏览器直连 CDN（tesseract.js 5.1.1）；worker/core/lang 由该库内建的同版本默认地址自动解析
+$ocr_cdn = 'https://cdn.jsdelivr.net/npm/tesseract.js@v5.1.1/dist';
+$ocrUrl = $ocr_cdn . '/tesseract.min.js';
 ?>
 
 <div class="rn-card rn-apply-card">
@@ -107,9 +109,10 @@ $ocrUrl = realname_asset_url('ocr/tesseract.min.js');
 
 <script>
 window.RN_OCR_URL = <?= json_encode($ocrUrl) ?>;
-window.RN_OCR_LANG_URL = <?= json_encode(realname_asset_url('ocr/lang/')) ?>;
-window.RN_OCR_WORKER_URL = <?= json_encode(realname_asset_url('ocr/worker.min.js')) ?>;
-window.RN_OCR_CORE_URL = <?= json_encode(realname_asset_url('ocr/tesseract-core.wasm.js')) ?>;
+// worker/core/lang 留空：tesseract.js 会用与 RN_OCR_URL 同版本内建的 CDN 默认路径自动解析
+window.RN_OCR_LANG_URL = '';
+window.RN_OCR_WORKER_URL = '';
+window.RN_OCR_CORE_URL = '';
 window.RN_SUBMIT_URL = <?= json_encode($submitUrl) ?>;
 window.RN_STATUS_URL = <?= json_encode(realname_url('realname/status')) ?>;
 </script>

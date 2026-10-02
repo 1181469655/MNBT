@@ -10,9 +10,6 @@ if (!isset($sy) || !is_array($sy)) {
 	if (!isset($WEBQB)) {
 		@include_once __DIR__ . '/../../../MPHX/BL.php';
 	}
-	if (!isset($SQLQB)) {
-		@include_once __DIR__ . '/../../../MPHX/SQ.php';
-	}
 
 	$sy = [
 		'hosts'     => (int)$DB->count_prepare("SELECT count(*) FROM MN_zj WHERE 1"),

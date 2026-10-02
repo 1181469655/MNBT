@@ -37,7 +37,7 @@ $boot = [
 	] : null,
 	// 路由 API 入口（user_info 插件通过 P2 通用路由暴露 /account/api/*）
 	'routeBase'   => $td_base . '/index.php?_r=',
-	'realnameOcrBase' => $td_base . '/app_plugins/realname/assets/ocr/',
+	'realnameOcrBase' => 'https://cdn.jsdelivr.net/npm/tesseract.js@v5.1.1/dist/',
 	// 插件能力标志（account SPA 依据此决定是否展示余额/商城功能）
 	'plugins'     => [
 		'balance'      => function_exists('mnbt_plugin_enabled') ? mnbt_plugin_enabled('balance') : false,

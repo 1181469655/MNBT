@@ -154,15 +154,6 @@ include_once __DIR__ . '/../MPHX/BL.php';
                             <span>用于与宝塔 API 通信</span>
                         </div>
                     </div>
-                    <div class="sys-item mn_link">
-                        <div class="s-ico">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
-                        </div>
-                        <div>
-                            <b>MNBT 更新支持</b>
-                            <span>用户在线升级系统至最新版本</span>
-                        </div>
-                    </div>
                 </div>
             </div>
 
@@ -664,7 +655,6 @@ include_once __DIR__ . '/../MPHX/BL.php';
         $('.install-system-info>div').addClass('yes');
         if (!result.data.vs.is_vs_install)$('.php_vs').addClass('no');
         if (!result.data.curl_exec)$('.curl_exec').addClass('no');
-        if (!result.data.mn_link)$('.mn_link').addClass('mn-no');
         $('.install-system-info>div.no').length<=0 && NEXT_BTN_FUN.removeDisabled();
     }
 
