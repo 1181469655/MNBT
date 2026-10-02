@@ -22,7 +22,7 @@ export function updaterCheck(force = 1) {
   return apiGn('upcheck', { force }, { silent: true })
 }
 
-/** 保存更新设置（仓库 / 镜像 / 可选 Token） */
+/** 保存更新设置（GitHub / Gitee 仓库 / 下载策略 / 可选 Token） */
 export function saveUpdaterConfig(data) {
   return apiGn('upset', data)
 }

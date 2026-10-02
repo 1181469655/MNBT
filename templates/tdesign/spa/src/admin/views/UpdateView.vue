@@ -65,11 +65,11 @@
           <div class="td-set-card-bd">
             <h5 class="upd-section">下载来源</h5>
             <table class="upd-kv">
-              <tr><td>更新仓库</td><td>{{ info.repo }}</td></tr>
+              <tr><td>命中来源</td><td>{{ info.channelLabel || '—' }}（仓库 {{ info.repo }}）</td></tr>
               <tr><td>包来源</td><td>{{ info.sourceLabel }}<template v-if="info.assetSize">（{{ mb(info.assetSize) }}）</template></td></tr>
               <tr>
-                <td>下载通道</td>
-                <td>{{ policyLabel }}<template v-if="form.sourcePolicy !== 'github_only' && info.mirrors && info.mirrors.length"> · 镜像：{{ info.mirrors.join('、') }}</template><template v-if="form.sourcePolicy === 'mirror_first' || form.sourcePolicy === 'github_first'"> · 失败自动切换到另一种来源</template></td>
+                <td>下载策略</td>
+                <td>{{ POLICY_LABELS[info.sourcePolicy] || info.sourcePolicy }}<template v-if="info.sourcePolicy === 'gitee_first' || info.sourcePolicy === 'github_first'"> · 失败自动切换到另一种来源</template></td>
               </tr>
               <tr v-if="info.assetUrl"><td>附件地址</td><td>{{ info.assetUrl }}</td></tr>
               <tr v-if="info.fallback"><td>检查方式</td><td>latest 接口不可用，已改用发布列表取最高版本</td></tr>
@@ -91,8 +91,8 @@
           <div class="td-set-card-bd">
             <h5 class="upd-section">下载来源</h5>
             <table class="upd-kv">
-              <tr><td>更新仓库</td><td>{{ info.repo }}</td></tr>
-              <tr><td>下载通道</td><td>{{ policyLabel }}</td></tr>
+              <tr><td>命中来源</td><td>{{ info.channelLabel || '—' }}（仓库 {{ info.repo }}）</td></tr>
+              <tr><td>下载策略</td><td>{{ POLICY_LABELS[info.sourcePolicy] || info.sourcePolicy }}</td></tr>
             </table>
           </div>
         </div>
@@ -105,7 +105,7 @@
             </div>
             <div>
               <h4>{{ info.msg || '暂时无法检查更新' }}</h4>
-              <p>更新只走 GitHub Release，请检查服务器能否访问 api.github.com 或更新设置里的仓库与镜像</p>
+              <p>更新从 GitHub / Gitee Release 拉取，请检查服务器能否访问 gitee.com 或 api.github.com，以及更新设置里的两个仓库地址</p>
             </div>
           </div>
         </div>
@@ -178,34 +178,26 @@
           </div>
           <div>
             <h4>更新设置</h4>
-            <p>GitHub 仓库、下载镜像、下载策略与可选 Token</p>
+            <p>GitHub / Gitee 仓库、下载策略与可选 Token</p>
           </div>
         </div>
         <div class="td-set-card-bd">
           <div class="upd-field">
             <label>GitHub 仓库</label>
             <t-input v-model="form.repo" placeholder="owner/repo" :maxlength="140" />
-            <p class="upd-hint">格式 <code>owner/repo</code>，更新包只能从这个仓库的 Release 里取。</p>
+            <p class="upd-hint">格式 <code>owner/repo</code>；是否作为下载源、以及与 Gitee 的先后顺序由下方"下载策略"决定。</p>
           </div>
           <div class="upd-field">
-            <label>下载镜像</label>
-            <div v-for="(m, i) in form.mirrors" :key="i" class="upd-mirror-row">
-              <t-input v-model="form.mirrors[i]" placeholder="https://gh-proxy.com/" :maxlength="160" />
-              <t-button theme="default" variant="outline" @click="delMirror(i)">
-                <i class="mdi mdi-close"></i>
-              </t-button>
-            </div>
-            <t-button theme="default" variant="outline" @click="addMirror">
-              <i class="mdi mdi-plus"></i> 添加镜像
-            </t-button>
-            <p class="upd-hint">镜像地址填 <code>https://gh-proxy.com/</code> 这种带协议的形式，会在原地址前面加前缀。具体是否使用镜像、顺序如何，看下方"下载策略"。</p>
+            <label>Gitee 仓库</label>
+            <t-input v-model="form.giteeRepo" placeholder="owner/repo（留空表示只走 GitHub）" :maxlength="140" />
+            <p class="upd-hint">格式 <code>owner/repo</code>，也可直接粘贴 <code>https://gitee.com/owner/repo</code> 地址。Gitee 不会自动同步 GitHub 的 Release，需自建对应版本的 Release。</p>
           </div>
           <div class="upd-field">
             <label>下载策略</label>
             <t-radio-group v-model="form.sourcePolicy" class="upd-policy">
               <t-radio v-for="(pv, pk) in POLICY_LABELS" :key="pk" :value="pk" :label="pv" />
             </t-radio-group>
-            <p class="upd-hint">国内服务器直连 GitHub 大概率超时，建议保持"镜像优先"；"仅用镜像"能彻底避免 GitHub 超时拖时间；"仅用 GitHub"适合海外或有代理的服务器。</p>
+            <p class="upd-hint">国内服务器直连 GitHub 大概率超时，建议保持"Gitee 优先"；"仅用 Gitee"能彻底避免 GitHub 超时拖时间；"仅用 GitHub"适合海外或有代理的服务器。</p>
           </div>
           <div class="upd-field">
             <label>GitHub Token（可选）</label>
@@ -213,7 +205,7 @@
             <label v-if="form.hasToken" class="upd-clear">
               <input type="checkbox" v-model="form.clearToken" /> 清除已保存的 Token
             </label>
-            <p class="upd-hint">Token 只用于调用 GitHub API，不会跟着下载请求发给镜像，页面也不回显明文。</p>
+            <p class="upd-hint">Token 只用于调用 GitHub API，不会跟着下载请求发给 Gitee，页面也不回显明文。</p>
           </div>
           <div class="upd-actions">
             <t-button theme="primary" :loading="saving" @click="saveSetting">
@@ -221,7 +213,7 @@
             </t-button>
           </div>
           <p class="upd-note">
-            <b>更新说明：</b>更新会直接用 GitHub Release 的包覆盖站点文件，覆盖前会备份并还原
+            <b>更新说明：</b>更新会直接用 GitHub / Gitee Release 的包覆盖站点文件，覆盖前会备份并还原
             <code>config.php</code>、<code>cf_up.php</code>、<code>install/install.lock</code>、<code>runtime/bt_cookie/</code>；
             包里 <code>update/update_v*_*.sql</code> 的版本化迁移会按版本号依次执行（仅跑游标 <code>MN_dbver</code> 之后的增量），旧式单文件 <code>update/update.sql</code> 仍兼容。请在维护时段操作，更新过程中不要关闭页面。
           </p>
@@ -251,23 +243,21 @@ const updating = ref(false)
 const saving = ref(false)
 
 const POLICY_LABELS = {
-  mirror_first: '镜像优先（推荐国内服务器）',
+  gitee_first: 'Gitee 优先（推荐国内服务器）',
   github_first: 'GitHub 优先',
-  mirror_only: '仅用镜像',
-  github_only: '仅用 GitHub 直连',
+  gitee_only: '仅用 Gitee',
+  github_only: '仅用 GitHub',
 }
 
 const cfg = boot.updaterConfig || {}
 const form = reactive({
   repo: cfg.repo || '',
-  mirrors: Array.isArray(cfg.mirrors) ? cfg.mirrors.slice() : [],
+  giteeRepo: cfg.giteeRepo || '',
   token: '',
   hasToken: Number(cfg.hasToken) === 1,
   clearToken: false,
-  sourcePolicy: cfg.sourcePolicy || 'mirror_first',
+  sourcePolicy: cfg.sourcePolicy || 'gitee_first',
 })
-
-const policyLabel = computed(() => POLICY_LABELS[form.sourcePolicy] || form.sourcePolicy)
 
 // ------------------------------------------------------------------
 // 更新进度状态机（对齐 classic update.php：async=1 → 轮询 progress.json）
@@ -329,7 +319,7 @@ function finalize(ok, message) {
 function askUpdate() {
   const confirm = DialogPlugin.confirm({
     header: '确认开始更新',
-    body: '将用 GitHub Release 的包覆盖当前站点文件，过程可能需要几分钟，期间请勿关闭页面。确认开始更新？',
+    body: '将用 GitHub / Gitee Release 的包覆盖当前站点文件，过程可能需要几分钟，期间请勿关闭页面。确认开始更新？',
     confirmBtn: { content: '开始更新', theme: 'warning' },
     onConfirm: () => {
       confirm.destroy()
@@ -434,8 +424,11 @@ async function recheck() {
 }
 
 async function saveSetting() {
-  const mirrors = form.mirrors.map((m) => String(m || '').trim()).filter((m, i, arr) => m !== '' && arr.indexOf(m) === i)
-  const payload = { repo: form.repo.trim(), mirrors, source_policy: form.sourcePolicy }
+  const payload = {
+    repo: form.repo.trim(),
+    gitee_repo: form.giteeRepo.trim(),
+    source_policy: form.sourcePolicy,
+  }
   if (form.token && form.token.trim() !== '') payload.github_token = form.token.trim()
   if (form.clearToken) payload.clear_token = '1'
   saving.value = true
@@ -445,7 +438,6 @@ async function saveSetting() {
     MessagePlugin.success('保存成功')
     form.token = ''
     form.clearToken = false
-    form.mirrors = mirrors.length ? mirrors.slice() : ['']
     setTimeout(() => window.location.reload(), 1200)
   } else {
     MessagePlugin.error(r.message || '保存失败')
@@ -454,18 +446,6 @@ async function saveSetting() {
 
 function mb(bytes) {
   return (Number(bytes) / 1048576).toFixed(1) + ' MB'
-}
-
-function addMirror() {
-  form.mirrors.push('')
-}
-
-function delMirror(i) {
-  if (form.mirrors.length <= 1) {
-    form.mirrors[0] = ''
-    return
-  }
-  form.mirrors.splice(i, 1)
 }
 
 // 后端 upcheck 返回的是原始检查结果，转成页面用的 updateInfo 结构
@@ -491,7 +471,8 @@ function normalizeInfo(d) {
     assetSize: d.asset_size,
     publishedAt: d.published_at,
     fallback: d.fallback,
-    mirrors: d.mirrors || [],
+    sourcePolicy: d.source_policy,
+    channelLabel: d.channel_label,
     currentVer: d.current,
   }
 }
@@ -708,11 +689,6 @@ function normalizeInfo(d) {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-}
-.upd-mirror-row {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 8px;
 }
 .upd-clear {
   display: block;

@@ -39,16 +39,19 @@ $td_info = [
 	'error'        => $mnbt_update['error'],
 	'fallback'     => (int)$mnbt_update['fallback'],
 	'currentVer'   => $mnbt_update['current'],
-	'mirrors'      => array_values((array)$mnbt_update['mirrors']),
+	'giteeRepo'    => $mnbt_update['gitee_repo'],
+	'sourcePolicy' => $mnbt_update['source_policy'],
+	'channel'      => $mnbt_update['channel'],
+	'channelLabel' => $mnbt_update['channel_label'],
 ];
 $td_inject['updateInfo'] = $td_info;
 
 // 更新设置：Token 只回显是否已设置，绝不回显明文
 $td_inject['updaterConfig'] = [
-	'repo'      => $mnbt_upcfg['repo'],
-	'mirrors'   => array_values($mnbt_upcfg['mirrors']),
-	'hasToken'  => $mnbt_upcfg['github_token'] !== '' ? 1 : 0,
-	'sourcePolicy' => isset($mnbt_upcfg['source_policy']) ? $mnbt_upcfg['source_policy'] : 'mirror_first',
+	'repo'         => $mnbt_upcfg['repo'],
+	'giteeRepo'    => $mnbt_upcfg['gitee_repo'],
+	'sourcePolicy' => $mnbt_upcfg['source_policy'],
+	'hasToken'     => $mnbt_upcfg['github_token'] !== '' ? 1 : 0,
 ];
 
 include __DIR__ . '/_spa_boot.php';

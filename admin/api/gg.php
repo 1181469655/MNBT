@@ -37,8 +37,8 @@ if($egn=='update') {
 	$root = $root_real;						// 站点根，不带尾斜杠
 	mnbt_updater_guard('root',$root_sl);
 
-	// 1. 检查最新版本（只走 GitHub Release，不再校验 authcode）；执行更新前必须拿最新的下载地址
-	mnbt_updater_progress(['step'=>'check','detail'=>'向 api.github.com 询问最新 Release','pct'=>null]);
+	// 1. 检查最新版本（按策略从 GitHub/Gitee 拉 Release）；执行更新前必须拿最新的下载地址
+	mnbt_updater_progress(['step'=>'check','detail'=>'向更新源询问最新 Release','pct'=>null]);
 	$chk = mnbt_updater_check(true);
 	if(!$chk['ok']) {
 		mnbt_updater_progress_finish(false, '检查更新失败：'.$chk['error']);
@@ -61,14 +61,14 @@ if($egn=='update') {
 	$zip_file = $tmp_dir.'/gxwj-'.mt_rand(100000,999999).'.zip';
 	mnbt_updater_guard('zip',$zip_file);
 
-	// 3. 下载：Release 附件优先，回落自动源码包；每个来源按 source_policy 决定的顺序依次尝试
+	// 3. 下载：Release 附件优先，回落自动源码包；按命中源内部给定的顺序依次尝试
 	mnbt_updater_progress(['step'=>'download','detail'=>'准备下载','pct'=>0]);
 	$used = null;
 	$tried = [];
 	$cand_total = count($chk['candidates']);
 	foreach($chk['candidates'] as $ci => $c) {
 		$e = '';
-		$label = ($c['via']==='mirror' ? $c['mirror'] : 'github 直连');
+		$label = (isset($c['source_label']) ? $c['source_label'] : $c['via']).' · '.$c['label'];
 		$prefix = '候选 '.($ci+1).'/'.$cand_total.'（'.$label.'）';
 		mnbt_updater_progress(['detail'=>$prefix.'：正在建立连接','pct'=>null]);
 		if(mnbt_updater_download($c['url'],$zip_file,$up_cfg,$e,$prefix)) {
@@ -186,7 +186,7 @@ if($egn=='update') {
 	mnbt_updater_guard_rollback();
 	mnbt_updater_guard_done();
 
-	$via_label = $used['via']==='mirror' ? $used['mirror'] : 'github 直连';
+	$via_label = isset($used['source_label']) ? $used['source_label'] : $used['via'];
 	if(function_exists('logjl')) {
 		logjl($user ?? '', '系统更新', '更新到 '.$chk['latest'].'（'.$used['label'].'，来源 '.$via_label.'）', $sql_msg===''?'更新成功':'更新成功但升级SQL有误', $DB);
 	}

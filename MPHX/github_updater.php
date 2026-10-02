@@ -14,10 +14,10 @@ function mnbt_updater_root()
 	return defined('ROOT') ? ROOT : rtrim(str_replace('\\', '/', dirname(__DIR__)), '/') . '/';
 }
 
-/** 默认配置：仓库与镜像；下载策略默认镜像优先（国内服务器直连基本不通） */
+/** 默认配置：GitHub 与 Gitee 两个仓库；下载策略默认 Gitee 优先（国内直连 GitHub 基本不通，Gitee 在国内更稳） */
 function mnbt_updater_defaults()
 {
-	return ['repo' => '1181469655/MNBT', 'mirrors' => ['https://gh-proxy.com/'], 'github_token' => '', 'source_policy' => 'mirror_first'];
+	return ['repo' => '1181469655/MNBT', 'gitee_repo' => 'xiaole521/mnbt', 'github_token' => '', 'source_policy' => 'gitee_first'];
 }
 
 /**
@@ -141,45 +141,30 @@ function mnbt_updater_read_conf()
 	return is_array($mn_conf) ? $mn_conf : [];
 }
 
-/** owner/repo 规范化，非法返回空串 */
+/** owner/repo 规范化，兼容带 github/gitee 完整地址的输入，非法返回空串 */
 function mnbt_updater_norm_repo($repo)
 {
 	$repo = trim((string)$repo);
-	$repo = preg_replace('#^https?://github\.com/#i', '', $repo);
+	$repo = preg_replace('#^https?://(www\.)?(github|gitee)\.com/#i', '', $repo);
 	$repo = trim($repo, " \t\n\r/");
 	if (preg_match('#^([A-Za-z0-9._\-]{1,60})/([A-Za-z0-9._\-]{1,80})$#', $repo, $m)) {
-		// 仓库名带 .git 后缀时剥掉，GitHub API 不接受
+		// 仓库名带 .git 后缀时剥掉，GitHub/Gitee API 都不接受
 		return $m[1] . '/' . preg_replace('#\.git$#', '', $m[2]);
 	}
 	return '';
 }
 
-/** 镜像地址规范化：支持只填域名，统一补协议与尾斜杠；非法返回空串 */
-function mnbt_updater_norm_mirror($mirror)
-{
-	$mirror = trim((string)$mirror);
-	if ($mirror === '') return '';
-	if (!preg_match('#^https?://#i', $mirror)) {
-		if (!preg_match('#^[A-Za-z0-9.\-]{3,120}$#', $mirror)) return '';
-		$mirror = 'https://' . $mirror;
-	}
-	$mirror = rtrim($mirror, '/') . '/';
-	// 双引号写回 cf_up.php，出现引号/反斜杠/美元符会破坏配置文件
-	if (!preg_match('#^https?://[A-Za-z0-9.\-:/_]+$#', $mirror)) return '';
-	$host = strtolower((string)parse_url($mirror, PHP_URL_HOST));
-	if ($host === '' || strpos($host, '.') === false) return '';
-	return $mirror;
-}
-
-/** 下载策略枚举：非法值回落默认 mirror_first */
+/** 下载策略枚举：Gitee/GitHub 双源的优先顺序；旧的 mirror_* 值自动映射到对应的 gitee_* */
 function mnbt_updater_norm_policy($policy)
 {
 	$policy = strtolower(trim((string)$policy));
-	$allow = ['mirror_first', 'github_first', 'mirror_only', 'github_only'];
-	return in_array($policy, $allow, true) ? $policy : 'mirror_first';
+	$legacy = ['mirror_first' => 'gitee_first', 'mirror_only' => 'gitee_only'];
+	if (isset($legacy[$policy])) $policy = $legacy[$policy];
+	$allow = ['gitee_first', 'github_first', 'gitee_only', 'github_only'];
+	return in_array($policy, $allow, true) ? $policy : 'gitee_first';
 }
 
-/** 更新配置：仓库、镜像列表、Token、下载策略；缺省值兜底 */
+/** 更新配置：GitHub 仓库、Gitee 仓库、Token、下载策略；缺省值兜底 */
 function mnbt_updater_config()
 {
 	$mn_conf = mnbt_updater_read_conf();
@@ -189,46 +174,69 @@ function mnbt_updater_config()
 	$repo = isset($up['repo']) ? mnbt_updater_norm_repo($up['repo']) : '';
 	if ($repo === '') $repo = $def['repo'];
 
-	$mirrors = [];
-	$mirrors_set = false;
-	if (isset($up['mirrors'])) {
-		// 显式配置过就按配置走，包括被清空（只走 github 直连）
-		$mirrors_set = true;
-		$raw = is_array($up['mirrors']) ? $up['mirrors'] : preg_split('/\r\n|\r|\n/', (string)$up['mirrors']);
-		foreach ($raw as $m) {
-			$n = mnbt_updater_norm_mirror($m);
-			if ($n !== '' && !in_array($n, $mirrors, true)) $mirrors[] = $n;
-		}
+	// Gitee 仓库：装过就用配置值（允许留空 = 只走 GitHub），从没配过才用默认
+	if (array_key_exists('gitee_repo', $up)) {
+		$gitee_repo = mnbt_updater_norm_repo($up['gitee_repo']);
+	} else {
+		$gitee_repo = $def['gitee_repo'];
 	}
-	if (!$mirrors_set && !$mirrors) $mirrors = $def['mirrors'];
 
 	$token = trim((string)($up['github_token'] ?? ''));
 	if ($token !== '' && !preg_match('#^[A-Za-z0-9._\-]{1,128}$#', $token)) $token = '';
 
 	$policy = isset($up['source_policy']) ? mnbt_updater_norm_policy($up['source_policy']) : $def['source_policy'];
-	// 没配镜像时 mirror_first / mirror_only 都无意义，退回到直连
-	if (!$mirrors) {
-		if ($policy === 'mirror_first' || $policy === 'mirror_only') $policy = 'github_only';
-	}
 
-	return ['repo' => $repo, 'mirrors' => $mirrors, 'github_token' => $token, 'source_policy' => $policy];
+	return ['repo' => $repo, 'gitee_repo' => $gitee_repo, 'github_token' => $token, 'source_policy' => $policy];
+}
+
+/**
+ * 按策略生成有序的下载源列表；每个源自带 API 基址、仓库与鉴权方式
+ * Gitee 匿名即可，GitHub 可选 Token 提速；Token 绝不会发给 Gitee
+ * 仓库为空的源直接跳过，避免向不存在的地址发请求
+ */
+function mnbt_updater_sources($cfg)
+{
+	$pool = [
+		'gitee' => [
+			'key' => 'gitee', 'label' => 'Gitee', 'repo' => $cfg['gitee_repo'],
+			'api' => 'https://gitee.com/api/v5', 'send_token' => false,
+		],
+		'github' => [
+			'key' => 'github', 'label' => 'GitHub', 'repo' => $cfg['repo'],
+			'api' => 'https://api.github.com', 'send_token' => ($cfg['github_token'] !== ''),
+		],
+	];
+	switch ($cfg['source_policy']) {
+		case 'gitee_only':   $order = ['gitee']; break;
+		case 'github_only':  $order = ['github']; break;
+		case 'github_first': $order = ['github', 'gitee']; break;
+		case 'gitee_first':
+		default:             $order = ['gitee', 'github']; break;
+	}
+	$out = [];
+	foreach ($order as $k) {
+		if ($pool[$k]['repo'] !== '') $out[] = $pool[$k];
+	}
+	return $out;
 }
 
 /**
  * 回写 cf_up.php 的 update 段，其余键原样保留（参照 admin/api/repair.php 的 ary_asd 写法）
- * @param string|null $token null 表示保持原值不变
+ * @param string|null $token  null 表示保持原值不变
  * @param string|null $policy null 表示保持原值不变
  */
-function mnbt_updater_save_config($repo, $mirrors, $token = null, $policy = null)
+function mnbt_updater_save_config($repo, $gitee_repo, $token = null, $policy = null)
 {
 	$repo = mnbt_updater_norm_repo($repo);
-	if ($repo === '') return ['ok' => 0, 'error' => '仓库格式不正确，应为 owner/repo'];
+	if ($repo === '') return ['ok' => 0, 'error' => 'GitHub 仓库格式不正确，应为 owner/repo'];
 
-	$clean = [];
-	foreach ((array)$mirrors as $m) {
-		$n = mnbt_updater_norm_mirror($m);
-		if ($n !== '' && !in_array($n, $clean, true)) $clean[] = $n;
+	// Gitee 仓库允许留空（= 只走 GitHub）；填了但格式不对要明确报错
+	$gitee_raw = trim((string)$gitee_repo);
+	$gitee_norm = $gitee_raw === '' ? '' : mnbt_updater_norm_repo($gitee_raw);
+	if ($gitee_raw !== '' && $gitee_norm === '') {
+		return ['ok' => 0, 'error' => 'Gitee 仓库格式不正确，应为 owner/repo'];
 	}
+
 	$token_new = null;
 	if ($token !== null) {
 		$token_new = trim((string)$token);
@@ -237,18 +245,22 @@ function mnbt_updater_save_config($repo, $mirrors, $token = null, $policy = null
 		}
 	}
 	$policy_new = $policy === null ? null : mnbt_updater_norm_policy($policy);
-	if ($policy_new !== null && !$clean && ($policy_new === 'mirror_first' || $policy_new === 'mirror_only')) {
-		return ['ok' => 0, 'error' => '选了镜像相关策略但镜像列表是空的，请至少填一个镜像，或改回 GitHub 直连'];
+	// Gitee 仓库留空时，任何偏向 Gitee 的策略都无意义，收敛到对应的 GitHub 策略
+	if ($gitee_norm === '' && $policy_new !== null) {
+		if ($policy_new === 'gitee_only') $policy_new = 'github_only';
+		elseif ($policy_new === 'gitee_first') $policy_new = 'github_first';
 	}
 
 	$mn_conf = mnbt_updater_read_conf();
 	$old = isset($mn_conf['update']) && is_array($mn_conf['update']) ? $mn_conf['update'] : [];
 	$mn_conf['update'] = [
 		'repo' => $repo,
-		'mirrors' => array_values($clean),
+		'gitee_repo' => $gitee_norm,
 		'github_token' => $token_new === null ? (string)($old['github_token'] ?? '') : $token_new,
 		'source_policy' => $policy_new === null ? mnbt_updater_norm_policy($old['source_policy'] ?? '') : $policy_new,
 	];
+	// 镜像前缀机制已移除，彻底丢弃旧的 mirrors 键
+	unset($mn_conf['update']['mirrors']);
 
 	$kr_sxy = ary_asd($mn_conf);
 	if ($kr_sxy === '') return ['ok' => 0, 'error' => '配置数据为空，已取消写入'];
@@ -260,17 +272,15 @@ function mnbt_updater_save_config($repo, $mirrors, $token = null, $policy = null
 	return ['ok' => 1, 'error' => ''];
 }
 
-/** 下载/接口地址的 host 是否授权：GitHub 官方域 + 配置里的镜像域 */
+/** 下载/接口地址的 host 是否授权：仅 GitHub 与 Gitee 官方域 */
 function mnbt_updater_host_allowed($host, $cfg)
 {
 	$host = strtolower(trim((string)$host));
 	if ($host === '') return false;
 	// github.com / api.github.com / codeload.github.com / *.githubusercontent.com（附件与源码包的跳转目标）
 	if (preg_match('#^([a-z0-9\-]+\.)*github(usercontent)?\.com$#', $host)) return true;
-	foreach ((array)$cfg['mirrors'] as $m) {
-		$mh = strtolower((string)parse_url($m, PHP_URL_HOST));
-		if ($mh !== '' && $mh === $host) return true;
-	}
+	// gitee.com 及其子域：Release 归档 302 到 repository/archive，再跳 blazearchive，全程都落在 gitee.com 域内
+	if (preg_match('#^([a-z0-9\-]+\.)*gitee\.com$#', $host)) return true;
 	return false;
 }
 
@@ -337,8 +347,8 @@ function mnbt_updater_url_safe($url, $cfg, &$err)
 	return mnbt_updater_host_public($host, $err);
 }
 
-/** GitHub API 单次请求（返回体量很小，可以进内存） */
-function mnbt_updater_api_once($url, $cfg, $send_token)
+/** 单次接口请求（返回体量很小，可以进内存）；请求头与鉴权按来源区分 */
+function mnbt_updater_api_once($url, $cfg, $source)
 {
 	$out = ['ok' => 0, 'json' => null, 'http' => 0, 'error' => ''];
 	$err = '';
@@ -346,13 +356,15 @@ function mnbt_updater_api_once($url, $cfg, $send_token)
 		$out['error'] = $err;
 		return $out;
 	}
-	$headers = [
-		'User-Agent: MNBT-Updater/1.85',
-		'Accept: application/vnd.github+json',
-	];
-	// Token 只用于提速率，发给镜像就等于把凭据交给第三方，所以只有直连才带
-	if ($send_token && $cfg['github_token'] !== '') {
-		$headers[] = 'Authorization: Bearer ' . $cfg['github_token'];
+	$headers = ['User-Agent: MNBT-Updater/1.85'];
+	if ($source['key'] === 'github') {
+		$headers[] = 'Accept: application/vnd.github+json';
+		// Token 只用于提高 GitHub 速率限制；Gitee 匿名访问，绝不把凭据发给它
+		if ($source['send_token'] && $cfg['github_token'] !== '') {
+			$headers[] = 'Authorization: Bearer ' . $cfg['github_token'];
+		}
+	} else {
+		$headers[] = 'Accept: application/json';
 	}
 	$ch = curl_init($url);
 	curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -388,44 +400,21 @@ function mnbt_updater_api_once($url, $cfg, $send_token)
 }
 
 /**
- * 调用 GitHub API：按 source_policy 决定直连与镜像顺序
- * 国内环境直连 api.github.com 常常不通，默认走镜像优先
+ * 调用某个源的 API：URL = 该源基址 + 路径尾段（GitHub 与 Gitee 的路径结构一致）
+ * 镜像前缀机制已移除，这里对单个源只做一次直连
  */
-function mnbt_updater_api_get($path, $cfg)
+function mnbt_updater_api_get($path, $cfg, $source)
 {
 	$out = ['ok' => 0, 'json' => null, 'http' => 0, 'error' => ''];
 	if (!function_exists('curl_init')) {
 		$out['error'] = '服务器未启用 curl 扩展';
 		return $out;
 	}
-	$direct = ['url' => 'https://api.github.com' . $path, 'token' => true];
-	$mirror_list = [];
-	foreach ($cfg['mirrors'] as $m) {
-		// Token 绝不发给镜像，只对 api.github.com 直连有效
-		$mirror_list[] = ['url' => $m . 'https://api.github.com' . $path, 'token' => false];
-	}
-	$urls = mnbt_updater_order_sources($direct, $mirror_list, $cfg['source_policy']);
-	$errs = [];
-	foreach ($urls as $u) {
-		$r = mnbt_updater_api_once($u['url'], $cfg, $u['token']);
-		if ($r['ok']) return $r;
-		$errs[] = ($u['token'] ? '直连' : $u['url']) . '：' . $r['error'];
-		$out['http'] = $r['http'];
-	}
-	$out['error'] = '接口请求失败（' . implode(' / ', $errs) . '）';
+	$r = mnbt_updater_api_once($source['api'] . $path, $cfg, $source);
+	if ($r['ok']) return $r;
+	$out['http'] = $r['http'];
+	$out['error'] = $source['label'] . '：' . $r['error'];
 	return $out;
-}
-
-/** 按策略把"直连"和"镜像列表"拼成一个有序尝试序列 */
-function mnbt_updater_order_sources($direct, $mirror_list, $policy)
-{
-	switch ($policy) {
-		case 'github_only':   return [$direct];
-		case 'mirror_only':   return $mirror_list;
-		case 'github_first':  return array_merge([$direct], $mirror_list);
-		case 'mirror_first':
-		default:              return $mirror_list ? array_merge($mirror_list, [$direct]) : [$direct];
-	}
 }
 
 /**
@@ -466,36 +455,48 @@ function mnbt_updater_pick_asset($assets)
 }
 
 /**
- * 下载候选地址：包来源优先级为 release 自定义 zip 附件 > GitHub 自动源码包；
- * 每个来源再按 source_policy 决定 github 直连与镜像的尝试顺序
+ * 下载候选地址：只在命中的那个源内部排序，包来源优先级为
+ * release 自定义 zip 附件 > 平台自动源码包；镜像前缀机制已移除，不再有第二层拼装
  */
-function mnbt_updater_candidates($cfg, $tag, $asset_url)
+function mnbt_updater_candidates($cfg, $source, $tag, $asset_url)
 {
+	$repo = $source['repo'];
 	$srcs = [];
 	if ($asset_url !== '') {
 		$srcs[] = ['type' => 'asset', 'label' => 'Release 附件', 'url' => $asset_url];
 	}
-	// archive/refs/tags 会由 GitHub 跳到 codeload，legacy.zip 是 codeload 的直链形式，两种都留作兜底
-	$srcs[] = [
-		'type' => 'source',
-		'label' => 'GitHub 源码包',
-		'url' => 'https://github.com/' . $cfg['repo'] . '/archive/refs/tags/' . rawurlencode($tag) . '.zip',
-	];
-	$srcs[] = [
-		'type' => 'source',
-		'label' => 'GitHub 源码包（直连 codeload）',
-		'url' => 'https://codeload.github.com/' . $cfg['repo'] . '/legacy.zip/refs/tags/' . rawurlencode($tag),
-	];
+	if ($source['key'] === 'github') {
+		// archive/refs/tags 会由 GitHub 跳到 codeload，legacy.zip 是 codeload 的直链形式，两种都留作兜底
+		$srcs[] = [
+			'type' => 'source',
+			'label' => '源码包',
+			'url' => 'https://github.com/' . $repo . '/archive/refs/tags/' . rawurlencode($tag) . '.zip',
+		];
+		$srcs[] = [
+			'type' => 'source',
+			'label' => '源码包（直连 codeload）',
+			'url' => 'https://codeload.github.com/' . $repo . '/legacy.zip/refs/tags/' . rawurlencode($tag),
+		];
+	} else {
+		// Gitee：archive/refs/tags 会 302 到 repository/archive/{tag}.zip，两种形式都留作兜底
+		$srcs[] = [
+			'type' => 'source',
+			'label' => '源码包',
+			'url' => 'https://gitee.com/' . $repo . '/archive/refs/tags/' . rawurlencode($tag) . '.zip',
+		];
+		$srcs[] = [
+			'type' => 'source',
+			'label' => '源码包（repository/archive）',
+			'url' => 'https://gitee.com/' . $repo . '/repository/archive/' . rawurlencode($tag) . '.zip',
+		];
+	}
 
 	$out = [];
 	foreach ($srcs as $s) {
-		$direct = ['type' => $s['type'], 'label' => $s['label'], 'url' => $s['url'], 'via' => 'github', 'mirror' => ''];
-		$mirror_list = [];
-		foreach ($cfg['mirrors'] as $m) {
-			$mirror_list[] = ['type' => $s['type'], 'label' => $s['label'], 'url' => $m . $s['url'], 'via' => 'mirror', 'mirror' => $m];
-		}
-		$ordered = mnbt_updater_order_sources($direct, $mirror_list, $cfg['source_policy']);
-		foreach ($ordered as $o) $out[] = $o;
+		$out[] = [
+			'type' => $s['type'], 'label' => $s['label'], 'url' => $s['url'],
+			'via' => $source['key'], 'source_label' => $source['label'],
+		];
 	}
 	return $out;
 }
@@ -508,29 +509,32 @@ function mnbt_updater_cache_file()
 	return $dir . '/github_updater_check.json';
 }
 
-/** 检查最新版本；返回展示与下载所需的全部信息 */
+/** 检查最新版本；按 source_policy 顺序试源，第一个拿到可用 Release 的源即命中 */
 function mnbt_updater_check($force = false, $ttl = 1800)
 {
 	$cfg = mnbt_updater_config();
+	$sources = mnbt_updater_sources($cfg);
 	$cur = (int)($GLOBALS['WEBQB'] ?? 0);
+	$sig = $cfg['repo'] . '|' . $cfg['gitee_repo'] . '|' . $cfg['source_policy'];
 	$out = [
-		'ok' => 0, 'error' => '', 'repo' => $cfg['repo'], 'mirrors' => $cfg['mirrors'],
+		'ok' => 0, 'error' => '', 'repo' => $cfg['repo'], 'gitee_repo' => $cfg['gitee_repo'],
+		'source_policy' => $cfg['source_policy'], 'channel' => '', 'channel_label' => '',
 		'has_token' => ($cfg['github_token'] !== ''), 'current' => 'V' . sprintf('%.2f', $cur / 1000),
 		'current_version' => $cur, 'tag' => '', 'latest' => '', 'version' => 0, 'name' => '', 'body' => '',
 		'asset_url' => '', 'asset_name' => '', 'asset_size' => 0, 'source' => '', 'source_label' => '',
 		'published_at' => '', 'fallback' => 0, 'can_update' => 0, 'candidates' => [],
 	];
-	if ($cfg['repo'] === '') {
-		$out['error'] = '未配置更新仓库';
+	if (!$sources) {
+		$out['error'] = '未配置可用的更新仓库';
 		return $out;
 	}
 
-	// 仓库或本地版本变了要重新问；失败结果最多缓存 5 分钟
+	// 配置或本地版本变了要重新问；失败结果最多缓存 5 分钟
 	$cf = mnbt_updater_cache_file();
 	if (!$force && is_file($cf)) {
 		$c = json_decode((string)@file_get_contents($cf), true);
-		if (is_array($c) && isset($c['ts'], $c['repo'], $c['ver'], $c['data'])
-			&& $c['repo'] === $cfg['repo'] && (int)$c['ver'] === $cur) {
+		if (is_array($c) && isset($c['ts'], $c['sig'], $c['ver'], $c['data'])
+			&& $c['sig'] === $sig && (int)$c['ver'] === $cur) {
 			$life = !empty($c['data']['ok']) ? min((int)($c['ttl'] ?? 1800), (int)$ttl) : min(300, (int)$ttl);
 			if (time() - (int)$c['ts'] < $life) {
 				return $c['data'];
@@ -538,73 +542,87 @@ function mnbt_updater_check($force = false, $ttl = 1800)
 		}
 	}
 
-	$rel = null;
-	$err1 = '';
-	$api = mnbt_updater_api_get('/repos/' . $cfg['repo'] . '/releases/latest', $cfg);
-	if ($api['ok']) {
-		$js = $api['json'];
-		// latest 接口对非数组返回也会给 200，这里靠 tag_name 判定
-		if (isset($js['tag_name']) && mnbt_updater_tag_to_version($js['tag_name']) > 0) {
-			$rel = $js;
+	$errs = [];
+	foreach ($sources as $source) {
+		$rel = null;
+		$fallback = 0;
+		$err1 = '';
+		$api = mnbt_updater_api_get('/repos/' . $source['repo'] . '/releases/latest', $cfg, $source);
+		if ($api['ok']) {
+			$js = $api['json'];
+			// latest 接口对非数组返回也会给 200，这里靠 tag_name 判定
+			if (isset($js['tag_name']) && mnbt_updater_tag_to_version($js['tag_name']) > 0) {
+				$rel = $js;
+			}
+		} else {
+			$err1 = $api['error'];
 		}
-	} else {
-		$err1 = $api['error'];
-	}
-	if (!is_array($rel)) {
-		// latest 不可用（未来 tag 可能不再以 V 开头，或接口限流），退化成列表取版本号最高的一个
-		$list = mnbt_updater_api_get('/repos/' . $cfg['repo'] . '/releases?per_page=20', $cfg);
-		if (!$list['ok']) {
-			$out['error'] = $list['error'] !== '' ? $list['error'] : $err1;
-			mnbt_updater_cache_put($cfg, $cur, $out, $ttl);
-			return $out;
+		if (!is_array($rel)) {
+			// latest 不可用（Gitee 早期没有 latest、或 tag 不再以 V 开头、或接口限流），退化成列表取版本号最高的一个
+			$list = mnbt_updater_api_get('/repos/' . $source['repo'] . '/releases?per_page=20', $cfg, $source);
+			if (!$list['ok']) {
+				$errs[] = $list['error'] !== '' ? $list['error'] : $err1;
+				continue;
+			}
+			$best = null;
+			$bestv = 0;
+			foreach ($list['json'] as $js) {
+				if (!is_array($js) || empty($js['tag_name'])) continue;
+				if (!empty($js['draft']) || !empty($js['prerelease'])) continue;
+				$v = mnbt_updater_tag_to_version($js['tag_name']);
+				if ($v > $bestv) { $bestv = $v; $best = $js; }
+			}
+			if (!is_array($best)) {
+				$errs[] = $err1 !== '' ? $err1 : ($source['label'] . ' 未找到可用的版本发布');
+				continue;
+			}
+			$rel = $best;
+			$fallback = 1;
 		}
-		$best = null;
-		$bestv = 0;
-		foreach ($list['json'] as $js) {
-			if (!is_array($js) || empty($js['tag_name'])) continue;
-			if (!empty($js['draft']) || !empty($js['prerelease'])) continue;
-			$v = mnbt_updater_tag_to_version($js['tag_name']);
-			if ($v > $bestv) { $bestv = $v; $best = $js; }
-		}
-		if (!is_array($best)) {
-			$out['error'] = $err1 !== '' ? $err1 : 'GitHub 未找到可用的版本发布';
-			mnbt_updater_cache_put($cfg, $cur, $out, $ttl);
-			return $out;
-		}
-		$rel = $best;
-		$out['fallback'] = 1;
+
+		// 命中：用这个源的 Release 构建全部展示与下载数据
+		$tag = (string)$rel['tag_name'];
+		$asset = mnbt_updater_pick_asset($rel['assets'] ?? []);
+		$ver = mnbt_updater_tag_to_version($tag);
+
+		$out['ok'] = 1;
+		$out['channel'] = $source['key'];
+		$out['channel_label'] = $source['label'];
+		$out['repo'] = $source['repo'];
+		$out['tag'] = $tag;
+		$out['latest'] = mnbt_updater_tag_display($tag);
+		$out['version'] = $ver;
+		$out['name'] = (string)($rel['name'] ?? '');
+		$out['body'] = (string)($rel['body'] ?? '');
+		// Gitee 只有 created_at，GitHub 有 published_at，取存在的第一个
+		$out['published_at'] = (string)($rel['published_at'] ?? ($rel['created_at'] ?? ''));
+		$out['asset_url'] = $asset['url'];
+		$out['asset_name'] = $asset['name'];
+		$out['asset_size'] = $asset['size'];
+		$out['can_update'] = ($ver > $cur) ? 1 : 0;
+		$out['source'] = $asset['url'] !== '' ? 'asset' : 'source';
+		$out['source_label'] = $asset['url'] !== ''
+			? ('Release 附件 ' . $asset['name'])
+			: ($source['label'] . ' 自动源码包（需剥顶层目录）');
+		$out['fallback'] = $fallback;
+		$out['candidates'] = mnbt_updater_candidates($cfg, $source, $tag, $asset['url']);
+		mnbt_updater_cache_put($cfg, $cur, $out, $ttl, $sig);
+		return $out;
 	}
 
-	$tag = (string)$rel['tag_name'];
-	$asset = mnbt_updater_pick_asset($rel['assets'] ?? []);
-	$ver = mnbt_updater_tag_to_version($tag);
-
-	$out['ok'] = 1;
-	$out['tag'] = $tag;
-	$out['latest'] = mnbt_updater_tag_display($tag);
-	$out['version'] = $ver;
-	$out['name'] = (string)($rel['name'] ?? '');
-	$out['body'] = (string)($rel['body'] ?? '');
-	$out['published_at'] = (string)($rel['published_at'] ?? '');
-	$out['asset_url'] = $asset['url'];
-	$out['asset_name'] = $asset['name'];
-	$out['asset_size'] = $asset['size'];
-	$out['can_update'] = ($ver > $cur) ? 1 : 0;
-	$out['source'] = $asset['url'] !== '' ? 'asset' : 'source';
-	$out['source_label'] = $asset['url'] !== '' ? 'Release 附件 ' . $asset['name'] : 'GitHub 自动源码包（需剥顶层目录）';
-	$out['candidates'] = mnbt_updater_candidates($cfg, $tag, $asset['url']);
-	mnbt_updater_cache_put($cfg, $cur, $out, $ttl);
+	$out['error'] = $errs ? implode(' / ', $errs) : '所有更新源都不可用';
+	mnbt_updater_cache_put($cfg, $cur, $out, $ttl, $sig);
 	return $out;
 }
 
-/** 写检查结果缓存；缓存里不含 Token，只存展示与下载所需数据 */
-function mnbt_updater_cache_put($cfg, $cur, $out, $ttl = 1800)
+/** 写检查结果缓存；缓存里不含 Token，只存展示与下载所需数据；按源签名失效 */
+function mnbt_updater_cache_put($cfg, $cur, $out, $ttl = 1800, $sig = '')
 {
 	$cf = mnbt_updater_cache_file();
 	@file_put_contents($cf, json_encode([
 		'ts' => time(),
 		'ttl' => (int)$ttl,
-		'repo' => $cfg['repo'],
+		'sig' => $sig !== '' ? $sig : ($cfg['repo'] . '|' . $cfg['gitee_repo'] . '|' . $cfg['source_policy']),
 		'ver' => (int)$cur,
 		'data' => $out,
 	], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));

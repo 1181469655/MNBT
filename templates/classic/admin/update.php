@@ -4,16 +4,17 @@
 $upd_ok = !empty($mnbt_update['ok']);
 $upd_can = !empty($mnbt_update['can_update']);
 $upd_log = trim((string)($mnbt_update['body'] ?? ''));
-$upd_mirror_txt = implode("\n", $mnbt_upcfg['mirrors']);
+$upd_gitee_repo = isset($mnbt_upcfg['gitee_repo']) ? $mnbt_upcfg['gitee_repo'] : '';
 $upd_token_set = !empty($mnbt_update['has_token']);
-$upd_policy = isset($mnbt_upcfg['source_policy']) ? $mnbt_upcfg['source_policy'] : 'mirror_first';
+$upd_policy = isset($mnbt_upcfg['source_policy']) ? $mnbt_upcfg['source_policy'] : 'gitee_first';
 $upd_policy_labels = [
-	'mirror_first' => '镜像优先（推荐国内服务器）',
+	'gitee_first'  => 'Gitee 优先（推荐国内服务器）',
 	'github_first' => 'GitHub 优先',
-	'mirror_only'  => '仅用镜像',
-	'github_only'  => '仅用 GitHub 直连',
+	'gitee_only'   => '仅用 Gitee',
+	'github_only'  => '仅用 GitHub',
 ];
 $upd_policy_desc = isset($upd_policy_labels[$upd_policy]) ? $upd_policy_labels[$upd_policy] : $upd_policy;
+$upd_channel = !empty($mnbt_update['channel_label']) ? $mnbt_update['channel_label'] : '';
 ?>
 <style>
 /* 系统更新页：直角蓝白，不用蓝底色块与装饰竖条 */
@@ -104,13 +105,10 @@ $upd_policy_desc = isset($upd_policy_labels[$upd_policy]) ? $upd_policy_labels[$
 <?php endif; ?>
 
       <table class="mn-upd-kv">
-        <tr><td>更新仓库</td><td><?=htmlspecialchars($mnbt_update['repo'])?></td></tr>
+        <tr><td>命中来源</td><td><?=($upd_ok && $upd_channel !== '') ? htmlspecialchars($upd_channel) : '—'?>（仓库 <?=htmlspecialchars($mnbt_update['repo'])?>）</td></tr>
         <tr><td>包来源</td><td><?=htmlspecialchars($upd_ok ? $mnbt_update['source_label'] : '—')?><?=($upd_ok && !empty($mnbt_update['asset_size'])) ? '（' . number_format($mnbt_update['asset_size'] / 1048576, 1) . ' MB）' : ''?></td></tr>
-        <tr><td>下载通道</td><td><?=htmlspecialchars($upd_policy_desc)?><?php
-			if ($upd_policy !== 'github_only'):
-				if (!empty($mnbt_update['mirrors'])) echo ' · 镜像：' . htmlspecialchars(implode('、', $mnbt_update['mirrors']));
-			endif;
-			if ($upd_policy === 'github_first' || $upd_policy === 'mirror_first') echo ' · 失败自动切换到另一种来源';
+        <tr><td>下载策略</td><td><?=htmlspecialchars($upd_policy_desc)?><?php
+			if ($upd_policy === 'github_first' || $upd_policy === 'gitee_first') echo ' · 失败自动切换到另一种来源';
 		?></td></tr>
 <?php if ($upd_ok && !empty($mnbt_update['asset_url'])): ?>
         <tr><td>附件地址</td><td><?=htmlspecialchars($mnbt_update['asset_url'])?></td></tr>
@@ -164,27 +162,19 @@ $upd_policy_desc = isset($upd_policy_labels[$upd_policy]) ? $upd_policy_labels[$
       <div class="mn-upd-field">
         <label for="upd_repo">GitHub 仓库</label>
         <input type="text" class="form-control" id="upd_repo" value="<?=htmlspecialchars($mnbt_upcfg['repo'])?>" placeholder="owner/repo" maxlength="140">
-        <small>格式 <code>owner/repo</code>，更新包只能从这个仓库的 Release 里取。</small>
+        <small>GitHub 仓库地址，格式 <code>owner/repo</code>；是否作为下载源、以及和 Gitee 的先后顺序由下面"下载策略"决定。</small>
       </div>
 
       <div class="mn-upd-field">
-        <label>下载镜像</label>
-        <div id="upd_mirrors">
-<?php foreach ($mnbt_upcfg['mirrors'] as $m): ?>
-          <div class="mn-upd-row">
-            <input type="text" class="form-control upd-mirror-input" value="<?=htmlspecialchars($m)?>" placeholder="https://gh-proxy.com/" maxlength="160">
-            <button class="btn btn-outline-danger" type="button" onclick="updDelMirror(this)"><i class="mdi mdi-close"></i></button>
-          </div>
-<?php endforeach; ?>
-        </div>
-        <button class="btn btn-outline-secondary" type="button" onclick="updAddMirror()"><i class="mdi mdi-plus"></i> 添加镜像</button>
-        <small>镜像地址填 <code>https://gh-proxy.com/</code> 这种带协议的形式，会在原地址前面加前缀。具体是否使用镜像、顺序如何，看下面"下载策略"。</small>
+        <label for="upd_gitee_repo">Gitee 仓库</label>
+        <input type="text" class="form-control" id="upd_gitee_repo" value="<?=htmlspecialchars($upd_gitee_repo)?>" placeholder="owner/repo（留空表示只走 GitHub）" maxlength="140">
+        <small>格式 <code>owner/repo</code>，也可以直接粘贴 <code>https://gitee.com/owner/repo</code> 地址。Gitee 上的 Release 需与 GitHub 版本对应（Gitee 不会自动同步 GitHub 的 Release，需自建）。</small>
       </div>
 
       <div class="mn-upd-field">
         <label>下载策略</label>
         <div class="mn-upd-policy">
-          <?php $pol_map = ['mirror_first'=>'镜像优先（推荐国内服务器）','github_first'=>'GitHub 优先','mirror_only'=>'仅用镜像','github_only'=>'仅用 GitHub 直连']; ?>
+          <?php $pol_map = ['gitee_first'=>'Gitee 优先（推荐国内服务器）','github_first'=>'GitHub 优先','gitee_only'=>'仅用 Gitee','github_only'=>'仅用 GitHub']; ?>
           <?php foreach ($pol_map as $pk => $pv): ?>
           <label class="mn-upd-policy-item">
             <input type="radio" name="upd_source_policy" value="<?=htmlspecialchars($pk)?>" <?=($upd_policy === $pk ? 'checked' : '')?>>
@@ -192,7 +182,7 @@ $upd_policy_desc = isset($upd_policy_labels[$upd_policy]) ? $upd_policy_labels[$
           </label>
           <?php endforeach; ?>
         </div>
-        <small>国内服务器直连 GitHub 大概率超时，建议保持"镜像优先"；"仅用镜像"能彻底避免 GitHub 超时拖时间；"仅用 GitHub"适合海外或有代理的服务器。</small>
+        <small>国内服务器直连 GitHub 大概率超时，建议保持"Gitee 优先"；"仅用 Gitee"能彻底避免 GitHub 超时拖时间；"仅用 GitHub"适合海外或有代理的服务器。</small>
       </div>
 
       <div class="mn-upd-field">
@@ -205,7 +195,7 @@ $upd_policy_desc = isset($upd_policy_labels[$upd_policy]) ? $upd_policy_labels[$
           </label>
         </div>
 <?php endif; ?>
-        <small>Token 只用于调用 GitHub API，不会跟着下载请求发给镜像；页面不会回显明文。</small>
+        <small>Token 只用于调用 GitHub API，不会跟着下载请求发给 Gitee；页面不会回显明文。</small>
       </div>
 
       <div class="mn-upd-actions">
@@ -213,7 +203,7 @@ $upd_policy_desc = isset($upd_policy_labels[$upd_policy]) ? $upd_policy_labels[$
       </div>
 
       <div class="mn-upd-note" style="margin-top:16px;">
-        <b>更新说明：</b>更新会直接用 GitHub Release 的包覆盖站点文件，覆盖前会备份并还原
+        <b>更新说明：</b>更新会直接用 GitHub / Gitee Release 的包覆盖站点文件，覆盖前会备份并还原
         <code>config.php</code>、<code>cf_up.php</code>、<code>install/install.lock</code>、<code>runtime/bt_cookie/</code>；
         包里 <code>update/update_v*_*.sql</code> 的版本化迁移会按版本号依次执行（仅跑游标 <code>MN_dbver</code> 之后的增量），旧式单文件 <code>update/update.sql</code> 仍兼容。请在维护时段操作，更新过程中不要关闭页面。
       </div>
@@ -222,35 +212,12 @@ $upd_policy_desc = isset($upd_policy_labels[$upd_policy]) ? $upd_policy_labels[$
 
 </div>
 <script type="text/javascript">
-function updAddMirror() {
-  var box = document.getElementById('upd_mirrors');
-  var div = document.createElement('div');
-  div.className = 'mn-upd-row';
-  div.innerHTML = '<input type="text" class="form-control upd-mirror-input" placeholder="https://gh-proxy.com/" maxlength="160">'
-                + '<button class="btn btn-outline-danger" type="button" onclick="updDelMirror(this)"><i class="mdi mdi-close"></i></button>';
-  box.appendChild(div);
-  div.querySelector('input').focus();
-}
-function updDelMirror(btn) {
-  var row = btn.parentNode;
-  var box = document.getElementById('upd_mirrors');
-  if (box.children.length <= 1) {
-    row.querySelector('input').value = '';
-    return;
-  }
-  box.removeChild(row);
-}
 function saveUpdSetting() {
-  var mirrors = [];
-  var list = document.querySelectorAll('#upd_mirrors .upd-mirror-input');
-  for (var i = 0; i < list.length; i++) {
-    var v = $.trim(list[i].value);
-    if (v !== '' && mirrors.indexOf(v) === -1) mirrors.push(v);
-  }
   var data = {};
   data['gn'] = 'upset';
   data['repo'] = $.trim(document.getElementById('upd_repo').value);
-  data['mirrors'] = mirrors.join('\n');
+  var gr = document.getElementById('upd_gitee_repo');
+  data['gitee_repo'] = gr ? $.trim(gr.value) : '';
   var tk = document.getElementById('upd_token');
   if (tk && tk.value !== '') data['github_token'] = $.trim(tk.value);
   var cl = document.getElementById('upd_clear_token');
@@ -273,7 +240,7 @@ function saveUpdSetting() {
   });
 }
 function up() {
-  if (!window.confirm('将用 GitHub Release 的包覆盖当前站点文件，过程可能需要几分钟，期间请勿关闭页面。确认开始更新？')) return;
+  if (!window.confirm('将用 GitHub / Gitee Release 的包覆盖当前站点文件，过程可能需要几分钟，期间请勿关闭页面。确认开始更新？')) return;
   var btn = document.getElementById('upd_run_btn');
   if (btn) { btn.disabled = true; btn.style.opacity = .55; }
   var box = document.getElementById('upd_progress');
