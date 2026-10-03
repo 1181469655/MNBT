@@ -180,13 +180,13 @@ docker_shop/
 
 ## 主题集成
 
-tdesign 主题用户中心（account SPA）在 `plugins.docker_shop` 为 true 时展示：
+用户中心 account SPA（user_info 插件自带，用户主题为 tdesign 时启用）在 `plugins.docker_shop` 为 true 时展示：
 
 - 侧栏「Docker」分组：Docker 商城 / 我的 Docker / Docker 订单
 - 概览页「我的 Docker」资产数卡片与快速入口
 - Docker 控制台入口（`boot.dockerUrl` → `{base}/docker/`）
-- 视图文件：`templates/tdesign/spa/src/account/views/DockerShopView.vue` / `DockerAssetsView.vue` / `DockerOrdersView.vue`
-- API 封装：`templates/tdesign/spa/src/account/api/plugins.js`（`getDockerShopPlans` 等）
+- 视图文件：`app_plugins/user_info/assets/spa/account/views/DockerShopView.vue` / `DockerAssetsView.vue` / `DockerOrdersView.vue`
+- API 封装：`app_plugins/user_info/assets/spa/account/api/plugins.js`（`getDockerShopPlans` 等）
 
 ## 相关文档
 

@@ -210,12 +210,12 @@ docker_shop 插件
 
 ## 7. tdesign 主题 account 部分改造
 
-### 7.1 入口 boot（`templates/tdesign/account/_spa_boot.php`）
+### 7.1 入口 boot（`app_plugins/user_info/views/tdesign/_spa_boot.php`）
 
 - `plugins.docker_shop`：插件启用标志（account SPA 据此显示 Docker 菜单）
 - `dockerUrl`：Docker 控制台登录入口（`{base}/docker/login.php`）
 
-### 7.2 SPA 前端（`templates/tdesign/spa/src/account/`）
+### 7.2 SPA 前端（`app_plugins/user_info/assets/spa/account/`）
 
 | 文件 | 改动 |
 |------|------|
@@ -229,7 +229,7 @@ docker_shop 插件
 
 ### 7.3 构建
 
-`cd templates/tdesign/spa && npm run build:account`，产物输出到 `templates/tdesign/account/dist/`。
+SPA 已改为 vue3-sfc-loader 免构建加载（无 npm 构建），修改 `app_plugins/user_info/assets/spa/` 下源码后刷新页面即生效。
 
 ## 8. 文件结构
 

@@ -114,37 +114,36 @@ function user_info_auth_require()
 }
 
 /**
- * 解析主题提供的 account 入口文件（如 tdesign 主题的 SPA 入口）。
- * 当前用户主题下存在 templates/{theme}/account/{view}.php 时返回路径，否则返回 null。
+ * 解析当前视图的 TDesign SPA 入口（插件自带，位于 views/tdesign/）。
+ * 用户主题为 tdesign 时返回入口文件路径，否则返回 null（回退下方 Layui 视图）。
  *
- * @param string $view  views 名称：login/register/profile/password/dashboard
+ * @param string $view  视图名：login/register/profile/password/dashboard
  * @return string|null
  */
-function user_info_theme_entry($view)
+function user_info_tdesign_entry($view)
 {
-	if (!function_exists('mnbt_theme_name') || !defined('MNBT_THEME_ROOT')) {
+	if (!function_exists('mnbt_theme_name') || !function_exists('mnbt_plugin_path')) {
 		return null;
 	}
-	$map = [
+	static $map = [
 		'login' => 'login.php',
 		'register' => 'register.php',
 		'profile' => 'profile.php',
 		'password' => 'password.php',
-		'dashboard' => 'index.php',
+		'dashboard' => 'dashboard.php',
 	];
-	if (!isset($map[$view])) {
+	if (!isset($map[$view]) || mnbt_theme_name('user') !== 'tdesign') {
 		return null;
 	}
-	$theme = mnbt_theme_name('user');
-	$file = MNBT_THEME_ROOT . $theme . '/account/' . $map[$view];
+	$file = mnbt_plugin_path('user_info') . 'views/tdesign/' . $map[$view];
 	return is_file($file) ? $file : null;
 }
 
 /**
  * 渲染视图文件（带布局）。
  *
- * 当前用户主题若提供 account 入口（如 tdesign SPA），优先交给主题渲染；
- * 否则回退到插件自带 Layui 布局。
+ * 用户主题为 tdesign 时优先使用插件自带的 TDesign SPA 入口（views/tdesign/），
+ * 其余主题回退到插件自带 Layui 布局。
  *
  * @param string $view  views 目录下的文件名（不含 .php）
  * @param array  $vars  传给视图的变量
@@ -156,11 +155,11 @@ function user_info_render($view, $vars = [])
 	$vars['url'] = 'user_info_url';
 	extract($vars, EXTR_SKIP);
 
-	$themeEntry = user_info_theme_entry($view);
-	if ($themeEntry !== null) {
-		// 主题入口在函数作用域内 include，需要展开全局变量（$conf/$DB/$date 等）
+	$spaEntry = user_info_tdesign_entry($view);
+	if ($spaEntry !== null) {
+		// SPA 入口在函数作用域内 include，需要展开全局变量（$conf/$DB/$date 等）
 		extract($GLOBALS, EXTR_SKIP);
-		include $themeEntry;
+		include $spaEntry;
 		return;
 	}
 

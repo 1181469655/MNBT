@@ -1,10 +1,11 @@
 <?php
 /**
- * TDesign 用户中心（user_info 插件）SPA 公共启动片段
+ * user_info 插件 —— 用户中心（account）TDesign SPA 公共启动片段
  *
- * 由 app_plugins/user_info 的 user_info_render() 在检测到当前用户主题为
- * tdesign 时 include。入口页面（index/login/register/profile/password）
- * 设置 $td_entry / $td_hash 后 include 本文件。
+ * 用户主题为 tdesign 时，由 lib/auth.php 的 user_info_render() include 本目录下的
+ * 入口页（dashboard/login/register/profile/password 设置 $td_entry / $td_hash 后
+ * include 本文件）。SPA 源码在本插件 assets/spa/；共享运行时（td-boot.js）与
+ * 共享静态资源（spa/src/shared/）仍由 tdesign 主题提供，经 srcAliases 别名引用。
  */
 if (!defined('IN_CRONLITE')) {
 	exit('Access Denied');
@@ -15,13 +16,14 @@ if (!function_exists('user_info_auth_current')) {
 	exit;
 }
 
-$td_boot_file = __DIR__ . '/../assets/td-boot.js';
+$td_base = function_exists('mnbt_home_base') ? mnbt_home_base() : '';
+$td_theme = function_exists('mnbt_theme_name') ? mnbt_theme_name('user') : 'tdesign';
+$td_theme_base = $td_base . '/templates/' . $td_theme . '/';
+
+$td_boot_file = MNBT_THEME_ROOT . $td_theme . '/assets/td-boot.js';
 $td_ver = is_file($td_boot_file) ? (string)@filemtime($td_boot_file) : (string)time();
 
 $td_user = user_info_auth_current();
-
-$td_base = function_exists('mnbt_home_base') ? mnbt_home_base() : '';
-$td_theme = function_exists('mnbt_theme_name') ? mnbt_theme_name('user') : 'tdesign';
 
 $boot = [
 	'siteName'    => $conf['name'] ?? 'MNBT',
@@ -35,8 +37,12 @@ $boot = [
 		'status'     => (int)($td_user['status'] ?? 1),
 		'created_at' => (string)($td_user['created_at'] ?? ''),
 	] : null,
-	// 路由 API 入口（user_info 插件通过 P2 通用路由暴露 /account/api/*）
+	// 路由 API 入口（user_info 等插件通过 P2 通用路由暴露 /account/api/*）
 	'routeBase'   => $td_base . '/index.php?_r=',
+	// SPA 源码根：插件自带（account 作用域），@/ → 本插件 assets/spa/
+	'srcBase'     => $td_base . '/app_plugins/user_info/assets/spa/',
+	// @/shared/ 仍指向主题共享源码（登录背景图、共享样式等）
+	'srcAliases'  => ['@/shared/' => $td_theme_base . 'spa/src/shared/'],
 	'realnameOcrBase' => 'https://cdn.jsdelivr.net/npm/tesseract.js@v5.1.1/dist/',
 	// 插件能力标志（account SPA 依据此决定是否展示余额/商城功能）
 	'plugins'     => [
@@ -55,7 +61,7 @@ $boot = [
 	'theme'       => $td_theme,
 	'version'      => '0.4.0',
 	'scope'       => 'account',
-	'themeBase'   => $td_base . '/templates/tdesign/',
+	'themeBase'   => $td_theme_base,
 	'vendorBase'  => $td_base . '/imsetes/vendor/',
 	'entry'       => $td_entry ?? 'dashboard',
 	'hash'        => $td_hash ?? '',
@@ -102,6 +108,6 @@ if (window.__TD_BOOT__.hash) {
 <script src="<?= htmlspecialchars($td_base . '/imsetes/vendor/axios/axios.min.js', ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars($td_base . '/imsetes/vendor/tdesign/tdesign.min.js', ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars($td_base . '/imsetes/vendor/vue3-sfc-loader/vue3-sfc-loader.js', ENT_QUOTES, 'UTF-8') ?>"></script>
-<script src="<?= htmlspecialchars($td_base . '/templates/tdesign/assets/td-boot.js', ENT_QUOTES, 'UTF-8') ?>?v=<?= $td_ver ?>"></script>
+<script src="<?= htmlspecialchars($td_theme_base . 'assets/td-boot.js', ENT_QUOTES, 'UTF-8') ?>?v=<?= $td_ver ?>"></script>
 </body>
 </html>

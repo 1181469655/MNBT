@@ -1,7 +1,8 @@
 /*
  * MNBT TDesign 主题 —— vue3-sfc-loader 免构建引导（V1.87）
  *
- * 各端 _spa_boot.php 先注入 window.__TD_BOOT__（含 themeBase / vendorBase / scope），
+ * 各端 _spa_boot.php 先注入 window.__TD_BOOT__（含 themeBase / vendorBase / scope；
+ * 插件自带 SPA 还可注入 srcBase 覆盖源码根、srcAliases 把 @/ 前缀映射到其他目录），
  * 再按顺序加载 vendor UMD（vue → vue-router → axios → tdesign → [echarts] → vue3-sfc-loader），
  * 最后加载本文件。本文件把 src/ 下的 .vue/.js 源码在浏览器内编译运行，
  * 取代原 Vite 构建链：无需 npm install / build，修改 src 后刷新页面即生效。
@@ -12,7 +13,10 @@
     var boot = window.__TD_BOOT__ || {};
     var scope = boot.scope || 'user';
     var themeBase = boot.themeBase || '../templates/tdesign/';
-    var srcBase = themeBase + 'spa/src/';
+    // srcBase 可由 boot 覆盖：插件自带 SPA（如 user_info 的 account）源码不在主题下
+    var srcBase = boot.srcBase || (themeBase + 'spa/src/');
+    // @/ 前缀别名 → 实际 URL 前缀（插件侧 SPA 引用主题共享资源时使用）
+    var srcAliases = boot.srcAliases || {};
 
     var statusEl = document.getElementById('td-boot-status');
 
@@ -92,6 +96,11 @@
             return normPath(baseDir + relPath);
         }
         if (relPath.indexOf('@/') === 0) {
+            for (var prefix in srcAliases) {
+                if (relPath.indexOf(prefix) === 0) {
+                    return normPath(srcAliases[prefix] + relPath.slice(prefix.length));
+                }
+            }
             return normPath(srcBase + relPath.slice(2));
         }
         // 裸模块名（vue / axios 等）原样返回，命中 moduleCache
