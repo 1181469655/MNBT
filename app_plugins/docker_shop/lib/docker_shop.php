@@ -494,12 +494,15 @@ function docker_shop_order_set_status($order_id, $status, $remark = '')
 function docker_shop_asset_list_by_user($user_id)
 {
 	global $DB;
+	// 联售卖套餐价格字段：用户端续费弹窗据此展示可选周期与价格（套餐被删时字段为 null，前端隐藏续费入口）
 	return $DB->get_all_prepare(
 		"SELECT a.*, d.container_status, d.container_id, d.service_name, d.disk_usage, d.disk_usage_at, d.qk AS docker_qk, d.data AS docker_created_at,
-		        n.name AS node_name
+		        n.name AS node_name,
+		        p.price_month_cents, p.price_quarter_cents, p.price_half_year_cents, p.price_year_cents, p.price_two_year_cents, p.price_three_year_cents, p.enabled_periods
 		 FROM MN_plugin_docker_asset a
 		 LEFT JOIN MN_docker_user d ON d.id = a.docker_user_id
 		 LEFT JOIN MN_docker_node n ON n.id = d.ssbt
+		 LEFT JOIN MN_plugin_docker_plan p ON p.id = a.plan_id
 		 WHERE a.user_id=?
 		 ORDER BY a.id DESC",
 		[(int)$user_id]
@@ -772,4 +775,166 @@ function docker_shop_sync_container_status($asset)
 		@error_log('[docker_shop] sync_container failed: ' . $e->getMessage());
 	}
 	return $asset;
+}
+
+/* ============================================================
+ *  续费（用户自助续费）
+ * ============================================================ */
+
+/** 获取单个资产（含 Docker 账户状态/到期/容器信息，归属校验由调用方完成）。 */
+function docker_shop_asset_get($asset_id)
+{
+	global $DB;
+	return $DB->get_row_prepare(
+		"SELECT a.*, d.username AS docker_user_name, d.datae AS docker_datae, d.qk AS docker_qk, d.ssbt AS docker_node_id,
+		        d.container_id, d.service_name, d.container_status, d.expired_at, d.prune_due
+		 FROM MN_plugin_docker_asset a
+		 LEFT JOIN MN_docker_user d ON d.id = a.docker_user_id
+		 WHERE a.id=? LIMIT 1",
+		[(int)$asset_id]
+	) ?: null;
+}
+
+/**
+ * 计算续费后的到期日期：未到期自当前到期日顺延，已到期自当日顺延。
+ */
+function docker_shop_renew_next_expire($current_expire, $period)
+{
+	$periods = docker_shop_periods();
+	$months = (int)($periods[$period]['months'] ?? 1);
+	$ts = strtotime((string)$current_expire);
+	if (!$ts || $ts < time()) {
+		$ts = time();
+	}
+	return date('Y-m-d', strtotime('+' . $months . ' months', $ts));
+}
+
+/**
+ * 创建续费订单。复用 MN_plugin_docker_order 表，docker_user_id>0 表示续费单（新购单该字段为 0，
+ * 且 docker_shop_open_account 对 docker_user_id>0 的订单本就拒绝开通，两不相扰）。
+ * 续费只依赖售卖套餐取价，不校验配额套餐上架状态（已开通用户不受下架影响）。
+ * @return array ['ok'=>bool, 'msg'=>string, 'order_no'=>string, 'order_id'=>int, 'amount_cents'=>int]
+ */
+function docker_shop_renew_order_create($user, $asset, $period)
+{
+	global $DB, $date;
+	if (!$asset || (int)$asset['docker_user_id'] <= 0) {
+		return ['ok' => false, 'msg' => '资产不存在或未关联 Docker 账户'];
+	}
+	$plan = docker_shop_plan_get((int)$asset['plan_id']);
+	if (!$plan) {
+		return ['ok' => false, 'msg' => '原套餐已不存在，无法在线续费，请联系管理员'];
+	}
+	$periods = docker_shop_periods();
+	if (!isset($periods[$period])) {
+		return ['ok' => false, 'msg' => '无效的续费周期'];
+	}
+	$enabled = docker_shop_plan_enabled_periods($plan);
+	if (!in_array($period, $enabled, true)) {
+		return ['ok' => false, 'msg' => '该套餐不支持此续费周期'];
+	}
+	$field = docker_shop_period_price_field($period);
+	$amount_cents = $field ? (int)($plan[$field] ?? 0) : 0;
+	if ($amount_cents < 0) {
+		return ['ok' => false, 'msg' => '该套餐此周期价格异常'];
+	}
+	$now = $date ?: date('Y-m-d H:i:s');
+	$order_no = date("YmdHis") . mt_rand(1000, 9999);
+	$ok = $DB->query_prepare(
+		"INSERT INTO MN_plugin_docker_order (user_id, plan_id, plan_name, period, amount_cents, order_no, node, docker_user_id, status, remark, created_at, paid_at, opened_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+		[(int)$user['id'], (int)$plan['id'], $plan['name'], $period, $amount_cents, $order_no, (int)($asset['docker_node_id'] ?? 0), (int)$asset['docker_user_id'], 'pending', '', $now, '', '']
+	);
+	if (!$ok) {
+		return ['ok' => false, 'msg' => '续费订单写入失败'];
+	}
+	$row = $DB->get_row_prepare("SELECT id FROM MN_plugin_docker_order WHERE order_no=? LIMIT 1", [$order_no]);
+	$order_id = $row ? (int)$row['id'] : 0;
+	return ['ok' => true, 'order_no' => $order_no, 'order_id' => $order_id, 'amount_cents' => $amount_cents];
+}
+
+/**
+ * 应用续费：延长 MN_docker_user.datae、按原状态恢复（expired → active 并尝试启动容器；
+ * pruned → active 且提示重建容器；paused → 仅延长，解停走 jc 恢复接口）、
+ * 同步资产表并完结订单。由 order.paid 钩子在续费单支付完成后调用。
+ * 状态恢复语义与 api/docker.php gn=xf 保持一致。
+ * @return array ['ok'=>bool, 'msg'=>string, 'old_date'=>string, 'new_date'=>string]
+ */
+function docker_shop_renew_apply($order_id)
+{
+	global $DB, $date;
+	$order = docker_shop_order_get($order_id);
+	if (!$order) {
+		return ['ok' => false, 'msg' => '续费订单不存在'];
+	}
+	if ((int)$order['docker_user_id'] <= 0) {
+		return ['ok' => false, 'msg' => '非续费订单'];
+	}
+	// 幂等：已处理过直接返回成功
+	if ($order['status'] === 'opened') {
+		return ['ok' => true, 'msg' => '该续费订单已处理'];
+	}
+	if ($order['status'] !== 'paid') {
+		return ['ok' => false, 'msg' => '续费订单状态非已支付'];
+	}
+	$duser = $DB->get_row_prepare("SELECT * FROM MN_docker_user WHERE id=? LIMIT 1", [(int)$order['docker_user_id']]);
+	if (!$duser) {
+		docker_shop_order_set_status($order_id, 'failed', '续费失败：Docker 账户不存在');
+		return ['ok' => false, 'msg' => 'Docker 账户不存在，请联系管理员'];
+	}
+
+	$old_datae = (string)$duser['datae'];
+	$new_datae = docker_shop_renew_next_expire($old_datae, (string)($order['period'] ?? 'month'));
+	$renew_msg = 'Docker 账户续费成功';
+
+	$updates = 'datae=?';
+	$bind = [$new_datae];
+	if ($new_datae !== '0000-00-00' && strtotime($new_datae) - time() > 0) {
+		$qk = (string)$duser['qk'];
+		if ($qk === 'expired') {
+			// 原 expired 且新到期时间未过 → 恢复 active，并尽力启动残留容器
+			$updates .= ", qk='active', expired_at=NULL, prune_due=NULL";
+			if (!empty($duser['container_id']) && !empty($duser['service_name'])) {
+				$node = $DB->get_row_prepare("SELECT * FROM MN_docker_node WHERE id=? LIMIT 1", [(int)$duser['ssbt']]);
+				$bt_docker_file = (defined('SYSTEM_ROOT') ? SYSTEM_ROOT : ROOT . 'MPHX/') . 'bt_docker.php';
+				if ($node && is_file($bt_docker_file)) {
+					include_once $bt_docker_file;
+					$url = ($node['ptl'] === 'true' ? 'https' : 'http') . '://' . $node['btip'] . ':' . $node['btdk'];
+					$bt = new bt_docker($url, $node['btmy']);
+					$start_r = $bt->container_start($duser['container_id'], $duser['service_name']);
+					if ($start_r['status'] ?? false) {
+						$updates .= ", container_status='running'";
+					}
+				}
+			}
+		} elseif ($qk === 'pruned') {
+			// 容器已被到期清理删除，恢复可用状态；用户需重新创建容器
+			$updates .= ", qk='active', container_status='none', prune_due=NULL, expired_at=NULL";
+			$renew_msg = '续费成功，原容器已被清理，请重新创建容器';
+		}
+		// paused：仅延长到期时间，不解除暂停（解停走 api/docker.php jc 恢复接口，交由管理员处理）
+	}
+	$bind[] = (int)$duser['id'];
+	if (!$DB->query_prepare("UPDATE MN_docker_user SET {$updates} WHERE id=?", $bind)) {
+		docker_shop_order_set_status($order_id, 'failed', '续费失败：数据库写入失败');
+		return ['ok' => false, 'msg' => '续费失败，数据库写入失败，请联系管理员'];
+	}
+
+	// 同步资产表到期时间与状态
+	$DB->query_prepare(
+		"UPDATE MN_plugin_docker_asset SET expire_at=?, status='active' WHERE docker_user_id=?",
+		[$new_datae, (int)$duser['id']]
+	);
+
+	docker_shop_order_set_status($order_id, 'opened', '续费成功，到期 ' . $new_datae);
+	mnbt_log($duser['username'], 'Docker续费', '资产续费 ' . $old_datae . '=>' . $new_datae . '（订单' . $order['order_no'] . '）', '修改成功', $DB);
+	if (function_exists('mnbt_do_action')) {
+		mnbt_do_action('docker.user.renewed', array_merge($duser, ['datae' => $new_datae]), [
+			'source'   => 'docker_shop',
+			'order_id' => $order_id,
+			'old_date' => $old_datae,
+			'new_date' => $new_datae,
+		]);
+	}
+
+	return ['ok' => true, 'msg' => $renew_msg, 'old_date' => $old_datae, 'new_date' => $new_datae];
 }

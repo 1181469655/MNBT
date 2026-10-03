@@ -55,11 +55,16 @@ mnbt_add_action('order.paid', function ($order_row, $ctx = []) {
 		return;
 	}
 
-	// 标记为 paid，然后开通
+	// 标记为 paid，然后按订单类型分流：docker_user_id>0 为续费单，否则为新购开通单
 	docker_shop_order_set_status((int)$docker_order['id'], 'paid', '支付完成');
-	$result = docker_shop_open_account((int)$docker_order['id']);
+	if ((int)($docker_order['docker_user_id'] ?? 0) > 0) {
+		$result = docker_shop_renew_apply((int)$docker_order['id']);
+	} else {
+		$result = docker_shop_open_account((int)$docker_order['id']);
+	}
 	if (!$result['ok']) {
-		@error_log('[docker_shop] open failed order=' . $order_no . ' : ' . ($result['msg'] ?? ''));
+		// 开通/续费失败已在对应函数内标记 failed
+		@error_log('[docker_shop] settle failed order=' . $order_no . ' : ' . ($result['msg'] ?? ''));
 	}
 }, 20);
 
@@ -117,6 +122,26 @@ mnbt_register_route('GET', '/docker-shop/orders', function ($params, $ctx) {
 	docker_shop_render('orders', [
 		'page_title' => 'Docker 订单',
 		'orders' => $orders,
+	]);
+});
+
+// 续费页（资产 → 选择周期与支付方式）
+mnbt_register_route('GET', '/docker-shop/renew/{asset_id}', function ($params, $ctx) {
+	$user = docker_shop_require_user();
+	$asset = docker_shop_asset_get((int)($params['asset_id'] ?? 0));
+	if (!$asset || (int)$asset['user_id'] !== (int)$user['id']) {
+		http_response_code(404);
+		echo '资产不存在';
+		return;
+	}
+	$plan = docker_shop_plan_get((int)$asset['plan_id']);
+	$methods = function_exists('mnbt_get_enabled_payment_methods') ? mnbt_get_enabled_payment_methods() : [];
+
+	docker_shop_render('renew', [
+		'page_title' => '续费：' . ($asset['plan_name'] ?: 'Docker 账户'),
+		'asset' => $asset,
+		'plan' => $plan,
+		'methods' => $methods,
 	]);
 });
 
@@ -275,6 +300,93 @@ mnbt_register_route('POST', '/docker-shop/api/create_order', function ($params, 
 	$order_context = [
 		'out_trade_no' => $order_no,
 		'name' => '购买 Docker：' . $plan['name'] . '（' . $period_label . '）',
+		'money' => $amount_yuan,
+		'type' => $type,
+		'siteurl' => $siteurl,
+		'pay_lx' => 'docker',
+	];
+
+	$html = mnbt_pay_dispatch_gateway($type, $order_context);
+	if ($html === false) {
+		docker_shop_order_set_status($docker_order_id, 'cancelled', '支付方式不可用');
+		docker_shop_json('支付方式不可用，请检查支付插件是否已启用');
+	}
+
+	docker_shop_json('ok', ['html' => $html, 'order_no' => $order_no]);
+});
+
+// 创建续费订单 → 调用支付插件（余额支付走 balance__balance 标准网关，由 order.paid 钩子应用续费）
+mnbt_register_route('POST', '/docker-shop/api/renew', function ($params, $ctx) {
+	global $DB, $date, $siteurl;
+
+	$user = docker_shop_require_user();
+	$user_id = (int)$user['id'];
+
+	$asset_id = (int)($_POST['asset_id'] ?? 0);
+	$period = isset($_POST['period']) ? trim($_POST['period']) : 'month';
+	$type = isset($_POST['type']) ? trim($_POST['type']) : '';
+
+	$asset = docker_shop_asset_get($asset_id);
+	if (!$asset || (int)$asset['user_id'] !== $user_id) {
+		docker_shop_json('资产不存在');
+	}
+	if ((int)$asset['docker_user_id'] <= 0) {
+		docker_shop_json('该资产未关联 Docker 账户，无法续费');
+	}
+
+	$create = docker_shop_renew_order_create($user, $asset, $period);
+	if (empty($create['ok'])) {
+		docker_shop_json($create['msg'] ?? '创建续费订单失败');
+	}
+	$order_no = $create['order_no'];
+	$docker_order_id = (int)$create['order_id'];
+
+	// 0 元续费：直接标记 paid 并应用
+	if ((int)$create['amount_cents'] === 0) {
+		docker_shop_order_set_status($docker_order_id, 'paid', '0 元续费直接应用');
+		$apply = docker_shop_renew_apply($docker_order_id);
+		if (!$apply['ok']) {
+			docker_shop_json($apply['msg'] ?? '续费失败');
+		}
+		docker_shop_json('ok', ['redirect' => docker_shop_url('docker-shop/assets')]);
+	}
+
+	// 非 0 元订单校验支付方式
+	if ($type === '' || !function_exists('mnbt_pay_parse_type') || !mnbt_pay_parse_type($type)) {
+		docker_shop_json('请选择有效的支付方式');
+	}
+
+	// 创建 MN_dd 记录（支付系统订单）：lx 仍为 docker，钩子按 docker 订单 docker_user_id>0 识别续费单
+	$amount_yuan = (string)round((int)$create['amount_cents'] / 100, 2);
+	$cs = json_encode([
+		'user_id' => $user_id,
+		'plan_id' => (int)$asset['plan_id'],
+		'period' => $period,
+		'asset_id' => $asset_id,
+		'amount' => (int)$create['amount_cents'],
+		'username' => $user['username'],
+		'order_id' => $docker_order_id,
+		'kind' => 'renew',
+	], 256);
+	$ip = $_SERVER["REMOTE_ADDR"] ?? '127.0.0.1';
+
+	$row1 = $DB->get_row_prepare("SELECT * FROM MN_dd WHERE 1 order by id desc limit 1");
+	$dd_id = $row1 ? ((int)$row1['id'] + 1) : 1;
+	$ok = $DB->query_prepare(
+		"INSERT INTO MN_dd (id, cs, date, zffs, je, ddh, lx, qk, ip) VALUES (?,?,?,?,?,?,?,?,?)",
+		[$dd_id, $cs, $date, $type, $amount_yuan, $order_no, 'docker', 'false', $ip]
+	);
+	if (!$ok) {
+		docker_shop_order_set_status($docker_order_id, 'cancelled', '支付订单创建失败');
+		docker_shop_json('支付订单创建失败，请稍后重试');
+	}
+
+	// 分发到支付插件
+	$periods = docker_shop_periods();
+	$period_label = $periods[$period]['label'];
+	$order_context = [
+		'out_trade_no' => $order_no,
+		'name' => '续费 Docker：' . ($asset['plan_name'] ?: 'Docker 账户') . '（' . $period_label . '）',
 		'money' => $amount_yuan,
 		'type' => $type,
 		'siteurl' => $siteurl,

@@ -41,6 +41,9 @@ ob_start();
                 <?php else: ?>
                   <span style="color:#999;font-size:12px;">无登录信息</span>
                 <?php endif; ?>
+                <?php if ((int)($a['host_id'] ?? 0) > 0 && ($a['price_month_cents'] !== null)): ?>
+                  <a class="layui-btn layui-btn-xs" href="<?= hosting_url('shop/renew/' . (int)$a['id']) ?>" style="margin-left:6px;">续费</a>
+                <?php endif; ?>
               </td>
             </tr>
           <?php endforeach; ?>

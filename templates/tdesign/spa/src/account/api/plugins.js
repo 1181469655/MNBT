@@ -105,6 +105,11 @@ export function createShopOrder(planId, period, type) {
   return apiPost('/shop/api/create_order', { plan_id: planId, period, type })
 }
 
+/** 续费主机资产：asset_id + period + type → 返回支付 HTML / 0 元直接 redirect */
+export function renewShopAsset(assetId, period, type) {
+  return apiPost('/shop/api/renew', { asset_id: assetId, period, type })
+}
+
 /* ============================================================
  *  docker_shop 插件
  * ============================================================ */
@@ -132,6 +137,11 @@ export function getDockerShopMethods() {
 /** 创建购买订单：plan_id + period + type → 返回支付 HTML / 0 元直接 redirect */
 export function createDockerShopOrder(planId, period, type) {
   return apiPost('/docker-shop/api/create_order', { plan_id: planId, period, type })
+}
+
+/** 续费 Docker 资产：asset_id + period + type → 返回支付 HTML / 0 元直接 redirect */
+export function renewDockerAsset(assetId, period, type) {
+  return apiPost('/docker-shop/api/renew', { asset_id: assetId, period, type })
 }
 
 /** 重置 Docker 账号密码：asset_id → { password } */

@@ -55,12 +55,16 @@ mnbt_add_action('order.paid', function ($order_row, $ctx = []) {
 		return;
 	}
 
-	// 标记为 paid，然后开通
+	// 标记为 paid，然后按订单类型分流：host_id>0 为续费单，否则为新购开通单
 	hosting_order_set_status((int)$hosting_order['id'], 'paid', '支付完成');
-	$result = hosting_open_host((int)$hosting_order['id']);
+	if ((int)($hosting_order['host_id'] ?? 0) > 0) {
+		$result = hosting_renew_apply((int)$hosting_order['id']);
+	} else {
+		$result = hosting_open_host((int)$hosting_order['id']);
+	}
 	if (!$result['ok']) {
-		// 开通失败已在 hosting_open_host 内标记 failed
-		@error_log('[hosting_shop] open failed order=' . $order_no . ' : ' . ($result['msg'] ?? ''));
+		// 开通/续费失败已在对应函数内标记 failed
+		@error_log('[hosting_shop] settle failed order=' . $order_no . ' : ' . ($result['msg'] ?? ''));
 	}
 }, 20);
 
@@ -119,6 +123,26 @@ mnbt_register_route('GET', '/shop/orders', function ($params, $ctx) {
 	hosting_render('orders', [
 		'page_title' => '我的订单',
 		'orders' => $orders,
+	]);
+});
+
+// 续费页（资产 → 选择周期与支付方式）
+mnbt_register_route('GET', '/shop/renew/{asset_id}', function ($params, $ctx) {
+	$user = hosting_require_user();
+	$asset = hosting_asset_get((int)($params['asset_id'] ?? 0));
+	if (!$asset || (int)$asset['user_id'] !== (int)$user['id']) {
+		http_response_code(404);
+		echo '资产不存在';
+		return;
+	}
+	$plan = hosting_plan_get((int)$asset['plan_id']);
+	$methods = function_exists('mnbt_get_enabled_payment_methods') ? mnbt_get_enabled_payment_methods() : [];
+
+	hosting_render('renew', [
+		'page_title' => '续费：' . ($asset['plan_name'] ?: '虚拟主机'),
+		'asset' => $asset,
+		'plan' => $plan,
+		'methods' => $methods,
 	]);
 });
 
@@ -311,6 +335,93 @@ mnbt_register_route('POST', '/shop/api/create_order', function ($params, $ctx) {
 	$order_context = [
 		'out_trade_no' => $order_no,
 		'name' => '购买主机：' . $plan['name'] . '（' . $period_label . '）',
+		'money' => $amount_yuan,
+		'type' => $type,
+		'siteurl' => $siteurl,
+		'pay_lx' => 'hosting',
+	];
+
+	$html = mnbt_pay_dispatch_gateway($type, $order_context);
+	if ($html === false) {
+		hosting_order_set_status($hosting_order_id, 'cancelled', '支付方式不可用');
+		hosting_json('支付方式不可用，请检查支付插件是否已启用');
+	}
+
+	hosting_json('ok', ['html' => $html, 'order_no' => $order_no]);
+});
+
+// 创建续费订单 → 调用支付插件（余额支付走 balance__balance 标准网关，由 order.paid 钩子应用续费）
+mnbt_register_route('POST', '/shop/api/renew', function ($params, $ctx) {
+	global $DB, $date, $siteurl;
+
+	$user = hosting_require_user();
+	$user_id = (int)$user['id'];
+
+	$asset_id = (int)($_POST['asset_id'] ?? 0);
+	$period = isset($_POST['period']) ? trim($_POST['period']) : 'month';
+	$type = isset($_POST['type']) ? trim($_POST['type']) : '';
+
+	$asset = hosting_asset_get($asset_id);
+	if (!$asset || (int)$asset['user_id'] !== $user_id) {
+		hosting_json('资产不存在');
+	}
+	if ((int)$asset['host_id'] <= 0) {
+		hosting_json('该资产未关联主机，无法续费');
+	}
+
+	$create = hosting_renew_order_create($user, $asset, $period);
+	if (empty($create['ok'])) {
+		hosting_json($create['msg'] ?? '创建续费订单失败');
+	}
+	$order_no = $create['order_no'];
+	$hosting_order_id = (int)$create['order_id'];
+
+	// 0 元续费：直接标记 paid 并应用
+	if ((int)$create['amount_cents'] === 0) {
+		hosting_order_set_status($hosting_order_id, 'paid', '0 元续费直接应用');
+		$apply = hosting_renew_apply($hosting_order_id);
+		if (!$apply['ok']) {
+			hosting_json($apply['msg'] ?? '续费失败');
+		}
+		hosting_json('ok', ['redirect' => hosting_url('shop/assets')]);
+	}
+
+	// 非 0 元订单校验支付方式
+	if ($type === '' || !function_exists('mnbt_pay_parse_type') || !mnbt_pay_parse_type($type)) {
+		hosting_json('请选择有效的支付方式');
+	}
+
+	// 创建 MN_dd 记录（支付系统订单）：lx 仍为 hosting，钩子按 hosting 订单 host_id>0 识别续费单
+	$amount_yuan = (string)round((int)$create['amount_cents'] / 100, 2);
+	$cs = json_encode([
+		'user_id' => $user_id,
+		'plan_id' => (int)$asset['plan_id'],
+		'period' => $period,
+		'asset_id' => $asset_id,
+		'amount' => (int)$create['amount_cents'],
+		'username' => $user['username'],
+		'order_id' => $hosting_order_id,
+		'kind' => 'renew',
+	], 256);
+	$ip = $_SERVER["REMOTE_ADDR"] ?? '127.0.0.1';
+
+	$row1 = $DB->get_row_prepare("SELECT * FROM MN_dd WHERE 1 order by id desc limit 1");
+	$dd_id = $row1 ? ((int)$row1['id'] + 1) : 1;
+	$ok = $DB->query_prepare(
+		"INSERT INTO MN_dd (id, cs, date, zffs, je, ddh, lx, qk, ip) VALUES (?,?,?,?,?,?,?,?,?)",
+		[$dd_id, $cs, $date, $type, $amount_yuan, $order_no, 'hosting', 'false', $ip]
+	);
+	if (!$ok) {
+		hosting_order_set_status($hosting_order_id, 'cancelled', '支付订单创建失败');
+		hosting_json('支付订单创建失败，请稍后重试');
+	}
+
+	// 分发到支付插件
+	$periods = hosting_periods();
+	$period_label = $periods[$period]['label'];
+	$order_context = [
+		'out_trade_no' => $order_no,
+		'name' => '续费主机：' . ($asset['plan_name'] ?: '虚拟主机') . '（' . $period_label . '）',
 		'money' => $amount_yuan,
 		'type' => $type,
 		'siteurl' => $siteurl,

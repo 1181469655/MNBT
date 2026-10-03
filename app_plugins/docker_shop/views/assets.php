@@ -32,6 +32,9 @@ ob_start();
         <div class="hs-plan-buy">
           <a class="layui-btn layui-btn-primary" href="<?= htmlspecialchars($console_url, ENT_QUOTES) ?>" target="_blank">前往控制台</a>
           <button class="layui-btn layui-btn-primary" type="button" onclick="window.open('<?= htmlspecialchars($console_url, ENT_QUOTES) ?>','_blank')">登录 Docker</button>
+          <?php if ((int)($a['docker_user_id'] ?? 0) > 0 && isset($a['price_month_cents']) && $a['price_month_cents'] !== null): ?>
+            <a class="layui-btn" href="<?= htmlspecialchars(docker_shop_url('docker-shop/renew/' . (int)$a['id']), ENT_QUOTES) ?>">续费</a>
+          <?php endif; ?>
         </div>
       </div>
     <?php endforeach; ?>
