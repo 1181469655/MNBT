@@ -126,6 +126,13 @@
             </router-link>
           </li>
           <li class="td-side-item">
+            <router-link to="/crontab" custom v-slot="{ navigate, isActive }">
+              <a href="javascript:;" :class="{ active: isActive }" @click="navigate">
+                <i class="mdi mdi-clock-outline"></i><span>计划任务</span>
+              </a>
+            </router-link>
+          </li>
+          <li class="td-side-item">
             <router-link to="/notice" custom v-slot="{ navigate, isActive }">
               <a href="javascript:;" :class="{ active: isActive }" @click="navigate">
                 <i class="mdi mdi-bell-outline"></i><span>通知日志</span>

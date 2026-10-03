@@ -1423,6 +1423,96 @@ class bt_api
     }
 
     // ========================================================================
+    //  计划任务（/crontab，V1.88 用户端租户隔离功能的服务端封装）
+    //  仅供 user/api/crontab.php 在归属校验后调用；toShell/toPython 等危险
+    //  类型不在此提供任何封装，避免被复用为任意命令执行通道
+    // ========================================================================
+
+    /** 任务列表（面板级返回本节点全部任务，调用方必须按归属登记过滤） */
+    public function cronList()
+    {
+        $url = $this->BT_PANEL . '/crontab?action=GetCrontab';
+        return json_decode($this->HttpPostCookie($url, $this->GetKeyData()), true) ?: [];
+    }
+
+    /** 单个任务详情 */
+    public function cronFind($id)
+    {
+        $url = $this->BT_PANEL . '/crontab?action=get_crond_find';
+        $p_data = $this->GetKeyData();
+        $p_data['id'] = intval($id);
+        return json_decode($this->HttpPostCookie($url, $p_data), true) ?: [];
+    }
+
+    /** 新建任务（$data 由 user/api/crontab.php 白名单构建，禁止透传用户输入的 sType/sBody） */
+    public function cronAdd($data)
+    {
+        $url = $this->BT_PANEL . '/crontab?action=AddCrontab';
+        $p_data = $this->GetKeyData();
+        foreach ($data as $k => $v) {
+            $p_data[$k] = $v;
+        }
+        return json_decode($this->HttpPostCookie($url, $p_data), true) ?: [];
+    }
+
+    /** 修改任务（同上：sType/sName/sBody 由服务端锁定重放） */
+    public function cronModify($data)
+    {
+        $url = $this->BT_PANEL . '/crontab?action=modify_crond';
+        $p_data = $this->GetKeyData();
+        foreach ($data as $k => $v) {
+            $p_data[$k] = $v;
+        }
+        return json_decode($this->HttpPostCookie($url, $p_data), true) ?: [];
+    }
+
+    /** 删除任务 */
+    public function cronDelete($id)
+    {
+        $url = $this->BT_PANEL . '/crontab?action=DelCrontab';
+        $p_data = $this->GetKeyData();
+        $p_data['id'] = intval($id);
+        return json_decode($this->HttpPostCookie($url, $p_data), true) ?: [];
+    }
+
+    /** 启用/暂停任务：status 1=启用 0=暂停 */
+    public function cronStatus($id, $status)
+    {
+        $url = $this->BT_PANEL . '/crontab?action=set_cron_status';
+        $p_data = $this->GetKeyData();
+        $p_data['id'] = intval($id);
+        $p_data['status'] = $status === '1' ? '1' : '0';
+        return json_decode($this->HttpPostCookie($url, $p_data), true) ?: [];
+    }
+
+    /** 立即执行一次 */
+    public function cronExecute($id)
+    {
+        $url = $this->BT_PANEL . '/crontab?action=set_execute_script';
+        $p_data = $this->GetKeyData();
+        $p_data['id'] = intval($id);
+        return json_decode($this->HttpPostCookie($url, $p_data), true) ?: [];
+    }
+
+    /** 执行日志 */
+    public function cronLogs($id)
+    {
+        $url = $this->BT_PANEL . '/crontab?action=GetLogs';
+        $p_data = $this->GetKeyData();
+        $p_data['id'] = intval($id);
+        return json_decode($this->HttpPostCookie($url, $p_data), true) ?: [];
+    }
+
+    /** 数据对象列表（type=sites|databases，用于解析用户自己的站点/库名） */
+    public function cronDataList($type)
+    {
+        $url = $this->BT_PANEL . '/crontab?action=GetDataList';
+        $p_data = $this->GetKeyData();
+        $p_data['type'] = $type === 'sites' ? 'sites' : 'databases';
+        return json_decode($this->HttpPostCookie($url, $p_data), true) ?: [];
+    }
+
+    // ========================================================================
     //  内部工具
     // ========================================================================
 

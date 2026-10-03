@@ -32,6 +32,7 @@ include("api/cache.php");
 include("api/site.php");
 include("api/ssl.php");
 include("api/monitor.php");
+include("api/crontab.php");
 include("api/deploy.php");
 include("api/database.php");
 include("api/site_stats.php");

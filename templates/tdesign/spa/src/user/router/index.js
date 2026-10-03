@@ -7,6 +7,7 @@ const UserSiteStatsView = () => import('@/user/views/stats/SiteStatsView.vue')
 const UserSettingsView = () => import('@/user/views/settings/SettingsView.vue')
 const UserMonitorView = () => import('@/user/views/monitor/MonitorView.vue')
 const UserMonitorLogView = () => import('@/user/views/monitor/MonitorLogView.vue')
+const UserCrontabView = () => import('@/user/views/crontab/CrontabView.vue')
 const UserNoticeView = () => import('@/user/views/NoticeView.vue')
 const UserDeployView = () => import('@/user/views/deploy/DeployView.vue')
 const UserSqlBackupView = () => import('@/user/views/database/SqlBackupView.vue')
@@ -26,6 +27,7 @@ const routes = [
       { path: 'settings/:tab', name: 'user-settings', component: UserSettingsView, meta: { title: '站点设置' } },
       { path: 'monitor', name: 'user-monitor', component: UserMonitorView, meta: { title: '监控任务' } },
       { path: 'monitor-log', name: 'user-monitor-log', component: UserMonitorLogView, meta: { title: '监控日志' } },
+      { path: 'crontab', name: 'user-crontab', component: UserCrontabView, meta: { title: '计划任务' } },
       { path: 'notice', name: 'user-notice', component: UserNoticeView, meta: { title: '通知日志' } },
       { path: 'deploy', name: 'user-deploy', component: UserDeployView, meta: { title: '一键部署' } },
       { path: 'sql-backup', name: 'user-sql-backup', component: UserSqlBackupView, meta: { title: 'SQL数据备份' } },
