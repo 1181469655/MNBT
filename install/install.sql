@@ -31,7 +31,7 @@ CREATE TABLE `MN_config` (
   PRIMARY KEY (`id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 INSERT INTO `MN_config`(`id`, `user`, `pwd`, `gg`, `name`, `yzm`,`yzme`,`wzqk`,`auther`,`kzmbqk`, `apiqk`,`api`,`qqh`,`date`,`hxw`, `hxe`, `hxr`, `hxt`, `hxy`, `hxu`,`hxi`,`hxo`,`hxp`,`hxa`, `hxs`,`hxd`, `pay_methods`, `api_compat`) VALUES
-('1', 'admin', '123456', '', '', 'true', 'false', '', '', 'true', '', '', '', '', 'mnftp', '', '', '', '', '56', '/www/wwwroot', 'D:/wwwroot', "<a href='./'>Copyright ©梦奈云 2023</a>", '', '', '', '', 'true', '', '', '', '', '#4f46e5', '', '', '', 'true', 'true', '0');
+('1', 'admin', '123456', '', '', 'true', 'false', '', '', 'true', '', '', '', '', 'mnftp', '', '', '', '', '56', '/www/wwwroot', 'D:/wwwroot', "<a href='./'>Copyright ©梦奈云 2023</a>", '', '', '', '', '0');
 
 
 
