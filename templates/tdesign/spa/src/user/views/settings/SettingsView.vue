@@ -1,26 +1,33 @@
 <template>
-  <div class="td-page">
+  <div class="td-page td-form-page">
     <div class="td-page-head">
       <div>
-        <h3 class="td-page-title"><i class="mdi mdi-tune-vertical"></i>站点设置</h3>
-        <p class="td-page-subtitle">{{ currentTabTitle }}</p>
-      </div>
-      <div class="td-head-actions">
-        <t-select :value="tab" style="width: 160px" @change="onTabChange">
-          <t-option v-for="t in tabOptions" :key="t.value" :value="t.value" :label="t.label" />
-        </t-select>
+        <h3 class="td-page-title">
+          <i class="mdi" :class="currentMeta.icon"></i>{{ currentMeta.label }}
+        </h3>
+        <p class="td-page-subtitle">{{ currentMeta.desc }}</p>
       </div>
     </div>
 
+    <nav class="td-set-nav">
+      <router-link
+        v-for="t in tabOptions"
+        :key="t.value"
+        :to="`/settings/${t.value}`"
+        custom
+        v-slot="{ navigate, isActive }"
+      >
+        <a
+          href="javascript:;"
+          class="td-set-nav-item"
+          :class="{ active: isActive }"
+          @click="navigate"
+        >{{ t.label }}</a>
+      </router-link>
+    </nav>
+
     <!-- PHP 版本切换 -->
     <div v-if="tab === 'php'" class="td-set-card">
-      <div class="td-set-card-hd">
-        <div class="td-set-icon"><i class="mdi mdi-language-php"></i></div>
-        <div>
-          <h4>PHP 版本切换</h4>
-          <p>切换站点的 PHP 运行版本</p>
-        </div>
-      </div>
       <div class="td-set-card-bd">
         <t-loading :loading="loadings.php" text="加载中…" size="small">
           <div class="td-form">
@@ -43,43 +50,45 @@
 
     <!-- 密码访问 -->
     <div v-else-if="tab === 'pass'" class="td-set-card">
-      <div class="td-set-card-hd">
-        <div class="td-set-icon"><i class="mdi mdi-lock"></i></div>
-        <div>
-          <h4>密码访问</h4>
-          <p>为站点目录开启 HTTP 基本认证访问</p>
-        </div>
-      </div>
       <div class="td-set-card-bd">
         <t-loading :loading="loadings.pass" text="加载中…" size="small">
           <div class="td-form">
             <div v-if="lists.pass.length" class="td-form-row">
               <label>已设置的密码访问目录</label>
-              <div v-for="(item, i) in lists.pass" :key="i" class="td-pass-item">
-                <span>{{ item }}</span>
-                <t-button theme="danger" variant="text" size="small" :loading="savings.pass" @click="delPass(item)">
-                  <i class="mdi mdi-delete"></i> 删除
-                </t-button>
+              <div class="td-pass-list">
+                <div v-for="(item, i) in lists.pass" :key="i" class="td-pass-item">
+                  <span>{{ item }}</span>
+                  <t-button theme="danger" variant="text" size="small" :loading="savings.pass" @click="delPass(item)">
+                    <i class="mdi mdi-delete"></i> 删除
+                  </t-button>
+                </div>
               </div>
             </div>
-            <div v-else class="td-form-hint">暂无密码访问目录</div>
-            <div class="td-form-row">
-              <label>目录名称</label>
-              <t-input v-model="forms.pass.name" placeholder="如 secret" clearable />
+            <div v-else class="td-form-row">
+              <label>已设置的密码访问目录</label>
+              <div class="td-form-ctl-text">暂无密码访问目录</div>
             </div>
-            <div class="td-form-row">
-              <label>目录路径</label>
-              <t-input v-model="forms.pass.mbml" placeholder="如 /secret" clearable />
+            <div class="td-form-grid">
+              <div class="td-form-row">
+                <label>目录名称</label>
+                <t-input v-model="forms.pass.name" placeholder="如 secret" clearable />
+              </div>
+              <div class="td-form-row">
+                <label>目录路径</label>
+                <t-input v-model="forms.pass.mbml" placeholder="如 /secret" clearable />
+              </div>
             </div>
-            <div class="td-form-row">
-              <label>用户名</label>
-              <t-input v-model="forms.pass.user" placeholder="访问用户名" clearable />
+            <div class="td-form-grid">
+              <div class="td-form-row">
+                <label>用户名</label>
+                <t-input v-model="forms.pass.user" placeholder="访问用户名" clearable />
+              </div>
+              <div class="td-form-row">
+                <label>访问密码</label>
+                <t-input v-model="forms.pass.pass" placeholder="访问密码" clearable />
+              </div>
             </div>
-            <div class="td-form-row">
-              <label>访问密码</label>
-              <t-input v-model="forms.pass.pass" placeholder="访问密码" clearable />
-              <div class="td-form-hint">建议使用强密码</div>
-            </div>
+            <div class="td-form-hint">建议使用强密码</div>
             <div class="td-form-actions">
               <t-button theme="primary" :loading="savings.pass" @click="savePass">
                 <i class="mdi mdi-plus"></i> 添加
@@ -92,13 +101,6 @@
 
     <!-- 默认文档 -->
     <div v-else-if="tab === 'default-doc'" class="td-set-card">
-      <div class="td-set-card-hd">
-        <div class="td-set-icon"><i class="mdi mdi-file-document-outline"></i></div>
-        <div>
-          <h4>默认文档</h4>
-          <p>设置目录默认访问的文档名,用逗号分隔</p>
-        </div>
-      </div>
       <div class="td-set-card-bd">
         <t-loading :loading="loadings['default-doc']" text="加载中…" size="small">
           <div class="td-form">
@@ -123,13 +125,6 @@
 
     <!-- 运行目录 -->
     <div v-else-if="tab === 'run-dir'" class="td-set-card">
-      <div class="td-set-card-hd">
-        <div class="td-set-icon"><i class="mdi mdi-folder-outline"></i></div>
-        <div>
-          <h4>运行目录</h4>
-          <p>设置站点的运行目录(相对站点根目录)</p>
-        </div>
-      </div>
       <div class="td-set-card-bd">
         <t-loading :loading="loadings['run-dir']" text="加载中…" size="small">
           <div class="td-form">
@@ -150,13 +145,6 @@
 
     <!-- 伪静态 -->
     <div v-else-if="tab === 'rewrite'" class="td-set-card">
-      <div class="td-set-card-hd">
-        <div class="td-set-icon"><i class="mdi mdi-file-replace-outline"></i></div>
-        <div>
-          <h4>伪静态</h4>
-          <p>设置 URL 重写规则</p>
-        </div>
-      </div>
       <div class="td-set-card-bd">
         <t-loading :loading="loadings.rewrite" text="加载中…" size="small">
           <div class="td-form">
@@ -172,7 +160,7 @@
               <label>规则内容</label>
               <t-textarea
                 v-model="forms.rewrite.content"
-                :autosize="{ minRows: 6, maxRows: 16 }"
+                :autosize="{ minRows: 8, maxRows: 18 }"
                 placeholder="请填写伪静态规则"
               />
             </div>
@@ -188,19 +176,12 @@
 
     <!-- SSL 配置 -->
     <div v-else-if="tab === 'ssl'" class="td-set-card">
-      <div class="td-set-card-hd">
-        <div class="td-set-icon"><i class="mdi mdi-certificate"></i></div>
-        <div>
-          <h4>SSL 配置</h4>
-          <p>配置站点 HTTPS 证书</p>
-        </div>
-      </div>
       <div class="td-set-card-bd">
         <t-loading :loading="loadings.ssl" text="加载中…" size="small">
           <div class="td-form">
             <div class="td-form-row">
               <label>SSL 状态</label>
-              <div class="td-ssl-status">
+              <div class="td-form-ctl-text">
                 <t-tag :theme="forms.ssl.status ? 'success' : 'default'" variant="light">
                   {{ forms.ssl.status ? '已开启' : '未开启' }}
                 </t-tag>
@@ -298,13 +279,6 @@
 
     <!-- 防盗链 -->
     <div v-else-if="tab === 'hotlink'" class="td-set-card">
-      <div class="td-set-card-hd">
-        <div class="td-set-icon"><i class="mdi mdi-shield-link-variant-outline"></i></div>
-        <div>
-          <h4>防盗链</h4>
-          <p>限制资源被外部站点引用</p>
-        </div>
-      </div>
       <div class="td-set-card-bd">
         <t-loading :loading="loadings.hotlink" text="加载中…" size="small">
           <div class="td-form">
@@ -341,16 +315,12 @@
 
     <!-- Gzip -->
     <div v-else-if="tab === 'gzip'" class="td-set-card">
-      <div class="td-set-card-hd">
-        <div class="td-set-icon"><i class="mdi mdi-folder-zip-outline"></i></div>
-        <div>
-          <h4>Gzip 配置</h4>
-          <p>启用页面压缩,减少传输量</p>
-        </div>
-      </div>
       <div class="td-set-card-bd">
         <div class="td-form">
-          <div class="td-form-hint">点击下方按钮启用 Gzip 压缩</div>
+          <div class="td-form-row">
+            <label>Gzip 压缩</label>
+            <div class="td-form-ctl-text">启用后文本类响应会压缩传输,可减少带宽并加快页面加载。</div>
+          </div>
           <div class="td-form-actions">
             <t-button theme="primary" :loading="savings.gzip" @click="saveGzip">
               <i class="mdi mdi-check"></i> 启用 Gzip
@@ -362,25 +332,19 @@
 
     <!-- 缓存 -->
     <div v-else-if="tab === 'cache'" class="td-set-card">
-      <div class="td-set-card-hd">
-        <div class="td-set-icon"><i class="mdi mdi-comment-flash-outline"></i></div>
-        <div>
-          <h4>缓存配置</h4>
-          <p>设置站点页面缓存</p>
-        </div>
-      </div>
       <div class="td-set-card-bd">
         <div class="td-form">
-          <div class="td-form-row">
-            <label>缓存后缀</label>
-            <t-input v-model="forms.cache.suffix" placeholder="如 html,htm" clearable />
-            <div class="td-form-hint">用英文逗号分隔多个后缀</div>
+          <div class="td-form-grid">
+            <div class="td-form-row">
+              <label>缓存后缀</label>
+              <t-input v-model="forms.cache.suffix" placeholder="如 html,htm" clearable />
+            </div>
+            <div class="td-form-row">
+              <label>缓存时间(秒)</label>
+              <t-input v-model="forms.cache.time_out" placeholder="如 3600" clearable />
+            </div>
           </div>
-          <div class="td-form-row">
-            <label>缓存时间(秒)</label>
-            <t-input v-model="forms.cache.time_out" placeholder="如 3600" clearable />
-            <div class="td-form-hint">单位:秒</div>
-          </div>
+          <div class="td-form-hint">后缀用英文逗号分隔多个,缓存时间单位为秒</div>
           <div class="td-form-actions">
             <t-button theme="primary" :loading="savings.cache" @click="saveCache">
               <i class="mdi mdi-content-save-outline"></i> 保存
@@ -392,24 +356,19 @@
 
     <!-- 修改密码 -->
     <div v-else-if="tab === 'password'" class="td-set-card">
-      <div class="td-set-card-hd">
-        <div class="td-set-icon"><i class="mdi mdi-key-variant"></i></div>
-        <div>
-          <h4>修改密码</h4>
-          <p>修改 FTP 密码与 SQL 密码</p>
-        </div>
-      </div>
       <div class="td-set-card-bd">
         <div class="td-form">
-          <div class="td-form-row">
-            <label>FTP 密码</label>
-            <t-input v-model="forms.password.ftp" type="password" placeholder="留空表示不修改 FTP 密码" clearable />
+          <div class="td-form-grid">
+            <div class="td-form-row">
+              <label>FTP 密码</label>
+              <t-input v-model="forms.password.ftp" type="password" placeholder="不修改请留空" clearable />
+            </div>
+            <div class="td-form-row">
+              <label>SQL 密码</label>
+              <t-input v-model="forms.password.sql" type="password" placeholder="不修改请留空" clearable />
+            </div>
           </div>
-          <div class="td-form-row">
-            <label>SQL 密码</label>
-            <t-input v-model="forms.password.sql" type="password" placeholder="留空表示不修改 SQL 密码" clearable />
-            <div class="td-form-hint">至少填写一项</div>
-          </div>
+          <div class="td-form-hint">至少填写一项</div>
           <div class="td-form-actions">
             <t-button theme="primary" :loading="savings.password" @click="savePassword">
               <i class="mdi mdi-content-save-outline"></i> 修改密码
@@ -421,16 +380,12 @@
 
     <!-- SQL 权限 -->
     <div v-else-if="tab === 'sql-auth'" class="td-set-card">
-      <div class="td-set-card-hd">
-        <div class="td-set-icon"><i class="mdi mdi-database-alert-outline"></i></div>
-        <div>
-          <h4>SQL 权限设置</h4>
-          <p>应用数据库权限设置</p>
-        </div>
-      </div>
       <div class="td-set-card-bd">
         <div class="td-form">
-          <div class="td-form-hint">点击下方按钮应用 SQL 权限设置</div>
+          <div class="td-form-row">
+            <label>SQL 权限</label>
+            <div class="td-form-ctl-text">点击下方按钮应用数据库权限设置。</div>
+          </div>
           <div class="td-form-actions">
             <t-button theme="primary" :loading="savings['sql-auth']" @click="saveSqlAuth">
               <i class="mdi mdi-check"></i> 应用设置
@@ -444,7 +399,7 @@
 
 <script setup>
 import { reactive, ref, computed, watch, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { MessagePlugin } from 'tdesign-vue-next'
 import {
   getPhpList, setPhpVersion,
@@ -462,28 +417,26 @@ import {
 } from '@/user/api/site'
 
 const route = useRoute()
-const router = useRouter()
 
 const tabOptions = [
-  { value: 'php', label: 'PHP 版本' },
-  { value: 'pass', label: '密码访问' },
-  { value: 'default-doc', label: '默认文档' },
-  { value: 'run-dir', label: '运行目录' },
-  { value: 'rewrite', label: '伪静态' },
-  { value: 'ssl', label: 'SSL' },
-  { value: 'hotlink', label: '防盗链' },
-  { value: 'gzip', label: 'Gzip' },
-  { value: 'cache', label: '缓存' },
-  { value: 'password', label: '修改密码' },
-  { value: 'sql-auth', label: 'SQL 权限' },
+  { value: 'php', label: 'PHP 版本', icon: 'mdi-language-php', desc: '切换站点的 PHP 运行版本' },
+  { value: 'pass', label: '密码访问', icon: 'mdi-lock', desc: '为站点目录开启 HTTP 基本认证访问' },
+  { value: 'default-doc', label: '默认文档', icon: 'mdi-file-document-outline', desc: '设置目录默认访问的文档名,用逗号分隔' },
+  { value: 'run-dir', label: '运行目录', icon: 'mdi-folder-outline', desc: '设置站点的运行目录(相对站点根目录)' },
+  { value: 'rewrite', label: '伪静态', icon: 'mdi-file-replace-outline', desc: '设置 URL 重写规则' },
+  { value: 'ssl', label: 'SSL', icon: 'mdi-certificate', desc: '配置站点 HTTPS 证书' },
+  { value: 'hotlink', label: '防盗链', icon: 'mdi-shield-link-variant-outline', desc: '限制资源被外部站点引用' },
+  { value: 'gzip', label: 'Gzip', icon: 'mdi-folder-zip-outline', desc: '启用页面压缩,减少传输量' },
+  { value: 'cache', label: '缓存', icon: 'mdi-comment-flash-outline', desc: '设置站点页面缓存' },
+  { value: 'password', label: '修改密码', icon: 'mdi-key-variant', desc: '修改 FTP 密码与 SQL 密码' },
+  { value: 'sql-auth', label: 'SQL 权限', icon: 'mdi-database-alert-outline', desc: '应用数据库权限设置' },
 ]
 
 const tab = ref(route.params.tab || 'php')
 const sslSubTab = ref('manual')
 
-const currentTabTitle = computed(() => {
-  const o = tabOptions.find((x) => x.value === tab.value)
-  return o ? o.label + ' 设置' : '站点设置'
+const currentMeta = computed(() => {
+  return tabOptions.find((x) => x.value === tab.value) || tabOptions[0]
 })
 
 // 各 tab 的表单数据
@@ -514,10 +467,6 @@ function setSaving(name, v) { savings[name] = v }
 
 function isOn(v) {
   return v === true || v === 'true' || v === 1 || v === '1' || v === 'on'
-}
-
-function onTabChange(v) {
-  router.replace(`/settings/${v}`)
 }
 
 watch(
@@ -831,11 +780,52 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.td-head-actions {
+/* 11 个子设置改用横向导航,替代原先页头的下拉选单 */
+.td-set-nav {
   display: flex;
-  align-items: center;
-  gap: 8px;
   flex-wrap: wrap;
+  gap: 2px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--td-border);
+}
+.td-set-nav-item {
+  display: inline-block;
+  padding: 8px 12px;
+  margin-bottom: -1px;
+  font-size: 13px;
+  color: var(--td-text-secondary);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  transition: color var(--td-dur) var(--td-ease), border-color var(--td-dur) var(--td-ease);
+}
+.td-set-nav-item:hover {
+  color: var(--td-brand);
+  text-decoration: none;
+}
+.td-set-nav-item.active {
+  color: var(--td-brand);
+  font-weight: 500;
+  border-bottom-color: var(--td-brand);
+}
+
+/* 说明文字独立成行时（跟在栅格字段对之后） */
+.td-form > .td-form-hint {
+  margin: -6px 0 16px;
+  font-size: 12px;
+  color: var(--td-text-placeholder);
+  line-height: 1.5;
+}
+
+/* 纯展示的行内容,与控件同字号同基线 */
+.td-form-ctl-text {
+  font-size: 13px;
+  color: var(--td-text-secondary);
+  line-height: 1.7;
+}
+
+.td-pass-list {
+  border: 1px solid var(--td-border);
+  border-radius: var(--td-radius);
 }
 .td-pass-item {
   display: flex;
@@ -848,6 +838,7 @@ onMounted(() => {
 .td-pass-item:last-child {
   border-bottom: none;
 }
+
 .td-ssl-cert-info {
   display: flex;
   flex-direction: column;
@@ -859,7 +850,7 @@ onMounted(() => {
   line-height: 1.6;
 }
 .td-ssl-tabs {
-  margin-top: 8px;
+  margin-top: 12px;
 }
 .td-ssl-domains {
   display: flex;
@@ -872,8 +863,5 @@ onMounted(() => {
 .td-ssl-le-tip {
   margin-top: 8px;
   line-height: 1.6;
-}
-.td-form-actions {
-  gap: 8px;
 }
 </style>
