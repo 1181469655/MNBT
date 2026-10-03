@@ -96,18 +96,6 @@ function mnbt_upgrade_columns($actual_config, $actual_zj, $actual_bt, $actual_dp
             'wjscqzcs' => "ALTER TABLE `{$actual_config}` ADD `wjscqzcs` VARCHAR(50) NOT NULL DEFAULT '0 3 * * *'",
             'wjscqzcskg' => "ALTER TABLE `{$actual_config}` ADD `wjscqzcskg` VARCHAR(20) NOT NULL DEFAULT 'true'",
             'pay_methods' => "ALTER TABLE `{$actual_config}` ADD `pay_methods` TEXT NOT NULL DEFAULT ''",
-            // V1.84 独立主页系统（与 update/update_v184_home.sql 保持一致）
-            'home_enable' => "ALTER TABLE `{$actual_config}` ADD `home_enable` varchar(10) NOT NULL DEFAULT 'true'",
-            'home_theme' => "ALTER TABLE `{$actual_config}` ADD `home_theme` varchar(50) NOT NULL DEFAULT ''",
-            'home_theme_settings' => "ALTER TABLE `{$actual_config}` ADD `home_theme_settings` text NOT NULL",
-            'home_title' => "ALTER TABLE `{$actual_config}` ADD `home_title` text NOT NULL",
-            'home_hero' => "ALTER TABLE `{$actual_config}` ADD `home_hero` text NOT NULL",
-            'home_primary' => "ALTER TABLE `{$actual_config}` ADD `home_primary` varchar(10) NOT NULL DEFAULT '#4f46e5'",
-            'home_logo' => "ALTER TABLE `{$actual_config}` ADD `home_logo` text NOT NULL",
-            'home_favicon' => "ALTER TABLE `{$actual_config}` ADD `home_favicon` text NOT NULL",
-            'home_footer' => "ALTER TABLE `{$actual_config}` ADD `home_footer` text NOT NULL",
-            'home_show_notice' => "ALTER TABLE `{$actual_config}` ADD `home_show_notice` varchar(10) NOT NULL DEFAULT 'true'",
-            'home_show_plans' => "ALTER TABLE `{$actual_config}` ADD `home_show_plans` varchar(10) NOT NULL DEFAULT 'true'",
             // V1.85 对外 API 协议模式开关（0=1.83+ 严格，1=1.81 兼容）
             'api_compat' => "ALTER TABLE `{$actual_config}` ADD `api_compat` varchar(10) NOT NULL DEFAULT '0'",
         ),
@@ -255,13 +243,6 @@ switch ($action) {
             if (!$col_php) {
                 $result['need_upgrade'] = true;
                 $result['missing_columns'][] = 'MN_bt.mrbts_php';
-            }
-
-            // 检查 V1.84 新增字段（独立主页系统）
-            $col_home = DB::get_row("SHOW COLUMNS FROM `MN_config` LIKE 'home_enable'");
-            if (!$col_home) {
-                $result['need_upgrade'] = true;
-                $result['missing_columns'][] = 'MN_config.home_enable';
             }
 
             // 检查 V1.85 新增字段（对外 API 协议模式开关）
@@ -542,4 +523,4 @@ function mnqz()
         return '<font color="red">不支持</font>';
     }
 }
-
+

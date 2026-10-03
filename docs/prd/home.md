@@ -3,6 +3,13 @@ title: MNBT 独立主页系统 PRD
 description: 将主页接管能力下沉为核心一等公民、内置默认主页的 V1.84 规划（评审中）
 ---
 
+> **📌 状态更新（V1.88）**：本 PRD 规划的"主页核心化"已在 V1.84~V1.87 实施，
+> 并于 **V1.88 反向调整**——主页（站点根路径 `/`）整体迁回 `official_site` 插件承接
+> （`mnbt_register_home` priority 9000 兜底渲染，配置走插件 options，后台入口
+> 「官网内容 → 主页设置」）。`MPHX/frontend.php` 与 `home` 主题作用域已删除，
+> `mnbt_home_base/url/core_url/asset` 四个 URL 助手保留在 `MPHX/function.php`。
+> 本文档保留作为 V1.84~V1.87 的设计与历史参考。
+
 # MNBT 独立主页系统 PRD
 
 > 版本：v1.0（P0 规划）

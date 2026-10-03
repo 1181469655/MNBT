@@ -2,6 +2,15 @@
 title: 主页主题开发
 description: "主页主题(scope: home)开发说明：新建主题、自定义设置字段注册、模板读取、持久化与扩展区块"
 ---
+---
+
+> **⚠️ V1.88 起本文档所述机制已下线**：主页（站点根路径 `/`）不再作为主题作用域，
+> 整体迁入 `official_site` 插件（入口 `views/tdesign/home.php`、SPA 源码 `assets/spa/`、
+> 配置走插件 options，后台入口「官网内容 → 主页设置」）。`mnbt_register_home_setting` /
+> `mnbt_home_theme_setting` / 主页主题选择均已移除。本文仅作历史机制参考。
+
+---
+
 
 # 主页主题开发(V1.84)
 

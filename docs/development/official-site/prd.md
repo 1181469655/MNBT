@@ -144,3 +144,21 @@ src/home/views/site/
 - 插件 admin PHP 页面在 iframe 中渲染，需自包含 HTML（参照 hosting_shop 写法）
 - guanwang1 使用 lucide 图标，home 使用 MDI（mdi-*）图标体系，移植时全部替换为 MDI
 - 绿色变量需同时覆盖 TDesign 主题色（`--td-brand` 由 boot.sitePrimary 控制，home 端按绿色注入）
+
+## 10. V1.88 增补：承接官网首页（自核心独立主页系统迁入）
+
+V1.88 起，站点根路径 `/` 的官网首页整体迁入本插件，核心 `MPHX/frontend.php`
+独立主页系统与 `home` 主题作用域删除：
+
+| 事项 | V1.87 及以前 | V1.88 起 |
+| --- | --- | --- |
+| 首页渲染 | 核心 `mnbt_home_dispatch()` 渲染主题 `home/index.php` | 插件 `mnbt_register_home('official_site_home_handle', 9000)` 兜底渲染（shop_frontend 等第三方接管仍优先） |
+| 入口模板 | `templates/{主页主题}/home/index.php` | `app_plugins/official_site/views/tdesign/home.php`（单份，不随主题） |
+| SPA 源码 | `templates/tdesign/spa/src/home/` + `main-home.js` + `App-home.vue` | `app_plugins/official_site/assets/spa/`（`srcBase` 指插件，`@/shared/` 经 `srcAliases` 指回主题共享目录） |
+| 基础配置 | `MN_config.home_*` 11 列 | 插件 options（升级 SQL 自动拷贝后删列，插件引导亦有兜底迁移） |
+| 内容设置 | 主题 `theme.php` 注册 + `MN_config.home_theme_settings` | 插件 `lib/home.php` `official_site_home_fields()` + options JSON |
+| 后台入口 | 系统设置「主页内容」卡片 | 插件菜单「官网内容 → 主页设置」（`views/admin/home_settings.php`） |
+| 关停语义 | `home_enable=false` 跳过渲染 | 插件 option `home_enable=false` 时接管回调返回 false，根路径跳转用户面板 |
+
+代码落点：`lib/home.php`（配置读取 / 迁移 / 数据组装 / 渲染）、`views/tdesign/home.php`、
+`views/admin/home_settings.php`。`home.blocks` 过滤器保留（landing 页渲染 `boot.blocks`）。

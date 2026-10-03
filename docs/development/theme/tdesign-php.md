@@ -63,10 +63,16 @@ description: tdesign 主题与 PHP 的对接:三端入口映射、__TD_BOOT__ �
 | `/user/ftp.php` | `#/ftp`(V1.87 起 SPA 原生文件管理) |
 | `/user/plugin.php?p=xxx&page=yyy` | `#/plugin?p=xxx&page=yyy`(iframe 在 layout 内加载) |
 
-## 主页入口映射(home scope)
+## 主页入口映射(official_site 插件,V1.88 起不再属于主题)
 
-主页由 `MPHX/frontend.php` 的 `mnbt_home_dispatch()` 分发,站点根路径 `/` 渲染 `templates/tdesign/home/index.php`。  
-该文件加载 home SPA 构建产物,全部页面走 Hash 路由,数据由插件 API 路由(`/index.php?_r=...`)提供:
+> V1.88 起主页（站点根路径 `/`）由 `official_site` 插件承接：入口模板在
+> `app_plugins/official_site/views/tdesign/home.php`，SPA 源码在
+> `app_plugins/official_site/assets/spa/`。tdesign 主题仅提供共享运行时
+> （`assets/td-boot.js`、`spa/src/shared/`），经 `__TD_BOOT__.srcBase / srcAliases`
+> 供插件侧 SPA 引用。
+
+主页由 `official_site` 插件的 `mnbt_register_home`（priority 9000）接管,站点根路径 `/` 渲染插件入口模板。  
+该文件加载 home SPA 源码,全部页面走 Hash 路由,数据由插件 API 路由(`/index.php?_r=...`)提供:
 
 | 访问 | SPA 路由 | 说明 |
 |------|----------|------|
@@ -85,7 +91,7 @@ description: tdesign 主题与 PHP 的对接:三端入口映射、__TD_BOOT__ �
 ### 主页插件 API 路由
 
 SPA 的 `home/api/http.js` 以 `routeRequest` 封装请求 `{routeBase} + path`,  
-`routeBase` = `mnbt_home_base() . '/index.php?_r='`,由 `home/index.php` 注入 `__TD_BOOT__.routeBase`。  
+`routeBase` = `mnbt_home_base() . '/index.php?_r='`,由插件入口模板注入 `__TD_BOOT__.routeBase`。  
 请求自动附带 CSRF token(`X-CSRF-Token` 头 + `MNBT_CSRF_TOKEN` cookie),解析 `{code: 'ok', ...}` 格式。
 
 依赖三个插件(未启用时 `__TD_BOOT__.hasShop` / `hasUser` 为 false,菜单隐藏):

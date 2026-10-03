@@ -2,11 +2,13 @@
 /**
  * official_site 插件 - 主入口
  *
- * 功能：企业官网内容管理（产品展示、新闻资讯、联系留言）
+ * 功能：官网首页（站点根路径 / 落地页）+ 企业官网内容管理（产品展示、新闻资讯、联系留言）
  * 架构：
+ *   - 前台：通过 mnbt_register_home（priority 9000）接管站点根路径渲染官网首页
+ *     （V1.88 起承接原核心独立主页系统，见 lib/home.php）
  *   - 前台：通过 P2 路由注册 /site/api/* 数据接口，供 home SPA「产品/新闻/联系」页面使用
  *   - 管理员端：通过 mnbt_register_page('admin', ...) 注册到 admin/plugin.php，侧边栏「官网内容」菜单
- * 能力探测：启用后 home 引擎注入 has_site=true，自动开启「关于/产品/新闻/联系」页面与导航
+ * 能力探测：主页 SPA 由本插件渲染，官网内容页面与导航始终开启
  */
 
 if (!defined('IN_CRONLITE')) {
@@ -14,11 +16,22 @@ if (!defined('IN_CRONLITE')) {
 }
 
 require_once __DIR__ . '/lib/site.php';
+require_once __DIR__ . '/lib/home.php';
 
 mnbt_plugin_register('official_site', [
 	'name' => '官网内容',
 	'description' => '企业官网内容管理：产品展示、新闻资讯、联系留言',
 ]);
+
+/* ============================================================
+ *  官网首页接管（V1.88 自核心独立主页系统迁入）
+ * ============================================================ */
+
+// 旧版 MN_config.home_* 配置一次性迁入插件 options
+official_site_home_migrate_legacy();
+
+// priority 9000：大值保持原核心默认主页"最后兜底"语义（shop_frontend 等优先）
+mnbt_register_home('official_site_home_handle', 9000);
 
 /* ============================================================
  *  前台 API 路由（home SPA 数据接口）
@@ -152,6 +165,7 @@ mnbt_register_route('POST', '/site/api/contact', function ($params, $ctx) {
 mnbt_register_page('admin', 'site_products', 'views/admin/products.php', '产品管理');
 mnbt_register_page('admin', 'site_news', 'views/admin/news.php', '新闻管理');
 mnbt_register_page('admin', 'site_messages', 'views/admin/messages.php', '留言管理');
+mnbt_register_page('admin', 'home_settings', 'views/admin/home_settings.php', '主页设置');
 
 // 侧边栏菜单
 mnbt_register_menu('admin', [
@@ -159,6 +173,7 @@ mnbt_register_menu('admin', [
 	'icon'  => 'mdi-web',
 	'order' => 55,
 	'children' => [
+		['title' => '主页设置', 'page' => 'home_settings', 'icon' => 'mdi-home-city-outline', 'multitabs' => true],
 		['title' => '产品管理', 'page' => 'site_products', 'icon' => 'mdi-package-variant', 'multitabs' => true],
 		['title' => '新闻管理', 'page' => 'site_news', 'icon' => 'mdi-newspaper', 'multitabs' => true],
 		['title' => '留言管理', 'page' => 'site_messages', 'icon' => 'mdi-email-open', 'multitabs' => true],

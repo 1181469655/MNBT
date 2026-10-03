@@ -963,7 +963,7 @@ function mnbt_updater_local_files()
 {
 	// active_*_theme：管理员选择的主题跨更新保留（V1.87）
 	return ['config.php', 'cf_up.php', 'install/install.lock',
-		'templates/active_user_theme', 'templates/active_admin_theme', 'templates/active_docker_theme', 'templates/active_home_theme'];
+		'templates/active_user_theme', 'templates/active_admin_theme', 'templates/active_docker_theme'];
 }
 
 /** 需要备份还原的本地目录：包里可能带着作者的数据，整目录换回来 */

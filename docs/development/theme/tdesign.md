@@ -5,7 +5,7 @@ description: tdesign 主题说明:特性、目录结构、编译、启用、设�
 
 # TDesign 三端主题(tdesign)v0.4.0
 
-现代化 **三端** 主题:基于 TDesign 品牌蓝,覆盖**用户端 + 管理端 + 主页售卖**全部页面。卡片化布局、侧栏 + 顶栏、echarts 数据可视化、左侧背景图登录页、独立主页售卖前端。
+现代化 **三端** 主题:基于 TDesign 品牌蓝,覆盖**用户端 + 管理端**全部页面（主页售卖端随 official_site 插件）。卡片化布局、侧栏 + 顶栏、echarts 数据可视化、左侧背景图登录页、独立主页售卖前端。
 
 技术栈:**Vue 3 + Vue Router (Hash) + TDesign Vue Next + vue3-sfc-loader(免构建)+ ECharts(UMD 全量)**。
 
@@ -52,9 +52,13 @@ description: tdesign 主题说明:特性、目录结构、编译、启用、设�
 | 插件页面 | 通过 SPA 路由 + iframe 在 layout 内加载 |
 | 路由 | Hash 模式,不改 PHP 控制器 URL |
 
-### 主页(home scope)
+### 主页(V1.88 起随 official_site 插件,不再属于主题)
 
-完整售卖系统前端,通过**插件 API 路由**(`index.php?_r=/xxx/api/xxx`)驱动,不依赖 iframe。依赖 `user_info`(认证)、`balance`(余额)、`hosting_shop`(商店)插件;`official_site`(官网内容)插件可选,启用后展示官网页面。
+> 主页（站点根路径 `/`）与官网内容页面已随 `official_site` 插件迁移
+> （`app_plugins/official_site/assets/spa/`），tdesign 主题仅保留三端
+> （用户端 / 管理端 / Docker 端）与共享运行时。下文为主页仍随主题时的历史说明。
+
+完整售卖系统前端,通过**插件 API 路由**(`index.php?_r=/xxx/api/xxx`)驱动,不依赖 iframe。依赖 `user_info`(认证)、`balance`(余额)、`hosting_shop`(商店)插件;官网页面由 `official_site` 插件提供。
 
 | 模块 | 说明 |
 |------|------|
@@ -71,7 +75,7 @@ description: tdesign 主题说明:特性、目录结构、编译、启用、设�
 
 ```
 templates/tdesign/
-├── theme.json                 # 主题元信息(scope: ["user", "admin", "home"])
+├── theme.json                 # 主题元信息(scope: ["user", "admin", "docker"])
 ├── theme.php                  # 注册双端菜单渲染器(插件菜单 → 侧栏 HTML)
 ├── assets/
 │   └── td-boot.js             # ★ vue3-sfc-loader 免构建引导(所有端共用)
@@ -109,12 +113,9 @@ templates/tdesign/
 ├── docker/                    # Docker 控制台 PHP 入口(7 视图 + _spa_boot.php)
 │   └── assets/captcha-images/ # 滑块验证码图集
 │
-├── home/                      # 主页 PHP 主题入口(home scope)
-│   └── index.php              # 落地页入口,注入 __TD_BOOT__ + 免构建加载
-│
 └── spa/                       # SPA 源码(浏览器内直出,按端分层)
     └── src/
-        ├── App-*.vue          # 各端根组件(admin/user/docker/home/account)
+        ├── App-*.vue          # 各端根组件(admin/user/docker/account,home 随 official_site 插件)
         ├── main-*.js          # 各端入口(createApp + router + TDesign)
         │
         ├── admin/             # 管理端代码(全部集中于此)
@@ -132,8 +133,8 @@ templates/tdesign/
         │   └── views/         # 按业务模块分目录(dashboard/settings/ftp/database/monitor/stats/deploy + 顶层 view)
         │
         ├── docker/            # Docker 控制台代码(api/components/layouts/router/views)
-        ├── home/              # 主页售卖端代码(api/layouts/router/store/utils/views)
         ├── account/           # 用户中心(user_info 插件,layouts/api/router/views)
+        │   │                  # home 售卖端同样迁至 official_site 插件 assets/spa/
         └── shared/            # 各端共用代码
             ├── api/http.js    # apiGn/postGn/parseResult 统一请求封装
             ├── utils/echarts.js # echarts UMD 全局桥接

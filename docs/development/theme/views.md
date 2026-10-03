@@ -1,6 +1,6 @@
 ---
 title: 视图清单
-description: 主题开发必选/可选视图清单:用户端、管理端、Docker 控制台、主页四套 scope 与不走主题的路径
+description: 主题开发必选/可选视图清单:用户端、管理端、Docker 控制台三套 scope 与不走主题的路径
 ---
 
 # 必选 / 可选视图清单
@@ -111,48 +111,11 @@ Docker 控制台是独立于用户端/管理端的第三套视图体系,有独�
 
 **主题 scope 注册**:`docker` scope 在 `MPHX/theme.php` 中注册,与 `user`/`admin` 独立。`theme.json` 可声明 `"scope": ["user", "admin", "docker"]`。
 
-## 3.5 主页 `templates/{theme}/home/`(V1.84 新增)
+## 3.5 主页（V1.88 起不属于主题）
 
-独立主页系统是 V1.84 新增的第四个 scope,拥有独立的主题切换(与用户端/管理端分开选)。主页主题开发的完整说明见 [主页主题开发](./home.md)。
+> 独立主页系统（V1.84 引入的第四个主题 scope）已于 V1.88 移回 `official_site` 插件：
+> 入口模板在 `app_plugins/official_site/views/tdesign/home.php`，SPA 源码在
+> `app_plugins/official_site/assets/spa/`，主页设置在后台「官网内容 → 主页设置」。
+> 主题不再包含 `home/` 目录，`mnbt_theme_name()` 等也不再接受 `home` 作用域。
+> 历史说明见本文档旧版或 [独立主页系统 PRD](../../prd/home.md)。
 
-| 视图文件 | 说明 | 建议 |
-|----------|------|------|
-| `home/index.php` | 主页落地页(站点根路径 `/` 的渲染模板) | 必选 |
-
-**模板可用变量**(由 `MPHX/frontend.php` 注入,详见该文件 `mnbt_home_data()`):
-
-| 变量 | 说明 |
-|------|------|
-| `$site_title` | 站点标题 |
-| `$site_logo` | Logo URL |
-| `$site_primary` | 主色调(`#4f46e5`) |
-| `$site_hero` | Hero 标语 |
-| `$site_footer` | 底部版权 |
-| `$favicon` | Favicon URL |
-| `$notice` | 网站公告内容 |
-| `$show_notice` | 是否显示公告区 |
-| `$show_plans` | 是否显示套餐区 |
-| `$logged_in` | 当前访问者是否已登录 |
-| `$has_shop` | hosting_shop 插件是否启用 |
-| `$has_user` | user_info 插件是否启用 |
-| `$plans` | 套餐列表(`[['id','name','desc','price','feats'], ...]`) |
-| `$blocks` | 插件扩展区块(`[['id','title','html','order'], ...]`) |
-| `$url($path)` | 生成插件路由 URL(`index.php?_r=/shop`) |
-| `$coreUrl($path)` | 生成核心物理文件 URL(`user/login.php`) |
-
-**读取主题自定义设置**(由 `theme.php` 注册的字段):
-
-```php
-<?= htmlspecialchars(mnbt_home_theme_setting('bg_color', '#fff')) ?>
-```
-
-**静态资源**:放 `templates/{theme}/home/assets/`,用 `mnbt_theme_asset('bg.webp', 'home')` 引用。
-
-## 3.6 不走主题的路径(一般不要动)
-
-| 路径 | 原因 |
-|------|------|
-| `user/ajax.php`、`user/api/*` | JSON API |
-| `admin/ajax.php`、`admin/api/*` | JSON API |
-| `user/pay.php` 等 | 支付跳转(V1.81 P3 起回调由支付插件路由处理) |
-| `user/mysql.php` | 跳转 phpMyAdmin |

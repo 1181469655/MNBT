@@ -297,7 +297,6 @@ function settheme() {
     var ut = document.getElementById('usertheme');
     var at = document.getElementById('admintheme');
     var dt = document.getElementById('dockertheme');
-    var ht = document.getElementById('hometheme');
     if (!ut || !at) {
         msalert(4, '主题选择控件未找到', 2000);
         return;
@@ -312,7 +311,6 @@ function settheme() {
     data['usertheme'] = ut.value;
     data['admintheme'] = at.value;
     if (dt && dt.value) data['dockertheme'] = dt.value;
-    if (ht && ht.value) data['hometheme'] = ht.value;
     $.post('./ajax.php', data, function (date) {
         var jsoe = JSON.parse(date);
         var qk = jsoe.code;

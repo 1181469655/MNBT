@@ -545,4 +545,53 @@ function json_return($code, $extra = [])
 {
     return mnbt_json_encode($code, $extra);
 }
+
+/* ============================================================
+ *  站点 base path / URL 助手（原 frontend.php V1.84，V1.88 起为通用设施；
+ *  与"主页"无关，供插件视图 / 各端 boot 构建子目录部署安全的 URL）
+ * ============================================================ */
+
+/** 站点 base path（子目录部署前缀） */
+function mnbt_home_base(): string {
+	if (function_exists('mnbt_plugin_request_info')) {
+		$info = mnbt_plugin_request_info();
+		return $info['base'] ?? '';
+	}
+	$scriptName = isset($_SERVER['SCRIPT_NAME']) ? str_replace('\\', '/', $_SERVER['SCRIPT_NAME']) : '';
+	$base = rtrim(str_replace('\\', '/', dirname($scriptName)), '/');
+	return ($base === '.' || $base === '/') ? '' : $base;
+}
+
+/** 生成带 base 前缀的路由 URL（index.php?_r=/path） */
+function mnbt_home_url(string $path = ''): string
+{
+	$base = mnbt_home_base();
+	$p = ltrim($path, '/');
+	$qpos = strpos($p, '?');
+	if ($qpos !== false) {
+		$route = substr($p, 0, $qpos);
+		$query = substr($p, $qpos + 1);
+		return $base . '/index.php?_r=/' . $route . '&' . $query;
+	}
+	return $base . '/index.php?_r=/' . $p;
+}
+
+/** 生成带 base 前缀的核心物理文件 URL（如 user/login.php） */
+function mnbt_home_core_url(string $path = ''): string
+{
+	return mnbt_home_base() . '/' . ltrim($path, '/');
+}
+
+/** 资源 URL：绝对地址（http(s):// 或 / 开头）原样返回，相对路径加 base 前缀 */
+function mnbt_home_asset($path): string
+{
+	$path = (string)$path;
+	if ($path === '') {
+		return '';
+	}
+	if (preg_match('#^https?://#i', $path) || strpos($path, '/') === 0) {
+		return $path;
+	}
+	return mnbt_home_base() . '/' . ltrim($path, '/');
+}
 ?>
