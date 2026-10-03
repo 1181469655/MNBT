@@ -1,5 +1,5 @@
 <template>
-  <div class="td-page">
+  <div class="td-page td-form-page">
     <div class="td-page-head">
       <div>
         <h3 class="td-page-title"><i class="mdi mdi-timer-sand"></i>监控设置</h3>
@@ -8,13 +8,6 @@
     </div>
 
     <div class="td-set-card">
-      <div class="td-set-card-hd">
-        <div class="td-set-icon"><i class="mdi mdi-timer-sand"></i></div>
-        <div>
-          <h4>自动处理主机</h4>
-          <p>域名 / 文件监控到期后的删除或暂停策略</p>
-        </div>
-      </div>
       <div class="td-set-card-bd">
         <t-loading :loading="loading" text="保存中…" size="small">
           <div class="td-form">
@@ -22,20 +15,22 @@
               <i class="mdi mdi-domain"></i> 域名监控
             </h5>
 
-            <div class="td-form-switch">
-              <div class="td-form-switch-txt">
-                <strong>删除/处理开关</strong>
-                <span>达到阈值后按下方策略处理主机</span>
+            <div class="td-form-grid">
+              <div class="td-form-switch">
+                <div class="td-form-switch-txt">
+                  <strong>删除/处理开关</strong>
+                  <span>达到阈值后按下方策略处理主机</span>
+                </div>
+                <t-switch v-model="form.ymjkkg" />
               </div>
-              <t-switch v-model="form.ymjkkg" />
-            </div>
 
-            <div class="td-form-switch">
-              <div class="td-form-switch-txt">
-                <strong>邮件通知</strong>
-                <span>处理前发送邮件提醒</span>
+              <div class="td-form-switch">
+                <div class="td-form-switch-txt">
+                  <strong>邮件通知</strong>
+                  <span>处理前发送邮件提醒</span>
+                </div>
+                <t-switch v-model="form.mtyxfskg" />
               </div>
-              <t-switch v-model="form.mtyxfskg" />
             </div>
 
             <div class="td-form-row">
@@ -54,41 +49,45 @@
               <i class="mdi mdi-file-document-outline"></i> 文件监控
             </h5>
 
-            <div class="td-form-switch">
-              <div class="td-form-switch-txt">
-                <strong>删除/处理开关</strong>
-                <span>达到阈值后按下方策略处理主机</span>
+            <div class="td-form-grid">
+              <div class="td-form-switch">
+                <div class="td-form-switch-txt">
+                  <strong>删除/处理开关</strong>
+                  <span>达到阈值后按下方策略处理主机</span>
+                </div>
+                <t-switch v-model="form.wjjkkg" />
               </div>
-              <t-switch v-model="form.wjjkkg" />
-            </div>
 
-            <div class="td-form-switch">
-              <div class="td-form-switch-txt">
-                <strong>邮件通知</strong>
-                <span>处理前发送邮件提醒</span>
+              <div class="td-form-switch">
+                <div class="td-form-switch-txt">
+                  <strong>邮件通知</strong>
+                  <span>处理前发送邮件提醒</span>
+                </div>
+                <t-switch v-model="form.mtwjfskg" />
               </div>
-              <t-switch v-model="form.mtwjfskg" />
             </div>
 
-            <div class="td-form-row">
-              <label>文件删除天数阈值</label>
-              <t-input-number
-                v-model="form.wjjktsyz"
-                :min="1"
-                :step="1"
-                theme="normal"
-                placeholder="请输入天数"
-              />
-              <div class="td-form-hint">超过该阈值未处理的文件将按策略执行</div>
-            </div>
+            <div class="td-form-grid">
+              <div class="td-form-row">
+                <label>文件删除天数阈值</label>
+                <t-input-number
+                  v-model="form.wjjktsyz"
+                  :min="1"
+                  :step="1"
+                  theme="normal"
+                  placeholder="请输入天数"
+                />
+                <div class="td-form-hint">超过该阈值未处理的文件将按策略执行</div>
+              </div>
 
-            <div class="td-form-row">
-              <label>处理方式</label>
-              <t-select v-model="form.optionzc">
-                <t-option value="del" label="删除主机" />
-                <t-option value="stop" label="暂停主机" />
-              </t-select>
-              <div class="td-form-hint">删除主机不可恢复,建议优先使用暂停</div>
+              <div class="td-form-row">
+                <label>处理方式</label>
+                <t-select v-model="form.optionzc">
+                  <t-option value="del" label="删除主机" />
+                  <t-option value="stop" label="暂停主机" />
+                </t-select>
+                <div class="td-form-hint">删除主机不可恢复,建议优先使用暂停</div>
+              </div>
             </div>
 
             <div class="td-form-note">

@@ -1,5 +1,5 @@
 <template>
-  <div class="td-page">
+  <div class="td-page td-form-page">
     <div class="td-page-head">
       <div>
         <h3 class="td-page-title"><i class="mdi mdi-view-dashboard-outline"></i>控制面板设置</h3>
@@ -8,13 +8,6 @@
     </div>
 
     <div class="td-set-card">
-      <div class="td-set-card-hd">
-        <div class="td-set-icon"><i class="mdi mdi-view-dashboard-outline"></i></div>
-        <div>
-          <h4>控制面板</h4>
-          <p>名称、Logo 与开关</p>
-        </div>
-      </div>
       <div class="td-set-card-bd">
         <t-loading :loading="loading" text="保存中…" size="small">
           <div class="td-form">

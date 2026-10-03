@@ -1,5 +1,5 @@
 <template>
-  <div class="td-page">
+  <div class="td-page td-form-page td-form-page--wide">
     <div class="td-page-head">
       <div>
         <h3 class="td-page-title"><i class="mdi mdi-plus-box-outline"></i>添加程序</h3>
@@ -11,19 +11,20 @@
     </div>
 
     <div class="td-set-card">
-      <div class="td-set-card-hd">
-        <div class="td-set-icon"><i class="mdi mdi-webpack"></i></div>
-        <div>
-          <h4>程序基础信息</h4>
-          <p>填写名称、空间、价格与程序源码包</p>
-        </div>
-      </div>
       <div class="td-set-card-bd">
         <t-loading :loading="loading" text="提交中…" size="small">
           <div class="td-form">
-            <div class="td-form-row">
-              <label>程序名称 <span class="req">*</span></label>
-              <t-input v-model="form.cxname" placeholder="请输入程序名称" clearable />
+            <div class="td-form-grid">
+              <div class="td-form-row">
+                <label>程序名称 <span class="req">*</span></label>
+                <t-input v-model="form.cxname" placeholder="请输入程序名称" clearable />
+              </div>
+
+              <div class="td-form-row">
+                <label>价格 (元) <span class="req">*</span></label>
+                <t-input-number v-model="form.cxrmb" :min="0" theme="normal" placeholder="0 表示免费" />
+                <div class="td-form-hint">0 表示免费</div>
+              </div>
             </div>
 
             <div class="td-form-row">
@@ -35,13 +36,7 @@
               />
             </div>
 
-            <div class="td-form-row-grid">
-              <div class="td-form-row">
-                <label>价格 (元) <span class="req">*</span></label>
-                <t-input-number v-model="form.cxrmb" :min="0" theme="normal" placeholder="0 表示免费" />
-                <div class="td-form-hint">0 表示免费</div>
-              </div>
-
+            <div class="td-form-grid">
               <div class="td-form-row">
                 <label>网页空间 (MB) <span class="req">*</span></label>
                 <t-input-number v-model="form.cxwebkj" :min="0" theme="normal" />
@@ -163,11 +158,6 @@ async function submit() {
 .req {
   color: var(--td-error);
   margin-left: 2px;
-}
-.td-form-row-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 16px;
 }
 .file-row {
   display: flex;

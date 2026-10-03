@@ -1,5 +1,5 @@
 <template>
-  <div class="td-page">
+  <div class="td-page td-form-page td-form-page--wide">
     <div class="td-page-head">
       <div>
         <h3 class="td-page-title"><i class="mdi mdi-server-plus"></i>添加宝塔</h3>
@@ -11,24 +11,19 @@
     </div>
 
     <div class="td-set-card">
-      <div class="td-set-card-hd">
-        <div class="td-set-icon"><i class="mdi mdi-server"></i></div>
-        <div>
-          <h4>宝塔信息</h4>
-          <p>填写宝塔面板的连接信息</p>
-        </div>
-      </div>
       <div class="td-set-card-bd">
         <t-loading :loading="loading" text="提交中…" size="small">
           <div class="td-form">
-            <div class="td-form-row">
-              <label>宝塔 IP <span class="td-text-danger">*</span></label>
-              <t-input v-model="form.ip" placeholder="如 192.168.1.1" @input="onIpInput" />
-            </div>
+            <div class="td-form-grid">
+              <div class="td-form-row">
+                <label>宝塔 IP <span class="td-text-danger">*</span></label>
+                <t-input v-model="form.ip" placeholder="如 192.168.1.1" @input="onIpInput" />
+              </div>
 
-            <div class="td-form-row">
-              <label>宝塔端口 <span class="td-text-danger">*</span></label>
-              <t-input v-model="form.dk" placeholder="默认 8888" />
+              <div class="td-form-row">
+                <label>宝塔端口 <span class="td-text-danger">*</span></label>
+                <t-input v-model="form.dk" placeholder="默认 8888" />
+              </div>
             </div>
 
             <div class="td-form-row">
@@ -40,9 +35,28 @@
               />
             </div>
 
-            <div class="td-form-row">
-              <label>FTP 地址</label>
-              <t-input v-model="form.ftpdz" placeholder="FTP 连接地址" />
+            <div class="td-form-grid td-form-grid--3">
+              <div class="td-form-row">
+                <label>FTP 地址</label>
+                <t-input v-model="form.ftpdz" placeholder="FTP 连接地址" />
+              </div>
+
+              <div class="td-form-row">
+                <label>宝塔编号</label>
+                <t-input v-model="form.bh" placeholder="可中文,可随机">
+                  <template #suffix>
+                    <t-link theme="primary" @click="genBh"><i class="mdi mdi-shuffle-variant"></i></t-link>
+                  </template>
+                </t-input>
+              </div>
+
+              <div class="td-form-row">
+                <label>操作系统</label>
+                <t-select v-model="form.btos">
+                  <t-option :value="1" label="Linux" />
+                  <t-option :value="2" label="Windows" />
+                </t-select>
+              </div>
             </div>
 
             <div class="td-form-row">
@@ -50,37 +64,22 @@
               <t-textarea v-model="form.urlla" :autosize="{ minRows: 2, maxRows: 4 }" />
             </div>
 
-            <div class="td-form-row">
-              <label>宝塔编号</label>
-              <t-input v-model="form.bh" placeholder="可中文,可随机">
-                <template #suffix>
-                  <t-link theme="primary" @click="genBh"><i class="mdi mdi-shuffle-variant"></i></t-link>
-                </template>
-              </t-input>
-            </div>
-
-            <div class="td-form-row">
-              <label>操作系统</label>
-              <t-select v-model="form.btos">
-                <t-option :value="1" label="Linux" />
-                <t-option :value="2" label="Windows" />
-              </t-select>
-            </div>
-
-            <div class="td-form-switch">
-              <div class="td-form-switch-txt">
-                <strong>安全访问 HTTPS</strong>
-                <span>开启后通过 HTTPS 访问宝塔</span>
+            <div class="td-form-grid">
+              <div class="td-form-switch">
+                <div class="td-form-switch-txt">
+                  <strong>安全访问 HTTPS</strong>
+                  <span>开启后通过 HTTPS 访问宝塔</span>
+                </div>
+                <t-switch v-model="form.xieyi" />
               </div>
-              <t-switch v-model="form.xieyi" />
-            </div>
 
-            <div class="td-form-switch">
-              <div class="td-form-switch-txt">
-                <strong>宝塔接口开关</strong>
-                <span>关闭后无法调用宝塔</span>
+              <div class="td-form-switch">
+                <div class="td-form-switch-txt">
+                  <strong>宝塔接口开关</strong>
+                  <span>关闭后无法调用宝塔</span>
+                </div>
+                <t-switch v-model="form.kg" />
               </div>
-              <t-switch v-model="form.kg" />
             </div>
 
             <div class="td-form-note">

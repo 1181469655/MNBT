@@ -1,5 +1,5 @@
 <template>
-  <div class="td-page td-theme-page">
+  <div class="td-page td-form-page td-form-page--wide td-theme-page">
     <div class="td-page-head">
       <div>
         <h3 class="td-page-title"><i class="mdi mdi-palette-outline"></i>前端模板设置</h3>
@@ -8,85 +8,82 @@
     </div>
 
     <div class="td-set-card">
-      <div class="td-set-card-hd">
-        <div class="td-set-icon"><i class="mdi mdi-palette-outline"></i></div>
-        <div>
-          <h4>前端模板</h4>
-          <p>切换用户端 / 管理端主题皮肤</p>
-        </div>
-      </div>
       <div class="td-set-card-bd">
         <t-loading :loading="loading" text="保存中…" size="small">
           <div class="td-form">
-            <div class="td-form-row">
-              <label>用户端主题</label>
-              <t-select v-model="form.usertheme" placeholder="请选择用户端主题">
-                <t-option
-                  v-for="t in userThemes"
-                  :key="t.name"
-                  :value="t.name"
-                  :label="`${t.title}${t.version ? ' v' + t.version : ''} (${t.name})`"
-                />
-              </t-select>
-              <div class="td-form-hint">
-                当前: <code>{{ curUserTheme || '-' }}</code> · 目录 templates/
+            <div class="td-form-grid">
+              <div class="td-form-row">
+                <label>用户端主题</label>
+                <t-select v-model="form.usertheme" placeholder="请选择用户端主题">
+                  <t-option
+                    v-for="t in userThemes"
+                    :key="t.name"
+                    :value="t.name"
+                    :label="`${t.title}${t.version ? ' v' + t.version : ''} (${t.name})`"
+                  />
+                </t-select>
+                <div class="td-form-hint">
+                  当前: <code>{{ curUserTheme || '-' }}</code> · 目录 templates/
+                </div>
+              </div>
+
+              <div class="td-form-row">
+                <label>管理端主题</label>
+                <t-select v-model="form.admintheme" placeholder="请选择管理端主题">
+                  <t-option
+                    v-for="t in adminThemes"
+                    :key="t.name"
+                    :value="t.name"
+                    :label="`${t.title}${t.version ? ' v' + t.version : ''} (${t.name})`"
+                  />
+                </t-select>
+                <div class="td-form-hint">
+                  当前: <code>{{ curAdminTheme || '-' }}</code> · 缺页回退 default
+                </div>
               </div>
             </div>
 
-            <div class="td-form-row">
-              <label>管理端主题</label>
-              <t-select v-model="form.admintheme" placeholder="请选择管理端主题">
-                <t-option
-                  v-for="t in adminThemes"
-                  :key="t.name"
-                  :value="t.name"
-                  :label="`${t.title}${t.version ? ' v' + t.version : ''} (${t.name})`"
-                />
-              </t-select>
-              <div class="td-form-hint">
-                当前: <code>{{ curAdminTheme || '-' }}</code> · 缺页回退 default
+            <div v-if="dockerThemes.length || homeThemes.length" class="td-form-grid">
+              <div v-if="dockerThemes.length" class="td-form-row">
+                <label>Docker 控制台主题</label>
+                <t-select v-model="form.dockertheme" placeholder="请选择 Docker 控制台主题">
+                  <t-option
+                    v-for="t in dockerThemes"
+                    :key="t.name"
+                    :value="t.name"
+                    :label="`${t.title}${t.version ? ' v' + t.version : ''} (${t.name})`"
+                  />
+                </t-select>
+                <div class="td-form-hint">
+                  当前: <code>{{ curDockerTheme || '-' }}</code> · 缺页回退 default
+                </div>
+              </div>
+
+              <div v-if="homeThemes.length" class="td-form-row">
+                <label>主页主题</label>
+                <t-select v-model="form.hometheme" placeholder="请选择主页主题">
+                  <t-option
+                    v-for="t in homeThemes"
+                    :key="t.name"
+                    :value="t.name"
+                    :label="`${t.title}${t.version ? ' v' + t.version : ''} (${t.name})`"
+                  />
+                </t-select>
+                <div class="td-form-hint">
+                  当前: <code>{{ curHomeTheme || '-' }}</code> · 站点根路径 / 的落地页皮肤 · templates/主题/home/
+                </div>
               </div>
             </div>
 
-            <div v-if="dockerThemes.length" class="td-form-row">
-              <label>Docker 控制台主题</label>
-              <t-select v-model="form.dockertheme" placeholder="请选择 Docker 控制台主题">
-                <t-option
-                  v-for="t in dockerThemes"
-                  :key="t.name"
-                  :value="t.name"
-                  :label="`${t.title}${t.version ? ' v' + t.version : ''} (${t.name})`"
-                />
-              </t-select>
-              <div class="td-form-hint">
-                当前: <code>{{ curDockerTheme || '-' }}</code> · 缺页回退 default
-              </div>
-            </div>
-
-            <div v-if="homeThemes.length" class="td-form-row">
-              <label>主页主题</label>
-              <t-select v-model="form.hometheme" placeholder="请选择主页主题">
-                <t-option
-                  v-for="t in homeThemes"
-                  :key="t.name"
-                  :value="t.name"
-                  :label="`${t.title}${t.version ? ' v' + t.version : ''} (${t.name})`"
-                />
-              </t-select>
-              <div class="td-form-hint">
-                当前: <code>{{ curHomeTheme || '-' }}</code> · 站点根路径 / 的落地页皮肤 · templates/主题/home/
-              </div>
+            <div class="td-form-note">
+              <b>提示:</b> 保存后用户端立即生效;管理端建议整页刷新。主题包放在
+              <code>templates/主题名/</code> 下即可被扫描。
             </div>
 
             <div class="td-form-actions">
               <t-button theme="primary" :loading="loading" @click="save">
                 <i class="mdi mdi-content-save-outline"></i> 保存主题设置
               </t-button>
-            </div>
-
-            <div class="td-form-note">
-              <b>提示:</b> 保存后用户端立即生效;管理端建议整页刷新。主题包放在
-              <code>templates/主题名/</code> 下即可被扫描。
             </div>
           </div>
         </t-loading>
@@ -170,15 +167,17 @@
               <t-switch v-model="homeForm.home_enable" />
             </div>
 
-            <div class="td-form-row">
-              <label>站点标题</label>
-              <t-input v-model="homeForm.home_title" placeholder="留空使用系统名称" clearable />
-            </div>
+            <div class="td-form-grid">
+              <div class="td-form-row">
+                <label>站点标题</label>
+                <t-input v-model="homeForm.home_title" placeholder="留空使用系统名称" clearable />
+              </div>
 
-            <div class="td-form-row">
-              <label>Hero 标语</label>
-              <t-input v-model="homeForm.home_hero" placeholder="高性能虚拟主机，即买即用" clearable />
-              <div class="td-form-hint">主页首屏大标题</div>
+              <div class="td-form-row">
+                <label>Hero 标语</label>
+                <t-input v-model="homeForm.home_hero" placeholder="高性能虚拟主机，即买即用" clearable />
+                <div class="td-form-hint">主页首屏大标题</div>
+              </div>
             </div>
 
             <div class="td-form-row">
@@ -231,20 +230,22 @@
               <t-input v-model="homeForm.home_footer" placeholder="留空使用系统版权（hxp）" clearable />
             </div>
 
-            <div class="td-form-switch">
-              <div class="td-form-switch-txt">
-                <strong>显示公告区</strong>
-                <span>展示系统网站公告（MN_config.gg）</span>
+            <div class="td-form-grid">
+              <div class="td-form-switch">
+                <div class="td-form-switch-txt">
+                  <strong>显示公告区</strong>
+                  <span>展示系统网站公告（MN_config.gg）</span>
+                </div>
+                <t-switch v-model="homeForm.home_show_notice" />
               </div>
-              <t-switch v-model="homeForm.home_show_notice" />
-            </div>
 
-            <div class="td-form-switch">
-              <div class="td-form-switch-txt">
-                <strong>显示套餐区</strong>
-                <span>hosting_shop 启用且存在有效套餐时展示</span>
+              <div class="td-form-switch">
+                <div class="td-form-switch-txt">
+                  <strong>显示套餐区</strong>
+                  <span>hosting_shop 启用且存在有效套餐时展示</span>
+                </div>
+                <t-switch v-model="homeForm.home_show_plans" />
               </div>
-              <t-switch v-model="homeForm.home_show_plans" />
             </div>
 
             <div v-if="themeFields.length" class="td-form-note" style="padding-top:8px;border-top:1px solid #e5e7eb;margin-bottom:8px;">
@@ -309,16 +310,16 @@
               </div>
             </template>
 
-            <div class="td-form-actions">
-              <t-button theme="primary" :loading="homeLoading" @click="saveHome">
-                <i class="mdi mdi-content-save-outline"></i> 保存主页内容
-              </t-button>
-            </div>
-
             <div class="td-form-note">
               <b>提示:</b> 主页模板位于 <code>templates/当前主页主题/home/index.php</code>，缺页回退
               <code>templates/default/home/index.php</code>。插件可通过 <code>home.blocks</code> 过滤器注入扩展区块；
               启用 shop_frontend 等插件时，插件主页优先接管。
+            </div>
+
+            <div class="td-form-actions">
+              <t-button theme="primary" :loading="homeLoading" @click="saveHome">
+                <i class="mdi mdi-content-save-outline"></i> 保存主页内容
+              </t-button>
             </div>
           </div>
         </t-loading>

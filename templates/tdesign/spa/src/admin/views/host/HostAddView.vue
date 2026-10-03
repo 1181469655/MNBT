@@ -1,5 +1,5 @@
 <template>
-  <div class="td-page">
+  <div class="td-page td-form-page td-form-page--wide">
     <div class="td-page-head">
       <div>
         <h3 class="td-page-title"><i class="mdi mdi-plus-circle"></i>添加主机</h3>
@@ -11,13 +11,6 @@
     </div>
 
     <div class="td-set-card">
-      <div class="td-set-card-hd">
-        <div class="td-set-icon"><i class="mdi mdi-server-plus"></i></div>
-        <div>
-          <h4>主机信息</h4>
-          <p>选择宝塔节点并填写账号密码</p>
-        </div>
-      </div>
       <div class="td-set-card-bd">
         <t-loading :loading="loading" text="提交中…" size="small">
           <div class="td-form">
@@ -33,57 +26,64 @@
               </t-select>
             </div>
 
-            <div class="td-form-row">
-              <label>账号 <span class="td-text-danger">*</span></label>
-              <t-input v-model="form.user" placeholder="FTP/SQL 账号">
-                <template #suffix>
-                  <t-link theme="primary" @click="genUser"><i class="mdi mdi-shuffle-variant"></i></t-link>
-                </template>
-              </t-input>
+            <div class="td-form-grid">
+              <div class="td-form-row">
+                <label>账号 <span class="td-text-danger">*</span></label>
+                <t-input v-model="form.user" placeholder="FTP/SQL 账号">
+                  <template #suffix>
+                    <t-link theme="primary" @click="genUser"><i class="mdi mdi-shuffle-variant"></i></t-link>
+                  </template>
+                </t-input>
+              </div>
+
+              <div class="td-form-row">
+                <label>密码 <span class="td-text-danger">*</span></label>
+                <t-input v-model="form.pass" placeholder="FTP/SQL 密码">
+                  <template #suffix>
+                    <t-link theme="primary" @click="genPass"><i class="mdi mdi-shuffle-variant"></i></t-link>
+                  </template>
+                </t-input>
+              </div>
             </div>
 
-            <div class="td-form-row">
-              <label>密码 <span class="td-text-danger">*</span></label>
-              <t-input v-model="form.pass" placeholder="FTP/SQL 密码">
-                <template #suffix>
-                  <t-link theme="primary" @click="genPass"><i class="mdi mdi-shuffle-variant"></i></t-link>
-                </template>
-              </t-input>
+            <div class="td-form-grid td-form-grid--3">
+              <div class="td-form-row">
+                <label>网页空间 (MB)</label>
+                <t-input-number v-model="form.webkj" theme="normal" :min="0" />
+                <div class="td-form-hint">可选,留 0 表示不限制</div>
+              </div>
+
+              <div class="td-form-row">
+                <label>数据库空间 (MB)</label>
+                <t-input-number v-model="form.sqlkj" theme="normal" :min="0" />
+                <div class="td-form-hint">可选,留 0 表示不限制</div>
+              </div>
+
+              <div class="td-form-row">
+                <label>最大流量 (G/月) <span class="td-text-danger">*</span></label>
+                <t-input-number v-model="form.ll" theme="normal" :min="0" />
+                <div class="td-form-hint">每月 1 日重置</div>
+              </div>
             </div>
 
-            <div class="td-form-row">
-              <label>网页空间 (MB)</label>
-              <t-input-number v-model="form.webkj" theme="normal" :min="0" />
-              <div class="td-form-hint">可选,留 0 表示不限制</div>
-            </div>
+            <div class="td-form-grid">
+              <div class="td-form-row">
+                <label>域名最大绑定数</label>
+                <t-input-number v-model="form.ymbds" theme="normal" :min="0" />
+                <div class="td-form-hint">0 = 不限制</div>
+              </div>
 
-            <div class="td-form-row">
-              <label>数据库空间 (MB)</label>
-              <t-input-number v-model="form.sqlkj" theme="normal" :min="0" />
-              <div class="td-form-hint">可选,留 0 表示不限制</div>
-            </div>
-
-            <div class="td-form-row">
-              <label>最大流量 (G/月) <span class="td-text-danger">*</span></label>
-              <t-input-number v-model="form.ll" theme="normal" :min="0" />
-            </div>
-
-            <div class="td-form-row">
-              <label>域名最大绑定数</label>
-              <t-input-number v-model="form.ymbds" theme="normal" :min="0" />
-              <div class="td-form-hint">0 = 不限制</div>
-            </div>
-
-            <div class="td-form-row">
-              <label>到期时间</label>
-              <t-date-picker
-                v-model="form.datae"
-                mode="date"
-                format="YYYY-MM-DD"
-                value-format="YYYY-MM-DD"
-                clearable
-              />
-              <div class="td-form-hint">留空为永久</div>
+              <div class="td-form-row">
+                <label>到期时间</label>
+                <t-date-picker
+                  v-model="form.datae"
+                  mode="date"
+                  format="YYYY-MM-DD"
+                  value-format="YYYY-MM-DD"
+                  clearable
+                />
+                <div class="td-form-hint">留空为永久</div>
+              </div>
             </div>
 
             <div class="td-form-switch">

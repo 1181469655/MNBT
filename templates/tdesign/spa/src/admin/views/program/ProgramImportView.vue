@@ -1,5 +1,5 @@
 <template>
-  <div class="td-page">
+  <div class="td-page td-form-page">
     <div class="td-page-head">
       <div>
         <h3 class="td-page-title"><i class="mdi mdi-upload"></i>导入程序</h3>
@@ -11,13 +11,6 @@
     </div>
 
     <div class="td-set-card">
-      <div class="td-set-card-hd">
-        <div class="td-set-icon"><i class="mdi mdi-package-variant-closed"></i></div>
-        <div>
-          <h4>程序包导入</h4>
-          <p>选择打包导出后的 zip 程序包上传</p>
-        </div>
-      </div>
       <div class="td-set-card-bd">
         <div class="td-form">
           <div class="td-form-row">

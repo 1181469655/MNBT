@@ -331,11 +331,6 @@ onMounted(() => {
   display: flex;
   gap: 8px;
 }
-.td-form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0 16px;
-}
 .dk-mono {
   font-family: Consolas, Monaco, monospace;
   font-size: 12.5px;

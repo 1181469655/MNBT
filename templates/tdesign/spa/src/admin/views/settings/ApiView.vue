@@ -1,5 +1,5 @@
 <template>
-  <div class="td-page">
+  <div class="td-page td-form-page">
     <div class="td-page-head">
       <div>
         <h3 class="td-page-title"><i class="mdi mdi-key-variant"></i>API 设置</h3>
@@ -8,13 +8,6 @@
     </div>
 
     <div class="td-set-card">
-      <div class="td-set-card-hd">
-        <div class="td-set-icon"><i class="mdi mdi-key-variant"></i></div>
-        <div>
-          <h4>API 设置</h4>
-          <p>接口密钥、建站目录与外部调用开关</p>
-        </div>
-      </div>
       <div class="td-set-card-bd">
         <t-loading :loading="loading" text="保存中…" size="small">
           <div class="td-form">
@@ -31,20 +24,22 @@
               <div class="td-form-hint">用于监控 URL 与外部系统对接,请妥善保管</div>
             </div>
 
-            <div class="td-form-row">
-              <label>Linux 建站目录</label>
-              <t-input v-model="form.hxi" placeholder="Linux宝塔面板的建站目录">
-                <template #prefix-icon><i class="mdi mdi-linux"></i></template>
-              </t-input>
-              <div class="td-form-hint">默认 /www/wwwroot</div>
-            </div>
+            <div class="td-form-grid">
+              <div class="td-form-row">
+                <label>Linux 建站目录</label>
+                <t-input v-model="form.hxi" placeholder="Linux宝塔面板的建站目录">
+                  <template #prefix-icon><i class="mdi mdi-linux"></i></template>
+                </t-input>
+                <div class="td-form-hint">默认 /www/wwwroot</div>
+              </div>
 
-            <div class="td-form-row">
-              <label>Windows 建站目录</label>
-              <t-input v-model="form.hxo" placeholder="Windows宝塔面板的建站目录">
-                <template #prefix-icon><i class="mdi mdi-microsoft-windows"></i></template>
-              </t-input>
-              <div class="td-form-hint">默认 D:/wwwroot</div>
+              <div class="td-form-row">
+                <label>Windows 建站目录</label>
+                <t-input v-model="form.hxo" placeholder="Windows宝塔面板的建站目录">
+                  <template #prefix-icon><i class="mdi mdi-microsoft-windows"></i></template>
+                </t-input>
+                <div class="td-form-hint">默认 D:/wwwroot</div>
+              </div>
             </div>
 
             <div class="td-form-switch">

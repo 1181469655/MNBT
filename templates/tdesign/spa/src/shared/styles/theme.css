@@ -222,6 +222,61 @@ a:hover {
   max-width: 720px;
 }
 
+/* 表单页居中列:视图根节点加 .td-form-page,页头与卡片整列居中,消除宽屏右侧留白 */
+.td-form-page {
+  max-width: 792px;
+  margin: 0 auto;
+}
+
+/* 字段较多的新建/添加类表单页使用宽列,配合 .td-form-grid 并排短字段 */
+.td-form-page--wide {
+  max-width: 1200px;
+}
+
+.td-form-page .td-form {
+  max-width: none;
+}
+
+.td-form-page .td-set-card-bd {
+  padding: 22px 24px 24px;
+}
+
+/* 表单栅格:短字段并排;窄屏逐级回落为双列/单列 */
+.td-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 20px;
+}
+
+.td-form-grid--3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.td-form-grid--4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+@media (max-width: 900px) {
+  .td-form-grid--3,
+  .td-form-grid--4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .td-form-grid,
+  .td-form-grid--3,
+  .td-form-grid--4 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 栅格内行距统一由元素自身 margin 控制,避免双倍间隙 */
+.td-form-grid .td-form-row,
+.td-form-grid .td-form-switch {
+  margin-bottom: 16px;
+}
+
 /* 弹窗 body 限制高度并滚动（TDesign 默认无 max-height,长表单会撑满屏幕）*/
 .t-dialog__body {
   max-height: calc(100vh - 440px);
@@ -252,20 +307,33 @@ a:hover {
   line-height: 1.5;
 }
 
+/* 表单内选择器/数字/日期控件撑满所在列,栅格排版下对齐 */
+.td-form .t-select,
+.td-form .t-input-number,
+.td-form .t-date-picker,
+.td-form .t-date-range-picker {
+  width: 100%;
+}
+
 .td-form-actions {
-  margin-top: 20px;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--td-border);
   display: flex;
   gap: 10px;
+  align-items: center;
 }
 
 .td-form-switch {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 12px;
+  gap: 16px;
+  padding: 11px 14px;
   background: var(--td-bg);
+  border: 1px solid var(--td-border);
   border-radius: var(--td-radius);
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 .td-form-switch-txt strong {

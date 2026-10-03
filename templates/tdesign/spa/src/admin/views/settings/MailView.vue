@@ -1,5 +1,5 @@
 <template>
-  <div class="td-page">
+  <div class="td-page td-form-page">
     <div class="td-page-head">
       <div>
         <h3 class="td-page-title"><i class="mdi mdi-email-outline"></i>邮箱设置</h3>
@@ -8,13 +8,6 @@
     </div>
 
     <div class="td-set-card">
-      <div class="td-set-card-hd">
-        <div class="td-set-icon"><i class="mdi mdi-email-outline"></i></div>
-        <div>
-          <h4>邮箱配置</h4>
-          <p>SMTP 发信参数</p>
-        </div>
-      </div>
       <div class="td-set-card-bd">
         <t-loading :loading="loading" text="保存中…" size="small">
           <div class="td-form">
@@ -26,23 +19,25 @@
               <div class="td-form-hint">例如 smtp.qq.com / smtp.163.com / smtp.gmail.com</div>
             </div>
 
-            <div class="td-form-row">
-              <label>邮箱账号</label>
-              <t-input v-model="form.mailuser" placeholder="请输入邮箱账号" clearable>
-                <template #prefix-icon><i class="mdi mdi-email"></i></template>
-              </t-input>
-            </div>
+            <div class="td-form-grid">
+              <div class="td-form-row">
+                <label>邮箱账号</label>
+                <t-input v-model="form.mailuser" placeholder="请输入邮箱账号" clearable>
+                  <template #prefix-icon><i class="mdi mdi-email"></i></template>
+                </t-input>
+              </div>
 
-            <div class="td-form-row">
-              <label>邮箱密码 / 授权码</label>
-              <t-input
-                v-model="form.mailpassword"
-                placeholder="请输入邮箱密码或授权码"
-                clearable
-              >
-                <template #prefix-icon><i class="mdi mdi-lock"></i></template>
-              </t-input>
-              <div class="td-form-hint">部分邮箱服务商需使用授权码而非登录密码</div>
+              <div class="td-form-row">
+                <label>邮箱密码 / 授权码</label>
+                <t-input
+                  v-model="form.mailpassword"
+                  placeholder="请输入邮箱密码或授权码"
+                  clearable
+                >
+                  <template #prefix-icon><i class="mdi mdi-lock"></i></template>
+                </t-input>
+                <div class="td-form-hint">部分邮箱服务商需使用授权码而非登录密码</div>
+              </div>
             </div>
 
             <div class="td-form-row">
