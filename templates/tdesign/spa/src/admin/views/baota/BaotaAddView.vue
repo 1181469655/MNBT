@@ -42,12 +42,13 @@
               </div>
 
               <div class="td-form-row">
-                <label>宝塔编号</label>
-                <t-input v-model="form.bh" placeholder="可中文,可随机">
+                <label>宝塔编号 <span class="td-text-danger">*</span></label>
+                <t-input v-model="form.bh" placeholder="必填,可中文或点击随机生成">
                   <template #suffix>
                     <t-link theme="primary" @click="genBh"><i class="mdi mdi-shuffle-variant"></i></t-link>
                   </template>
                 </t-input>
+                <div class="td-form-hint">用于标识宝塔与 PHP 版本管理等功能,不可与其他宝塔重复</div>
               </div>
 
               <div class="td-form-row">
@@ -145,12 +146,13 @@ async function submit() {
   if (!form.ip) { MessagePlugin.warning('请输入宝塔IP'); return }
   if (!form.dk) { MessagePlugin.warning('请输入宝塔端口'); return }
   if (!form.key) { MessagePlugin.warning('请输入宝塔密钥'); return }
+  if (!form.bh.trim()) { MessagePlugin.warning('请填写宝塔编号,PHP 版本管理等功能依赖它定位宝塔'); return }
   loading.value = true
   const r = await addBaota({
     ip: form.ip,
     dk: form.dk,
     key: form.key,
-    bh: form.bh,
+    bh: form.bh.trim(),
     btos: form.btos,
     urlla: form.urlla,
     ftpdz: form.ftpdz,

@@ -3,12 +3,16 @@ if($egn=='addbt') {
 	$ip=daddslashes($_POST['ip']);
 	$dk=daddslashes($_POST['dk']);
 	$key=daddslashes($_POST['key']);
-	$bh=daddslashes($_POST['bh']);
+	$bh=trim(daddslashes($_POST['bh']));
 	$btos=daddslashes($_POST['btos']);
 	$urlla=daddslashes($_POST['urlla']);
 	$ftpdz=daddslashes($_POST['ftpdz']);
 	$xieyi=daddslashes($_POST['xieyi']);
 	$kg=daddslashes($_POST['kg']);
+	// 宝塔编号(btdh)是节点寻址标识：PHP 版本管理、主机(MN_zj.ssbt)关联等都按它查询，
+	// 空编号或重复编号会导致节点解析错乱，必须强制唯一
+	if($bh==='') json_exit('宝塔编号不能为空！PHP版本管理等功能依赖编号定位宝塔');
+	if($DB->get_row_prepare("SELECT id FROM MN_bt WHERE btdh=? LIMIT 1", [$bh])) json_exit('宝塔编号已存在，请更换一个编号');
 	$rowe=$DB->get_row_prepare("SELECT * FROM MN_bt WHERE 1 order by id desc limit 1");
 	$id=$rowe['id']+1;
 	$dati='ikj'.$date.mt_rand(100,10000).mt_rand(10,99999).'sql';

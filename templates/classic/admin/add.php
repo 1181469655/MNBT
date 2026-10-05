@@ -32,9 +32,9 @@ if($set=='bt'){?>
         <textarea type="text" class="form-control" name="urljx" id="urljx" placeholder="请在这填写该宝塔的域名解析地址"></textarea>
 	<small>显示在控制面板，在用户绑定域名时查看的，如果不懂则请不要乱改！</small></div><br/>
 <div class="form-group">
-                <label for="web_site_logo"><b>宝塔编号(支持中文)</b></label>
+                <label for="web_site_logo"><b>宝塔编号(支持中文,必填)</b></label>
                 <div class="input-group">
-                  <input type="text" class="form-control" name="btbh" id="btbh" placeholder="每台宝塔的编号"/>
+                  <input type="text" class="form-control" name="btbh" id="btbh" required placeholder="每台宝塔的编号,不可重复"/>
                   <div class="input-group-btn"><button class="btn btn-default" type="button" onclick="szsc()">随机生成</button></div>
                 </div>
               </div>
