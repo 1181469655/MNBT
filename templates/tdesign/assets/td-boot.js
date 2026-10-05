@@ -116,7 +116,10 @@
 
     function fetchFile(path) {
         if (filePromises[path] === undefined) {
-            filePromises[path] = fetch(new URL(path, window.location.href))
+            // cache:'no-cache' 强制与服务器重新验证源码新鲜度(304 时零开销):
+            // 免构建方案"修改 src 刷新即生效"依赖它,否则浏览器/服务器对 .vue 的
+            // 强缓存(如宝塔静态资源 expires)会让源码改动长时间不可见
+            filePromises[path] = fetch(new URL(path, window.location.href), { cache: 'no-cache' })
                 .then(function (res) {
                     if (!res.ok) {
                         var err = new Error('HTTP ' + res.status + ' ' + path);
