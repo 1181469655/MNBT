@@ -121,19 +121,32 @@ if($egn=='btztjc') {
 	$protocol = $cert['ptl']=='true'?'https':'http';
 	$bt_url = $protocol.'://'.$cert['btip'].':'.$cert['btdk'];
 	$api = new bt_api($bt_url, $cert['btmy']);
+	// 宝塔在 API 未开启、调用 IP 未加白名单时返回 status=false，统一引导用户检查白名单
+	$ip_hint = '请登录宝塔面板，进入 面板设置 → API接口，确认接口已开启并将本系统服务器IP加入白名单后重试';
 	try {
-		$result = $api->btapi_listphp();
+		$result = $api->btapi_version();
 		if(is_array($result) && isset($result['status']) && ($result['status'] === false || $result['status'] === 0 || $result['status'] === '0')) {
-			// 面板返回业务错误（连接失败/鉴权失败等），透出真实原因
-			exit(json_encode(['qk'=>0,'code'=>($result['msg'] ?? '面板返回错误'),'titco'=>'text-danger'], JSON_UNESCAPED_UNICODE));
+			$msg = (string)($result['msg'] ?? '面板返回错误');
+			exit(json_encode(['qk'=>0,'code'=>'拉取宝塔版本失败：'.$msg.'。'.$ip_hint,'titco'=>'text-danger'], JSON_UNESCAPED_UNICODE));
 		}
 		if(is_array($result)) {
-			exit(json_encode(['qk'=>1,'code'=>'通信正常','titco'=>'text-success']));
-		} else {
-			exit(json_encode(['qk'=>0,'code'=>'无法获取面板信息：'.json_encode($result,256),'titco'=>'text-danger']));
+			$version = '';
+			foreach (['version', 'panel_version', 'btversion'] as $vk) {
+				if (!empty($result[$vk]) && is_scalar($result[$vk])) { $version = (string)$result[$vk]; break; }
+			}
+			exit(json_encode([
+				'qk' => 1,
+				'code' => '通信正常'.($version !== '' ? '，宝塔版本 '.$version : ''),
+				'version' => $version,
+				'titco' => 'text-success',
+			], JSON_UNESCAPED_UNICODE));
 		}
+		// 非数组响应：多为宝塔返回了非 JSON 内容（如安全入口拦截页）
+		$raw = is_string($result) ? $result : json_encode($result, JSON_UNESCAPED_UNICODE);
+		$detail = ($raw && $raw !== 'null') ? '：'.mb_substr($raw, 0, 120) : '';
+		exit(json_encode(['qk'=>0,'code'=>'无法拉取宝塔版本'.$detail.'。'.$ip_hint,'titco'=>'text-danger'], JSON_UNESCAPED_UNICODE));
 	} catch (Throwable $e) {
-		exit(json_encode(['qk'=>0,'code'=>'连接失败：'.$e->getMessage(),'titco'=>'text-danger']));
+		exit(json_encode(['qk'=>0,'code'=>'连接失败：'.$e->getMessage().'。'.$ip_hint,'titco'=>'text-danger'], JSON_UNESCAPED_UNICODE));
 	}
 }
 

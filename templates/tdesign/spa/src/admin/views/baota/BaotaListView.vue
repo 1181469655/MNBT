@@ -44,7 +44,7 @@
             :loading="connectLoading[row.id]"
             @click="checkConnect(row)"
           >点我检测</t-button>
-          <span v-else-if="connectStatus[row.id]" class="td-chip td-chip-success">通信正常</span>
+          <span v-else-if="connectStatus[row.id]" class="td-chip td-chip-success">{{ connectVersion[row.id] ? `通信正常(${connectVersion[row.id]})` : '通信正常' }}</span>
           <span v-else class="td-chip td-chip-danger">通信失败</span>
         </template>
         <template #ktmy="{ row }">
@@ -190,6 +190,7 @@ const showKtmy = reactive({})
 const showBtmy = reactive({})
 const connectStatus = reactive({})
 const connectLoading = reactive({})
+const connectVersion = reactive({})
 const pagination = reactive({ current: 1, pageSize: 10, total: 0, showJumper: true })
 
 const editVisible = ref(false)
@@ -280,6 +281,7 @@ async function checkConnect(row) {
   const r = await checkBaotaConnect(row.id)
   connectLoading[row.id] = false
   connectStatus[row.id] = !!r.ok
+  connectVersion[row.id] = r.ok ? (r.raw?.version || '') : ''
   if (!r.ok) MessagePlugin.warning(r.message || '通信失败')
 }
 

@@ -434,7 +434,7 @@ $.alert({
     });
 $(lis).html('<span class="mdi mdi-close-circle text-danger">通信失败</span>');
 }else{
-$(lis).html('<span class="mdi mdi-check-circle text-success">通信正常</span>');
+$(lis).html('<span class="mdi mdi-check-circle text-success">'+(json.version?('通信正常('+json.version+')'):'通信正常')+'</span>');
 }
 msloadingde();
 })

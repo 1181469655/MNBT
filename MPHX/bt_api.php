@@ -240,6 +240,17 @@ class bt_api
     //  PHP版本管理
     // ========================================================================
 
+    /**
+     * 获取面板版本号（系统信息总览中的 version 字段）
+     * 用于通信检测：接口未开启或调用 IP 不在宝塔 API 白名单时返回 status=false
+     */
+    public function btapi_version()
+    {
+        $url = $this->BT_PANEL . '/system?action=GetSystemTotal';
+        $p_data = $this->GetKeyData();
+        return json_decode($this->HttpPostCookie($url, $p_data), true);
+    }
+
     public function btapi_listphp()
     {
         $url = $this->BT_PANEL . '/site?action=GetPHPVersion';
