@@ -436,7 +436,11 @@ onUnmounted(() => {
   border-right: 1px solid var(--td-sidebar-border);
   transition: width var(--td-dur-lg) var(--td-ease-out);
   z-index: 30;
-  position: relative;
+  /* 吸附视口:侧栏恒为浏览器框高度,菜单区内部滚动,底部用户卡始终贴住视口底 */
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  align-self: flex-start;
 }
 .td-layout.collapsed .td-sidebar {
   width: var(--td-sidebar-collapsed);
