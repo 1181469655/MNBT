@@ -316,17 +316,44 @@
     <!-- Gzip -->
     <div v-else-if="tab === 'gzip'" class="td-set-card">
       <div class="td-set-card-bd">
-        <div class="td-form">
-          <div class="td-form-row">
-            <label>Gzip 压缩</label>
-            <div class="td-form-ctl-text">启用后文本类响应会压缩传输,可减少带宽并加快页面加载。</div>
+        <t-loading :loading="loadings.gzip" text="加载中…" size="small">
+          <div class="td-form">
+            <div class="td-form-switch">
+              <div class="td-form-switch-txt">
+                <strong>Gzip 压缩</strong>
+                <span>启用后文本类响应会压缩传输,可减少带宽并加快页面加载</span>
+              </div>
+              <t-switch v-model="forms.gzip.on" />
+            </div>
+            <template v-if="forms.gzip.on">
+              <div class="td-form-grid">
+                <div class="td-form-row">
+                  <label>压缩级别(1-9)</label>
+                  <t-select v-model="forms.gzip.level">
+                    <t-option v-for="i in 9" :key="i" :value="String(i)" :label="String(i)" />
+                  </t-select>
+                </div>
+                <div class="td-form-row">
+                  <label>最小压缩长度</label>
+                  <t-input v-model="forms.gzip.min_len" placeholder="如 1k" clearable />
+                </div>
+              </div>
+              <div class="td-form-row">
+                <label>压缩类型(MIME,空格分隔)</label>
+                <t-textarea
+                  v-model="forms.gzip.types"
+                  :autosize="{ minRows: 3, maxRows: 8 }"
+                  placeholder="text/plain text/css application/json"
+                />
+              </div>
+            </template>
+            <div class="td-form-actions">
+              <t-button theme="primary" :loading="savings.gzip" @click="saveGzip">
+                <i class="mdi mdi-content-save-outline"></i> 保存
+              </t-button>
+            </div>
           </div>
-          <div class="td-form-actions">
-            <t-button theme="primary" :loading="savings.gzip" @click="saveGzip">
-              <i class="mdi mdi-check"></i> 启用 Gzip
-            </t-button>
-          </div>
-        </div>
+        </t-loading>
       </div>
     </div>
 
@@ -381,17 +408,28 @@
     <!-- SQL 权限 -->
     <div v-else-if="tab === 'sql-auth'" class="td-set-card">
       <div class="td-set-card-bd">
-        <div class="td-form">
-          <div class="td-form-row">
-            <label>SQL 权限</label>
-            <div class="td-form-ctl-text">点击下方按钮应用数据库权限设置。</div>
+        <t-loading :loading="loadings['sql-auth']" text="加载中…" size="small">
+          <div class="td-form">
+            <div class="td-form-row">
+              <label>允许访问数据库的地址</label>
+              <t-select v-model="forms.sqlAuth.access">
+                <t-option value="127.0.0.1" label="本地服务器" />
+                <t-option value="%" label="所有人(不安全)" />
+                <t-option value="ip" label="指定 IP" />
+              </t-select>
+              <div class="td-form-hint">修改后立即生效,请谨慎操作</div>
+            </div>
+            <div v-if="forms.sqlAuth.access === 'ip'" class="td-form-row">
+              <label>指定 IP</label>
+              <t-input v-model="forms.sqlAuth.ip" placeholder="如 192.168.1.100" clearable />
+            </div>
+            <div class="td-form-actions">
+              <t-button theme="primary" :loading="savings['sql-auth']" @click="saveSqlAuth">
+                <i class="mdi mdi-content-save-outline"></i> 应用设置
+              </t-button>
+            </div>
           </div>
-          <div class="td-form-actions">
-            <t-button theme="primary" :loading="savings['sql-auth']" @click="saveSqlAuth">
-              <i class="mdi mdi-check"></i> 应用设置
-            </t-button>
-          </div>
-        </div>
+        </t-loading>
       </div>
     </div>
   </div>
@@ -410,13 +448,19 @@ import {
   getSsl, setSsl, closeSsl, forceHttps, applySsl,
   getDomainList,
   getHotlink, setHotlink,
-  setGzip,
+  getGzipStatus, setGzip,
   setCache,
   changePassword,
-  setSqlAuth,
+  getSqlAuth, setSqlAuth,
 } from '@/user/api/site'
 
 const route = useRoute()
+
+// 与后端 setgzip 默认值保持一致的压缩类型
+const GZIP_DEFAULT_TYPES =
+  'text/plain application/javascript application/x-javascript text/javascript text/css ' +
+  'application/xml application/json image/jpeg image/gif image/png font/ttf font/otf ' +
+  'image/svg+xml application/xml+rss text/x-js'
 
 const tabOptions = [
   { value: 'php', label: 'PHP 版本', icon: 'mdi-language-php', desc: '切换站点的 PHP 运行版本' },
@@ -448,6 +492,8 @@ const forms = reactive({
   rewrite: { type: '0.当前', content: '' },
   ssl: { status: false, key: '', pem: '', httpTohttps: false, certInfo: null, selectedDomains: [] },
   hotlink: { kg: false, exts: '', domains: '' },
+  gzip: { on: false, level: '6', min_len: '1k', types: GZIP_DEFAULT_TYPES },
+  sqlAuth: { access: '127.0.0.1', ip: '' },
   cache: { suffix: '', time_out: '' },
   password: { ftp: '', sql: '' },
 })
@@ -480,8 +526,8 @@ watch(
 )
 
 async function loadTab(name) {
-  // 修改密码、Gzip、缓存、SQL权限没有获取接口,不需要远程加载
-  if (name === 'password' || name === 'gzip' || name === 'cache' || name === 'sql-auth') return
+  // 修改密码、缓存没有获取接口,不需要远程加载
+  if (name === 'password' || name === 'cache') return
 
   setLoading(name, true)
   try {
@@ -554,6 +600,27 @@ async function loadTab(name) {
         forms.hotlink.kg = isOn(d.kg || d.status || d.qk)
         forms.hotlink.exts = d.exts || d.ext || d.extensions || d.fix || ''
         forms.hotlink.domains = d.domains || d.domain || d.list || ''
+      }
+    } else if (name === 'gzip') {
+      const r = await getGzipStatus()
+      if (r.ok && r.data) {
+        const g = r.data.gzip || {}
+        forms.gzip.on = isOn(g.status)
+        forms.gzip.level = String(g.comp_level ?? '6')
+        forms.gzip.min_len = g.min_length || '1k'
+        forms.gzip.types = g.gzip_types || GZIP_DEFAULT_TYPES
+      }
+    } else if (name === 'sql-auth') {
+      const r = await getSqlAuth()
+      if (r.ok && r.data) {
+        const acc = String(r.data.access ?? '127.0.0.1')
+        if (acc === '127.0.0.1' || acc === '%') {
+          forms.sqlAuth.access = acc
+          forms.sqlAuth.ip = ''
+        } else {
+          forms.sqlAuth.access = 'ip'
+          forms.sqlAuth.ip = acc
+        }
       }
     }
   } finally {
@@ -736,9 +803,18 @@ async function saveHotlink() {
 
 async function saveGzip() {
   setSaving('gzip', true)
-  const r = await setGzip()
+  const r = await setGzip(forms.gzip.on, {
+    level: forms.gzip.level,
+    min_len: forms.gzip.min_len.trim(),
+    types: forms.gzip.types.trim(),
+  })
   setSaving('gzip', false)
-  if (r.ok) MessagePlugin.success('Gzip 配置已保存')
+  // 后端 json_exit 失败时 success 仍为 true,需按消息关键字判定真实结果
+  if (r.ok && /成功/.test(r.message || '')) {
+    MessagePlugin.success(forms.gzip.on ? 'Gzip 已启用' : 'Gzip 已关闭')
+  } else if (r.ok) {
+    MessagePlugin.error(r.message || '操作失败')
+  }
 }
 
 async function saveCache() {
@@ -768,10 +844,20 @@ async function savePassword() {
 }
 
 async function saveSqlAuth() {
+  const target = forms.sqlAuth.access === 'ip' ? forms.sqlAuth.ip.trim() : forms.sqlAuth.access
+  if (!target) {
+    MessagePlugin.warning('请填写允许访问的 IP 地址')
+    return
+  }
   setSaving('sql-auth', true)
-  const r = await setSqlAuth()
+  const r = await setSqlAuth(target)
   setSaving('sql-auth', false)
-  if (r.ok) MessagePlugin.success('SQL 权限设置已保存')
+  // 后端 json_exit 失败时 success 仍为 true,需按消息关键字判定真实结果
+  if (r.ok && /成功/.test(r.message || '')) {
+    MessagePlugin.success('SQL 权限设置已保存')
+  } else if (r.ok) {
+    MessagePlugin.error(r.message || '操作失败')
+  }
 }
 
 onMounted(() => {

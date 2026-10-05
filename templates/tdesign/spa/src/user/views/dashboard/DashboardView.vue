@@ -284,8 +284,11 @@ let timer = null
 
 // ============== 弹窗控制 ==============
 const showMailBind = ref(false)
-// 邮箱未绑定时,自动弹出且不允许关闭
-const mailBindRequired = ref(!yhc.mailuser)
+// 仅当站长开启「主机邮箱绑定」要求且邮箱未绑定时,才自动弹出且不允许关闭(与 classic 主题一致)
+const siteConf = boot.conf || {}
+const mailBindRequired = ref(
+  (siteConf.zjyxbd === true || siteConf.zjyxbd === 'true') && !yhc.mailuser,
+)
 
 // ============== 空间数据 ==============
 function parseSpace(v) {

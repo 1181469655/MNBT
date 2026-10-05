@@ -100,7 +100,15 @@ async function save() {
     apiqk: form.apiqk ? 'true' : 'false',
   })
   loading.value = false
-  if (r.ok) MessagePlugin.success('保存成功')
+  if (r.ok) {
+    MessagePlugin.success('保存成功')
+    // 同步内存中的 boot.conf,否则 SPA 内切页回来仍回显页面加载时的旧值
+    const c = window.__TD_BOOT__?.conf || (window.__TD_BOOT__.conf = {})
+    c.api = form.api
+    c.apiqk = form.apiqk ? 'true' : 'false'
+    c.hxi = form.hxi
+    c.hxo = form.hxo
+  }
 }
 </script>
 

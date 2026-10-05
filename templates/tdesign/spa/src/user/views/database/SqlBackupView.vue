@@ -34,7 +34,7 @@
           </div>
         </template>
         <template #size="{ row }">{{ fmtSize(row.size || row.dx) }}</template>
-        <template #time="{ row }">{{ fmtTime(row.time || row.data || row.created_at) }}</template>
+        <template #time="{ row }">{{ fmtTime(row.addtime || row.time) }}</template>
         <template #operate="{ row }">
           <div class="td-row-actions">
             <t-button theme="default" variant="outline" size="small" @click="download(row)" title="下载">
@@ -59,6 +59,7 @@ import { MessagePlugin, DialogPlugin } from 'tdesign-vue-next'
 import {
   listSqlBackup,
   createBackup,
+  downloadBackup,
   restoreBackup,
   deleteBackup,
 } from '@/user/api/database'
@@ -66,6 +67,9 @@ import {
 const loading = ref(false)
 const creating = ref(false)
 const rows = ref([])
+// 数据库 ID 与用户名(由 backup_list 返回,备份/恢复时随请求提交)
+const dbId = ref('')
+const dbUser = ref('')
 
 const columns = [
   { colKey: 'id', title: 'ID', width: 70 },
@@ -77,7 +81,7 @@ const columns = [
 
 function fmtTime(v) {
   if (!v) return '-'
-  const d = new Date(v)
+  const d = new Date(String(v).replace(/-/g, '/'))
   if (isNaN(d.getTime())) return String(v)
   return d.toLocaleString('zh-CN', { hour12: false })
 }
@@ -90,38 +94,56 @@ function fmtSize(v) {
   return (n / Math.pow(1024, pow)).toFixed(2) + ' ' + units[pow]
 }
 
+function backupFile(row) {
+  return row.filename || row.name || ''
+}
+
 async function load() {
   loading.value = true
   const r = await listSqlBackup()
   loading.value = false
   if (r.ok && r.data) {
     const d = r.data
-    rows.value = Array.isArray(d) ? d : (d.rows || d.list || d.data || [])
+    dbId.value = d.db_id || ''
+    dbUser.value = d.user || ''
+    rows.value = Array.isArray(d) ? d : (d.list || d.rows || d.data || [])
   } else {
     rows.value = []
   }
 }
 
 async function create() {
+  if (!dbId.value) {
+    MessagePlugin.warning('未获取到数据库信息,请刷新页面后重试')
+    return
+  }
   creating.value = true
-  const r = await createBackup()
+  const r = await createBackup(dbId.value)
   creating.value = false
-  if (r.ok) {
+  // 后端 json_exit 失败时 success 仍为 true,需按消息关键字判定真实结果
+  if (r.ok && /成功/.test(r.message || '')) {
     MessagePlugin.success('备份成功')
     load()
+  } else if (r.ok) {
+    MessagePlugin.error(r.message || '备份失败')
   }
 }
 
-function download(row) {
-  // 下载通过新建链接跳转
-  const url = `./ajax.php?gn=database&act=download&id=${encodeURIComponent(row.id)}`
-  const a = document.createElement('a')
-  a.href = url
-  a.target = '_blank'
-  a.rel = 'noopener'
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
+async function download(row) {
+  const file = backupFile(row)
+  if (!file) {
+    MessagePlugin.warning('该备份缺少文件名,无法下载')
+    return
+  }
+  const r = await downloadBackup(file)
+  if (r.ok) {
+    const url = r.raw?.url || (r.data && typeof r.data === 'object' ? r.data.url : '')
+    if (url) {
+      window.open(url, '_blank', 'noopener')
+    } else {
+      MessagePlugin.warning('未获取到下载链接')
+    }
+  }
 }
 
 function restore(row) {
@@ -131,11 +153,13 @@ function restore(row) {
     theme: 'warning',
     confirmBtn: { content: '恢复', theme: 'danger' },
     onConfirm: async () => {
-      const r = await restoreBackup(row.id)
+      const r = await restoreBackup(dbUser.value, backupFile(row))
       dlg.destroy()
-      if (r.ok) {
+      if (r.ok && /成功/.test(r.message || '')) {
         MessagePlugin.success('恢复成功')
         load()
+      } else if (r.ok) {
+        MessagePlugin.error(r.message || '恢复失败')
       }
     },
     onClose: () => dlg.destroy(),
@@ -150,9 +174,11 @@ function del(row) {
     onConfirm: async () => {
       const r = await deleteBackup(row.id)
       dlg.destroy()
-      if (r.ok) {
+      if (r.ok && /成功/.test(r.message || '')) {
         MessagePlugin.success('删除成功')
         load()
+      } else if (r.ok) {
+        MessagePlugin.error(r.message || '删除失败')
       }
     },
     onClose: () => dlg.destroy(),

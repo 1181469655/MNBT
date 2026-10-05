@@ -101,9 +101,19 @@ export function setHotlink(fix, domains, status, return_rule = '', http_status =
 }
 
 // ============ Gzip ============
-/** 设置 Gzip (gn=setgzip) */
-export function setGzip() {
-  return apiGn('setgzip')
+/** 获取 Gzip 配置 (gn=set_init, section=gzip) */
+export function getGzipStatus() {
+  return apiGn('set_init', { section: 'gzip' }, { silent: true })
+}
+/** 设置 Gzip (gn=setgzip, action=on/off; 开启时可带 level/min_len/types) */
+export function setGzip(enabled, opts = {}) {
+  const data = { action: enabled ? 'on' : 'off' }
+  if (enabled) {
+    data.level = opts.level ?? '6'
+    data.min_len = opts.min_len ?? '1k'
+    if (opts.types) data.types = opts.types
+  }
+  return apiGn('setgzip', data)
 }
 
 // ============ 缓存 ============
@@ -119,9 +129,13 @@ export function changePassword(ftp = '', sql = '') {
 }
 
 // ============ SQL 权限 ============
-/** 设置数据库权限 (gn=databaseaq1) */
-export function setSqlAuth() {
-  return apiGn('databaseaq1')
+/** 获取数据库访问权限 (gn=set_init, section=mysqlcz) */
+export function getSqlAuth() {
+  return apiGn('set_init', { section: 'mysqlcz' }, { silent: true })
+}
+/** 设置数据库权限 (gn=databaseaq1, dataAccess=127.0.0.1 或 % 或指定IP) */
+export function setSqlAuth(dataAccess) {
+  return apiGn('databaseaq1', { dataAccess })
 }
 
 // ============ 邮箱绑定 ============
