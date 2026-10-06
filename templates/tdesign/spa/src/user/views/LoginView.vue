@@ -41,20 +41,7 @@
             </t-input>
           </t-form-item>
           <t-form-item v-if="needCaptcha">
-            <t-button
-              theme="default"
-              variant="outline"
-              block
-              size="large"
-              @click="openCaptcha"
-            >
-              <template v-if="captchaOk">
-                <i class="mdi mdi-check-circle" style="color:#2ba471"></i> 验证通过
-              </template>
-              <template v-else>
-                <i class="mdi mdi-shield-check-outline"></i> 点击进行人机验证
-              </template>
-            </t-button>
+            <HumanVerify ref="captchaRef" @verified="onCaptchaVerified" @error="onCaptchaError" />
           </t-form-item>
           <t-form-item>
             <t-button theme="primary" type="submit" block size="large" :loading="loading">
@@ -62,17 +49,6 @@
             </t-button>
           </t-form-item>
         </t-form>
-
-        <!-- 行为验证码弹窗（官方组件，服务端二次校验） -->
-        <Verify
-          v-if="needCaptcha"
-          ref="captchaRef"
-          captcha-type="blockPuzzle"
-          mode="pop"
-          @success="onCaptchaSuccess"
-          @error="onCaptchaReset"
-          @close="onCaptchaClose"
-        />
 
         <p v-if="footer" class="footer-note" v-html="footer"></p>
       </div>
@@ -85,7 +61,7 @@ import { reactive, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { MessagePlugin } from 'tdesign-vue-next'
 import { userLogin } from '@/user/api/auth'
-import Verify from '@/shared/captcha/Verify.vue'
+import HumanVerify from '@/shared/captcha/HumanVerify.vue'
 import bgImg from '@/shared/assets/login-bg.webp'
 
 const router = useRouter()
@@ -97,8 +73,7 @@ const needCaptcha = !!boot.needCaptcha
 const formRef = ref()
 const loading = ref(false)
 const captchaRef = ref(null)
-const captchaOk = ref(false)
-const captchaVerification = ref('')
+const captchaPayload = ref(null)
 
 const form = reactive({
   user: '',
@@ -110,34 +85,21 @@ const rules = {
   pass: [{ required: true, message: '请输入密码', trigger: 'blur' }],
 }
 
-function openCaptcha() {
-  captchaRef.value?.show()
+function onCaptchaVerified(payload) {
+  // 载荷对象（内置 {captchaVerification} / 插件 {captchaToken}），随登录请求提交做服务端二次校验
+  captchaPayload.value = payload
 }
 
-function onCaptchaSuccess(payload) {
-  // captchaVerification 为一次验证产物（一次性），随登录请求提交做服务端二次校验
-  captchaVerification.value = payload.captchaVerification
-  captchaOk.value = true
-}
-
-function onCaptchaReset() {
-  captchaOk.value = false
-  captchaVerification.value = ''
-}
-
-function onCaptchaClose() {
-  // 关闭弹窗不改变已通过的验证状态
-}
+function onCaptchaError() {}
 
 async function onSubmit({ validateResult }) {
   if (validateResult !== true) return
-  if (needCaptcha && !captchaVerification.value) {
+  if (needCaptcha && !captchaPayload.value) {
     MessagePlugin.warning('请先完成人机验证')
-    openCaptcha()
     return
   }
   loading.value = true
-  const res = await userLogin(form.user.trim(), form.pass, captchaVerification.value)
+  const res = await userLogin(form.user.trim(), form.pass, captchaPayload.value || {})
   loading.value = false
   if (res.ok) {
     MessagePlugin.success('登录成功,正在跳转…')
@@ -145,8 +107,9 @@ async function onSubmit({ validateResult }) {
     window.location.href = './index.php'
     return
   }
-  // 登录失败后验证码已失效，重置验证状态
-  onCaptchaReset()
+  // 登录失败后验证载荷已失效（一次性），重置验证状态
+  captchaPayload.value = null
+  captchaRef.value?.reset()
 }
 
 onMounted(() => {

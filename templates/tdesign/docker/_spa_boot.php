@@ -76,6 +76,7 @@ if (isset($td_inject) && is_array($td_inject)) {
   </div>
 </div>
 <script>
+<?php $boot = mnbt_apply_filters('spa.boot', $boot); // 插件可注入 boot.captcha（provider/adapter）等前端配置 ?>
 window.__TD_BOOT__ = <?= json_encode($boot, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
 <?php if (!empty($td_hash)): ?>
 if (window.__TD_BOOT__.hash) {

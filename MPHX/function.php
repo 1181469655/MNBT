@@ -677,6 +677,53 @@ function mnbt_captcha_verify(string $encryptCode, string $type = 'blockPuzzle')
 	}
 }
 
+/**
+ * 验证码 provider 扩展点：验证码插件通过它接管内置验证码（"安装即退位"）
+ *
+ * 插件在 bootstrap.php 中注册（引擎按 priority 取第一个返回数组的插件）：
+ *   mnbt_add_filter('captcha.provider', function ($provider) {
+ *       if ($provider) return $provider;   // 已有其他验证码插件生效，让位
+ *       return [
+ *           'id'     => 'tcaptcha',        // 提供商标识
+ *           'field'  => 'captchaToken',    // 登录请求携带的验证载荷字段（前端固定提交 captchaToken）
+ *           'verify' => function (string $payload) {
+ *               return true;               // true=通过；非空字符串=拒绝并作为用户提示文案
+ *           },
+ *       ];
+ *   });
+ * 插件停用后 filter 消失，内置验证码自动复位。
+ * 同时插件应通过 filter('spa.boot', $boot) 注入 $boot['captcha'] =
+ *   ['provider'=>'tcaptcha', 'adapter'=>'<适配器JS完整URL>']，
+ * 适配器契约：window.MNBT_CAPTCHA_ADAPTER = { mount(el, {onSuccess, onFail}), reset() }，
+ * onSuccess 收到的字符串将作为 captchaToken 提交登录接口。
+ */
+function mnbt_captcha_provider()
+{
+	$provider = mnbt_apply_filters('captcha.provider', null);
+	if (!is_array($provider) || empty($provider['id']) || empty($provider['field']) || !is_callable($provider['verify'] ?? null)) {
+		return null;
+	}
+	return $provider;
+}
+
+/** 调用 provider 二次校验：true 通过；异常/空载荷/非 true 一律拒绝（失败语义锁死，插件无法放行） */
+function mnbt_captcha_provider_verify(array $provider, string $payload)
+{
+	if ($payload === '') {
+		return '请先完成人机验证';
+	}
+	try {
+		$rs = call_user_func($provider['verify'], $payload);
+	} catch (\Throwable $e) {
+		error_log('[MNBT captcha] provider ' . (string)$provider['id'] . ' verify 异常: ' . $e->getMessage());
+		return '人机验证失败，请重试';
+	}
+	if ($rs === true) {
+		return true;
+	}
+	return is_string($rs) && $rs !== '' ? $rs : '人机验证失败，请重试';
+}
+
 /* ============================================================
  *  限速（文件计数，runtime/temp/throttle）：登录防爆破 / 取码限频
  * ============================================================ */

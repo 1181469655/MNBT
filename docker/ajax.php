@@ -18,8 +18,13 @@ if ($gn === 'login') {
 	if (mnbt_throttle_exceeded('login_docker', $ip, 10, 600)) {
 		docker_json(100, '失败次数过多，请 10 分钟后再试');
 	}
-	// 行为验证码二次校验（强制，不受配置开关控制）：缺口答案只在服务端，无法绕过
-	$captchaRs = mnbt_captcha_verify((string)($_POST['captchaVerification'] ?? ''));
+	// 行为验证码（强制，不受配置开关控制）：验证码插件接管时走插件校验，否则内置滑块二次校验
+	$provider = mnbt_captcha_provider();
+	if ($provider) {
+		$captchaRs = mnbt_captcha_provider_verify($provider, (string)($_POST['captchaToken'] ?? ''));
+	} else {
+		$captchaRs = mnbt_captcha_verify((string)($_POST['captchaVerification'] ?? ''));
+	}
 	if ($captchaRs !== true) {
 		docker_json(100, $captchaRs);
 	}

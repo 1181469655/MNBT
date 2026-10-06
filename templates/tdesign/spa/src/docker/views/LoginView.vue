@@ -54,20 +54,7 @@
             </template>
           </t-input>
 
-          <t-button
-            theme="default"
-            variant="outline"
-            block
-            size="large"
-            @click="onOpenCaptcha"
-          >
-            <template v-if="captchaOk">
-              <i class="mdi mdi-check-circle" style="color:#2ba471"></i> 验证通过
-            </template>
-            <template v-else>
-              <i class="mdi mdi-shield-check-outline"></i> 点击进行人机验证
-            </template>
-          </t-button>
+          <HumanVerify ref="captchaRef" @verified="onCaptchaVerified" @error="onCaptchaError" />
 
           <t-button
             theme="primary"
@@ -80,16 +67,6 @@
           </t-button>
         </div>
 
-        <!-- 行为验证码弹窗（官方组件，服务端二次校验） -->
-        <Verify
-          ref="captchaRef"
-          captcha-type="blockPuzzle"
-          mode="pop"
-          @success="onCaptchaSuccess"
-          @error="onCaptchaReset"
-          @close="onCloseCaptcha"
-        />
-
         <p v-if="footer" class="footer-note" v-html="footer"></p>
       </div>
     </div>
@@ -100,7 +77,7 @@
 import { reactive, ref } from 'vue'
 import { MessagePlugin } from 'tdesign-vue-next'
 import { dockerLogin } from '@/docker/api/docker'
-import Verify from '@/shared/captcha/Verify.vue'
+import HumanVerify from '@/shared/captcha/HumanVerify.vue'
 import logoImg from '@/shared/assets/docker.svg'
 import bgImg from '@/shared/assets/login-bg.webp'
 
@@ -110,50 +87,33 @@ const footer = boot.footer || ''
 
 const loading = ref(false)
 const showPwd = ref(false)
-const showCaptcha = ref(false)
-const captchaOk = ref(false)
-const captchaVerification = ref('')
 const captchaRef = ref(null)
+const captchaPayload = ref(null)
 const form = reactive({ username: '', password: '' })
 
-function onCaptchaSuccess(payload) {
-  // captchaVerification 为一次验证产物（一次性），随登录请求提交做服务端二次校验
-  captchaVerification.value = payload.captchaVerification
-  captchaOk.value = true
+function onCaptchaVerified(payload) {
+  // 载荷对象（内置 {captchaVerification} / 插件 {captchaToken}），随登录请求提交做服务端二次校验
+  captchaPayload.value = payload
 }
 
-function onCaptchaReset() {
-  captchaOk.value = false
-  captchaVerification.value = ''
-}
-
-function onOpenCaptcha() {
-  showCaptcha.value = true
-  captchaRef.value?.show()
-}
-
-function onCloseCaptcha() {
-  showCaptcha.value = false
-}
+function onCaptchaError() {}
 
 async function onSubmit() {
   if (!form.username || !form.password) {
     MessagePlugin.warning('请输入账号和密码')
     return
   }
-  if (!captchaVerification.value) {
+  if (!captchaPayload.value) {
     MessagePlugin.warning('请完成人机验证')
-    captchaRef.value?.show()
     return
   }
   loading.value = true
-  const r = await dockerLogin(form.username.trim(), form.password, captchaVerification.value)
+  const r = await dockerLogin(form.username.trim(), form.password, captchaPayload.value)
   loading.value = false
   if (!r.ok) {
-    // 登录失败后验证码已失效，重置验证状态
-    captchaOk.value = false
-    captchaVerification.value = ''
-    showCaptcha.value = false
+    // 登录失败后验证载荷已失效（一次性），重置验证状态
+    captchaPayload.value = null
+    captchaRef.value?.reset()
   } else {
     MessagePlugin.success(r.message || '登录成功')
     setTimeout(() => {

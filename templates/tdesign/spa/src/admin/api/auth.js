@@ -1,7 +1,7 @@
 import { apiGn } from '@/shared/api/http'
 
-export function login(user, pass, captchaVerification = '') {
-  return apiGn('login', { user, pass, code: '', captchaVerification })
+export function login(user, pass, captcha = {}) {
+  return apiGn('login', { user, pass, code: '', ...captcha })
 }
 
 export function logout() {

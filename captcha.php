@@ -35,6 +35,11 @@ function mnbt_captcha_reply(bool $ok, $data, ?string $msg): void
 
 $ip = mnbt_client_ip();
 
+// 插件验证码接管时，内置端点退位（防止插件模式下内置取码/校验流程仍可探测）
+if (mnbt_captcha_provider()) {
+	mnbt_captcha_reply(false, null, '验证码已由插件接管');
+}
+
 if ($action === 'get') {
 	// 取码限频：正常用户几十次/分钟用不完，防脚本批量取码
 	if (mnbt_throttle_exceeded('captcha_get', $ip, 30, 60)) {
