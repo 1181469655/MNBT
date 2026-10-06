@@ -57,7 +57,7 @@ templates/
 
 ### 步骤 3:覆盖页面
 
-从 `templates/classic/user/` 或 `admin/` **复制**要改的文件到 `my_theme` 对应目录,再修改 HTML/CSS。示例:只改用户登录页外观(其余用户页回退默认主题 tdesign):
+从 `templates/tdesign/user/` 或 `admin/` **复制**要改的文件到 `my_theme` 对应目录,再修改 HTML/CSS。示例:只改用户登录页外观(其余用户页回退默认主题 tdesign):
 
 ```text
 templates/my_theme/user/login.php
@@ -350,7 +350,7 @@ if (function_exists('mnbt_plugin_render_menu_user_html')) {
 
 ### Q: 管理端设置页样式在哪?
 
-默认主题布局:`templates/classic/admin/set.php`,样式:`templates/classic/admin/assets/set-page.css`。
+默认主题(设置页为 SPA 路由入口):`templates/tdesign/admin/set.php`,后台设置页壳样式:`templates/tdesign/admin/assets/set-page.css`。
 
 ### Q: 主题里能否直接查数据库?
 
@@ -368,7 +368,7 @@ if (function_exists('mnbt_plugin_render_menu_user_html')) {
 
 ### Q: 回退页样式错乱?
 
-通常是 `head.php` 漏加载了 Bootstrap / jQuery / `fn-hs.js` / `style.min.css`。检查 head.php 是否完整保留了 classic(原 default)主题的公共资源引用,再追加新 UI 库。
+通常是 `head.php` 漏加载了 Bootstrap / jQuery / `fn-hs.js` / `style.min.css`。检查 head.php 是否完整保留了默认主题的公共资源引用,再追加新 UI 库。
 
 ### Q: 主题加载了 Layui 但 `layui.form.render()` 报错?
 

@@ -109,9 +109,9 @@ Layui 的 `layui-container`、`layui-row`、`layui-card` 与 Bootstrap 的 `cont
 | `index.php` | 完全用新 UI 库重写(框架壳) |
 | `sy.php` | 完全用新 UI 库重写(仪表盘) |
 
-其余业务页(`set.php`、`ftp.php` 等)回退 default,因 head.php 仍加载 Bootstrap,能正常工作。
+其余业务页(`set.php`、`ftp.php` 等)回退默认主题 tdesign,因 head.php 仍加载 Bootstrap,能正常工作。
 
-参考实现:`templates/layui/`(用户端 + 管理端框架壳、登录页、仪表盘用 Layui,业务页回退 default)。
+参考实现:`templates/layui/`(用户端 + 管理端框架壳、登录页、仪表盘用 Layui,业务页回退默认主题)。
 
 ---
 
@@ -119,8 +119,7 @@ Layui 的 `layui-container`、`layui-row`、`layui-card` 与 Bootstrap 的 `cont
 
 | 主题 | 目录 | 技术栈 | 覆盖范围 |
 |------|------|--------|----------|
-| `tdesign` | `templates/tdesign/` | Vue 3 + TDesign(vue3-sfc-loader 免构建) | 全部页面(V1.87 起为系统默认主题) |
-| `classic` | `templates/classic/` | Light Year Admin(Bootstrap 4 + jQuery) | 全部页面(冻结维护,原 `default`)|
+| `tdesign` | `templates/tdesign/` | Vue 3 + TDesign(vue3-sfc-loader 免构建) | 全部页面(V1.87 起为系统默认主题兼缺页兜底) |
 | `layui` | `templates/layui/` | Layui 2.9 + Bootstrap 回退栈 | head/login/index/sy(其余回退默认主题) |
 
 `layui` 主题是**混合栈**示例:保留 Bootstrap 以兼容回退页,新增 Layui 用于框架壳与登录页,覆盖样式将主色调统一为 Layui 蓝(`#1e9fff`)。

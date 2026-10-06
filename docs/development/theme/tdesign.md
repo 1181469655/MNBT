@@ -9,7 +9,7 @@ description: tdesign 主题说明:特性、目录结构、编译、启用、设�
 
 技术栈:**Vue 3 + Vue Router (Hash) + TDesign Vue Next + vue3-sfc-loader(免构建)+ ECharts(UMD 全量)**。
 
-> **V1.87 起 tdesign 为系统默认主题**(classic 即原 default 主题冻结保留,不再维护);SPA 不再需要 Node 构建链,由 [vue3-sfc-loader](https://github.com/FranckFreiburger/vue3-sfc-loader) 在浏览器内直接编译 `spa/src/` 下的 `.vue` 源码运行,修改源码刷新页面即生效。
+> **V1.87 起 tdesign 为系统默认主题**(原 default/classic 主题已删除,tdesign 同时充当缺页兜底);SPA 不再需要 Node 构建链,由 [vue3-sfc-loader](https://github.com/FranckFreiburger/vue3-sfc-loader) 在浏览器内直接编译 `spa/src/` 下的 `.vue` 源码运行,修改源码刷新页面即生效。
 >
 > 历史文档:双端改造计划见 [tdesign 双端改造计划](../plan/tdesign-user-scope.md);与 PHP 的对接细节见 [与 PHP 的对接](./tdesign-php.md)。
 
@@ -82,8 +82,8 @@ templates/tdesign/
 │
 ├── admin/                     # 管理端 PHP 主题入口
 │   ├── _spa_boot.php          # 注入 window.__TD_BOOT__ + 加载 vendor UMD + td-boot.js
-│   ├── head.php               # 插件页 iframe 壳(Bootstrap/lyear,与 classic 一致)
-│   ├── assets/                # head 壳所需 CSS(admin-common 等,与 classic 同源)
+│   ├── head.php               # 插件页 iframe 壳(Bootstrap/lyear)
+│   ├── assets/                # head 壳所需 CSS(admin-common 等)
 │   ├── login.php              # 登录页入口
 │   ├── index.php / sy.php     # 仪表盘入口(sy.php 注入 $sy)
 │   ├── set.php                # 设置类页面(set.php?gn=xxx → SPA 路由)

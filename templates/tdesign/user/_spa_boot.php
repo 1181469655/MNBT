@@ -17,7 +17,6 @@ $boot = [
 	'loggedIn'     => isset($islogins) && (int)$islogins === 1,
 	'needCaptcha'  => isset($conf['yzme']) && $conf['yzme'] === 'true',
 	'ajaxBase'     => './ajax.php',
-	'codeUrl'      => './code.php',
 	'captchaUrl'   => '../captcha.php',
 	'logo'         => mnbt_asset_url('upload_logo/logo.login.png'),
 	'logoHead'     => mnbt_asset_url('upload_logo/logo.head.png'),
@@ -181,6 +180,7 @@ function _tdboot_render_plugin_leaf_item($it)
   </div>
 </div>
 <script>
+<?php $boot = mnbt_apply_filters('spa.boot', $boot); // 插件可注入 boot.captcha（provider/adapter）等前端配置 ?>
 window.__TD_BOOT__ = <?= json_encode($boot, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
 <?php if (!empty($td_hash)): ?>
 if (window.__TD_BOOT__.hash) {

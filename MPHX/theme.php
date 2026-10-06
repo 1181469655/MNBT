@@ -2,7 +2,7 @@
 /**
  * MNBT 主题系统（用户端 + 管理端 + Docker 端）
  * 目录: templates/{theme}/user/ 、templates/{theme}/admin/ 、templates/{theme}/docker/
- * V1.87 起 TDesign（SPA）为默认主题；classic（原 default，jQuery 服务端渲染）冻结保留、不再维护，
+ * tdesign（SPA）为唯一官方主题兼缺页兜底（MNBT_THEME_DEFAULT），其余主题只需覆盖要定制的页面，
  * 缺页自动回退到 templates/{MNBT_THEME_DEFAULT}/{scope}/
  * V1.88 起主页（站点根路径 /）由 official_site 插件承接，不再作为主题作用域
  */

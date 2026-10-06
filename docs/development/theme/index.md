@@ -49,13 +49,13 @@ templates/my_skin/
     └── login.php
 ```
 
-官方扩展主题:
+官方主题:
 
 | 主题 | 说明 |
 |------|------|
-| `default` | 默认(jQuery + Bootstrap) |
+| `tdesign` | 默认主题(Vue 3 SPA,vue3-sfc-loader 免构建) |
 
-未提供的页面会**自动回退**到 `templates/classic/` 同名文件。
+未提供的页面会**自动回退**到默认主题 `templates/tdesign/` 同名文件。
 
 ---
 

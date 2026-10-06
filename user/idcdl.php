@@ -13,7 +13,6 @@ if(isset($_REQUEST['username']) && isset($_REQUEST['password'])){
 	if(strpos($user,'"') || strpos($user,"'") || strpos($user,',') || strpos($user,'/') || strpos($user,"\\"))exit('{"code":"账号不能包含危险字符！"}');
 	$wedsv=$DB->get_row_prepare("SELECT * FROM MN_zj WHERE user=? limit 1", [$user]);
 	if($user==$wedsv['user'] && $pass==$wedsv['pass']) {
-		unset($_SESSION['authcode']);
 		$session=md5($user.$pass.$password_hash);
 		$token=authcode("{$user}\t{$session}", 'ENCODE', SYS_KEY);
 		mnbt_rotate_login_session();

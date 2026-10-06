@@ -1,6 +1,6 @@
 /**
  * CodeMirror 动态加载（文件在线编辑）
- * 资源在 imsetes/codemirror/（classic 主题共用同一份），首次打开编辑器时按需载入。
+ * 资源在 imsetes/codemirror/（全站共用同一份），首次打开编辑器时按需载入。
  * window.__TD_BOOT__.assetBase 为 imsetes/ 的 URL 前缀。
  */
 

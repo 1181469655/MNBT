@@ -16,11 +16,11 @@ if(isset($_COOKIE["admin_token"]))
 }
 
 // 面板关闭/主机到期/封禁提示只应阻断用户面板页面本身。
-// 登录页、验证码、登录与注销请求以及管理端请求不能被旧的用户登录态阻断，
+// 登录页、登录与注销请求以及管理端请求不能被旧的用户登录态阻断，
 // 否则主机到期后用户无法注销或切换账号，同浏览器下管理员也会被一并挡住。
 $td_script_path = str_replace('\\', '/', strtolower($_SERVER['SCRIPT_NAME'] ?? ''));
 $td_auth_bypass = strpos($td_script_path, '/admin/') !== false
-	|| in_array(basename($td_script_path), ['login.php', 'code.php'], true)
+	|| in_array(basename($td_script_path), ['login.php'], true)
 	|| (($_POST['gn'] ?? '') === 'login')
 	|| isset($_POST['logout']);
 

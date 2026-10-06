@@ -254,8 +254,8 @@ mnbt_register_widget('admin', [
 
 渲染位置：
 
-- 管理首页：`templates/classic/admin/sy.php`
-- 用户仪表盘：`templates/classic/user/sy.php`
+- 管理首页：`templates/tdesign/admin/sy.php`
+- 用户仪表盘：`templates/tdesign/user/sy.php`
 
 ### 3.7 设置快捷入口
 
