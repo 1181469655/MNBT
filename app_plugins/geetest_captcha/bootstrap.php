@@ -142,9 +142,11 @@ mnbt_add_filter('spa.boot', function ($boot) {
 	if (!is_array($provider) || ($provider['id'] ?? '') !== 'geetest4') {
 		return $boot;
 	}
+	// 适配器 URL 带文件 mtime 版本号，插件更新后浏览器缓存自动失效
+	$adapterVer = (string)(@filemtime(mnbt_plugin_path('geetest_captcha') . 'adapter.js') ?: '1');
 	$boot['captcha'] = [
 		'provider'  => 'geetest4',
-		'adapter'   => mnbt_plugin_url('geetest_captcha', 'adapter.js'),
+		'adapter'   => mnbt_plugin_url('geetest_captcha', 'adapter.js') . '?v=' . rawurlencode($adapterVer),
 		'captchaId' => geetest4_cfg('captcha_id'),
 		// 内联模式：HumanVerify 用极验官方按钮替换自带的"点击进行人机验证"按钮
 		'inline'    => true,
