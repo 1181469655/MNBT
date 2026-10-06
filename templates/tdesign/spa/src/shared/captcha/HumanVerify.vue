@@ -167,7 +167,8 @@ defineExpose({ reset, verified })
 .hv-wrap {
   width: 100%;
 }
-.hv-inline :empty::after,
+/* 仅容器自身为空（适配器尚未渲染）时显示占位；
+   不能用后代选择器，否则会污染适配器组件内部的空元素 */
 .hv-inline:empty::after {
   content: '正在加载验证组件…';
   display: block;
