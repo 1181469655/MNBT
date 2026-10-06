@@ -28,9 +28,12 @@
 
 ## 前端适配器契约
 
-`adapter.js` 实现 `window.MNBT_CAPTCHA_ADAPTER = { mount(el, { onSuccess, onFail }), reset() }`，
-由 `spa/src/shared/captcha/HumanVerify.vue` 在插件模式下动态加载并挂载。验证成功后
-`getValidate()` 结果 JSON 串作为 `captchaToken` 随登录请求提交。
+`adapter.js` 实现 `window.MNBT_CAPTCHA_ADAPTER = { mount(el, { onSuccess, onFail }), reset() }`。
+本插件以**内联模式**（`boot.captcha.inline = true`）运行：`HumanVerify.vue` 检测到 inline 后
+不再渲染自带的"点击进行人机验证"按钮，而是把容器直接交给适配器——适配器以 GT4 `popup`
+模式 `appendTo` 渲染**极验官方验证按钮**（"点击按钮开始验证"），点击后弹出极验验证窗口。
+验证成功后 `getValidate()` 结果 JSON 串作为 `captchaToken` 随登录请求提交；登录失败后
+`reset()` 销毁实例并重新初始化（保证验证结果一次性）。
 
 ## 文件结构
 

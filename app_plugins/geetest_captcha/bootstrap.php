@@ -146,6 +146,8 @@ mnbt_add_filter('spa.boot', function ($boot) {
 		'provider'  => 'geetest4',
 		'adapter'   => mnbt_plugin_url('geetest_captcha', 'adapter.js'),
 		'captchaId' => geetest4_cfg('captcha_id'),
+		// 内联模式：HumanVerify 用极验官方按钮替换自带的"点击进行人机验证"按钮
+		'inline'    => true,
 	];
 	return $boot;
 });

@@ -2,8 +2,9 @@
  * 极验行为验证 4.0 适配器（MNBT 人机验证契约）
  *
  * 契约：window.MNBT_CAPTCHA_ADAPTER = { mount(el, { onSuccess, onFail }), reset() }
- *  - mount：在容器内初始化极验（product=bind 隐藏按钮模式，onReady 后自动弹出验证框），
- *           验证成功后把 getValidate() 结果 JSON 串交给 onSuccess（作为 captchaToken 提交登录接口）
+ *  - mount：在容器内渲染极验官方验证按钮（product=popup，appendTo），用户点击官方按钮
+ *           弹出验证窗口；成功后把 getValidate() 结果 JSON 串交给 onSuccess
+ *           （作为 captchaToken 提交登录接口）
  *  - reset：销毁当前实例（下次 mount 重新初始化，保证验证结果一次性）
  *
  * captchaId 从 window.__TD_BOOT__.captcha.captchaId 读取（由插件经 spa.boot 过滤器注入）。
@@ -19,7 +20,6 @@
   const captchaId = String(cfg.captchaId || '')
 
   let captchaObj = null
-  let callbacks = null
   let gt4Promise = null
 
   function loadGt4() {
@@ -53,7 +53,7 @@
       if (!captchaId) {
         throw new Error('极验 captchaId 未配置')
       }
-      callbacks = cbs || {}
+      const callbacks = cbs || {}
       if (typeof el === 'string') {
         el = document.querySelector(el)
       }
@@ -67,13 +67,11 @@
         window.initGeetest4(
           {
             captchaId: captchaId,
-            product: 'bind', // 隐藏按钮：由适配器在 onReady 后调用 showCaptcha() 弹出
+            product: 'popup', // 官方验证按钮，appendTo 渲染，点击弹出验证窗口
           },
           function (obj) {
             captchaObj = obj
-            obj.onReady(function () {
-              obj.showCaptcha()
-            })
+            obj.appendTo(el)
             obj.onSuccess(function () {
               const result = obj.getValidate()
               if (!result) return
@@ -98,3 +96,4 @@
     },
   }
 })()
+
