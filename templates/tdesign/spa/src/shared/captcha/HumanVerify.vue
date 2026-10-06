@@ -52,7 +52,7 @@
  * 用法：<HumanVerify ref="captchaRef" @verified="payload => ..." @error="..." />
  *       提交时把 verified 载荷对象展开进登录请求；失败后调用 captchaRef.value.reset()
  */
-import { ref } from 'vue'
+import { ref, nextTick } from 'vue'
 import Verify from './Verify.vue'
 
 const boot = window.__TD_BOOT__ || {}
@@ -97,7 +97,8 @@ async function showPlugin() {
     if (!adapter || typeof adapter.mount !== 'function') {
       throw new Error('验证码适配器契约无效')
     }
-    await Promise.resolve()
+    // 等弹窗 v-if DOM 渲染完成后再挂载适配器
+    await nextTick()
     adapter.mount(mountEl.value, {
       onSuccess: (payload) => {
         const token = typeof payload === 'string' ? payload : String(payload ?? '')

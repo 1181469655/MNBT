@@ -1,0 +1,9 @@
+{
+  "id": "geetest_captcha",
+  "name": "极验行为验证 4.0",
+  "version": "1.0.0",
+  "author": "MNBT",
+  "description": "将三端登录人机验证替换为极验行为验证 4.0（滑动/智能验证）。启用后自动接管内置验证码（\"安装即退位\"），停用后内置滑块验证码自动复位。需在极验后台获取 captchaId 与 captcha_key 并在插件设置中填写。",
+  "requires_mnbt": "1.88",
+  "type": ["security"]
+}
