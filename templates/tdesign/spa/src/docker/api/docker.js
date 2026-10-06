@@ -77,9 +77,9 @@ export async function dkApi(gn, data = {}, { silent = false } = {}) {
 
 // ===== 认证 =====
 
-/** 登录 */
-export function dockerLogin(username, password) {
-  return dkApi('login', { username, password })
+/** 登录（captchaVerification 为行为验证码一次验证产物，服务端二次校验） */
+export function dockerLogin(username, password, captchaVerification = '') {
+  return dkApi('login', { username, password, captchaVerification })
 }
 
 /** 登出 */

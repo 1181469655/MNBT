@@ -13,6 +13,16 @@ $gn = $_GET['gn'] ?? $_POST['gn'] ?? '';
 
 // —— 登录 / 登出（无需 docker 登录态）——
 if ($gn === 'login') {
+	$ip = mnbt_client_ip();
+	// 登录防爆破：IP 维度 10 分钟窗口内最多 10 次失败
+	if (mnbt_throttle_exceeded('login_docker', $ip, 10, 600)) {
+		docker_json(100, '失败次数过多，请 10 分钟后再试');
+	}
+	// 行为验证码二次校验（强制，不受配置开关控制）：缺口答案只在服务端，无法绕过
+	$captchaRs = mnbt_captcha_verify((string)($_POST['captchaVerification'] ?? ''));
+	if ($captchaRs !== true) {
+		docker_json(100, $captchaRs);
+	}
 	$username = daddslashes($_POST['username'] ?? '');
 	$password = (string)($_POST['password'] ?? '');
 	if ($username === '' || $password === '') {
@@ -20,9 +30,11 @@ if ($gn === 'login') {
 	}
 	$row = $DB->get_row_prepare("SELECT * FROM MN_docker_user WHERE username=? limit 1", [$username]);
 	if (!$row) {
+		mnbt_throttle_hit('login_docker', $ip, 600);
 		docker_json(100, '账号或密码错误');
 	}
 	if (!docker_auth_password_verify($password, $row['password_hash'])) {
+		mnbt_throttle_hit('login_docker', $ip, 600);
 		docker_json(100, '账号或密码错误');
 	}
 	if ($row['qk'] === 'paused') {
@@ -36,6 +48,7 @@ if ($gn === 'login') {
 		docker_json(100, '该账户已到期，请联系管理员续费');
 	}
 	docker_auth_login($row['id'], $row['password_hash']);
+	mnbt_throttle_clear('login_docker', $ip);
 	mnbt_log($username, 'Docker登录', 'Docker 控制台登录成功', '登录成功', $DB);
 	docker_json(200, '登录成功');
 }

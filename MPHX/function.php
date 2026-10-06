@@ -594,4 +594,133 @@ function mnbt_home_asset($path): string
 	}
 	return mnbt_home_base() . '/' . ltrim($path, '/');
 }
+
+/* ============================================================
+ *  行为验证码（fastknife/ajcaptcha，根 vendor 手动 vendor）
+ *  协议见 captcha.php；一次验证产物 captchaVerification 由登录接口二次校验
+ * ============================================================ */
+
+/** 客户端 IP（仅信任 MNBT_TRUSTED_PROXIES 声明的代理头） */
+function mnbt_client_ip(): string
+{
+	if (mnbt_request_from_trusted_proxy()) {
+		$xff = isset($_SERVER['HTTP_X_FORWARDED_FOR']) ? trim(explode(',', (string)$_SERVER['HTTP_X_FORWARDED_FOR'])[0]) : '';
+		if ($xff !== '' && filter_var($xff, FILTER_VALIDATE_IP)) return $xff;
+	}
+	return isset($_SERVER['REMOTE_ADDR']) ? trim((string)$_SERVER['REMOTE_ADDR']) : '0.0.0.0';
+}
+
+/** 验证码服务实例（blockPuzzle 滑动拼图 / clickWord 文字点选） */
+function mnbt_captcha_service(string $type = 'blockPuzzle')
+{
+	require_once dirname(__DIR__) . '/vendor/autoload.php';
+
+	global $conf;
+	$expire = 300;
+	$cachePath = dirname(__DIR__) . '/runtime/captcha';
+	$config = [
+		'watermark' => [
+			'fontsize' => 12,
+			'color' => '#ffffff',
+			'text' => (string)($conf['name'] ?? 'MNBT'),
+		],
+		'block_puzzle' => [
+			'mode' => 'drawing',
+			'shape_type' => 'jigsaw',
+			'backgrounds' => [],
+			'templates' => [],
+			'offset' => 8,
+			'is_cache_pixel' => true,
+			'is_interfere' => true,
+			'blur_num' => 3,
+		],
+		'click_word' => [
+			'backgrounds' => [],
+			'word_num' => 3,
+			'distract_num' => 2,
+			'icons' => [],
+			'icon_mode' => 'never',
+			'min_icons' => 0,
+			'max_icons' => 0,
+			'icon_font_size_scale' => 1.3,
+		],
+		'cache' => [
+			'constructor' => '\\Fastknife\\Utils\\CacheUtils',
+			'method' => [],
+			'options' => [
+				'expire' => $expire,
+				'prefix' => '',
+				'path' => $cachePath,
+				'serialize' => [],
+			],
+		],
+	];
+	return $type === 'clickWord'
+		? new \Fastknife\Service\ClickWordCaptchaService($config)
+		: new \Fastknife\Service\BlockPuzzleCaptchaService($config);
+}
+
+/**
+ * 二次校验前端提交的 captchaVerification
+ * @return true|string true 表示通过，否则返回给用户看的失败文案
+ */
+function mnbt_captcha_verify(string $encryptCode, string $type = 'blockPuzzle')
+{
+	if ($encryptCode === '') {
+		return '请先完成人机验证';
+	}
+	try {
+		mnbt_captcha_service($type)->verificationByEncryptCode($encryptCode);
+		return true;
+	} catch (\Throwable $e) {
+		return '人机验证失败，请重新验证';
+	}
+}
+
+/* ============================================================
+ *  限速（文件计数，runtime/temp/throttle）：登录防爆破 / 取码限频
+ * ============================================================ */
+
+function _mnbt_throttle_file(string $scope, string $identity): string
+{
+	$dir = dirname(__DIR__) . '/runtime/temp/throttle';
+	if (!is_dir($dir)) @mkdir($dir, 0755, true);
+	return $dir . '/' . hash('sha256', $scope . '|' . $identity) . '.json';
+}
+
+/** 窗口内已计数次数（窗口自首次计数起算， $window 秒） */
+function mnbt_throttle_count(string $scope, string $identity, int $window): int
+{
+	$file = _mnbt_throttle_file($scope, $identity);
+	if (!is_file($file)) return 0;
+	if (time() - (int)filemtime($file) >= $window) return 0;
+	$data = json_decode((string)@file_get_contents($file), true);
+	return max(0, (int)($data['c'] ?? 0));
+}
+
+/** 计一次失败/请求（新窗口自动重置） */
+function mnbt_throttle_hit(string $scope, string $identity, int $window): void
+{
+	$file = _mnbt_throttle_file($scope, $identity);
+	$now = time();
+	$count = 1;
+	if (is_file($file) && $now - (int)filemtime($file) < $window) {
+		$data = json_decode((string)@file_get_contents($file), true);
+		$count = max(1, (int)($data['c'] ?? 0)) + 1;
+	}
+	@file_put_contents($file, json_encode(['c' => $count, 't' => $now]), LOCK_EX);
+	@touch($file, $now);
+}
+
+/** 成功后清除计数 */
+function mnbt_throttle_clear(string $scope, string $identity): void
+{
+	@unlink(_mnbt_throttle_file($scope, $identity));
+}
+
+/** 是否已被限速（超阈值拒绝） */
+function mnbt_throttle_exceeded(string $scope, string $identity, int $max, int $window): bool
+{
+	return mnbt_throttle_count($scope, $identity, $window) >= $max;
+}
 ?>

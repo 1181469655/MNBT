@@ -18,6 +18,7 @@ $boot = [
 	'needCaptcha'  => isset($conf['yzm']) && $conf['yzm'] === 'true',
 	'ajaxBase'     => './ajax.php',
 	'codeUrl'      => './code.php',
+	'captchaUrl'   => '../captcha.php',
 	'logo'         => mnbt_asset_url('admin_logo/logo.login.png'),
 	'logoHead'     => mnbt_asset_url('admin_logo/logo.head.png'),
 	'logoIndex'    => mnbt_asset_url('admin_logo/logo.index.png'),
@@ -195,6 +196,7 @@ if (window.__TD_BOOT__.hash) {
 <script src="<?= htmlspecialchars(mnbt_asset_url('vendor/vue/vue.global.prod.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(mnbt_asset_url('vendor/vue-router/vue-router.global.prod.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(mnbt_asset_url('vendor/axios/axios.min.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(mnbt_asset_url('vendor/crypto-js/crypto-js.min.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(mnbt_asset_url('vendor/tdesign/tdesign.min.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(mnbt_asset_url('vendor/echarts/echarts.min.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(mnbt_asset_url('vendor/vue3-sfc-loader/vue3-sfc-loader.js'), ENT_QUOTES, 'UTF-8') ?>"></script>

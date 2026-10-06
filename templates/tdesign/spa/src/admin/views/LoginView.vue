@@ -40,25 +40,21 @@
               <template #prefix-icon><i class="mdi mdi-lock"></i></template>
             </t-input>
           </t-form-item>
-          <t-form-item v-if="needCaptcha" name="code">
-            <div class="captcha-row">
-              <t-input
-                v-model="form.code"
-                placeholder="验证码"
-                maxlength="8"
-                size="large"
-                @enter="onSubmit"
-              >
-                <template #prefix-icon><i class="mdi mdi-check-all"></i></template>
-              </t-input>
-              <img
-                class="captcha-img"
-                :src="captchaUrl"
-                alt="验证码"
-                title="点击刷新"
-                @click="refreshCaptcha"
-              />
-            </div>
+          <t-form-item v-if="needCaptcha">
+            <t-button
+              theme="default"
+              variant="outline"
+              block
+              size="large"
+              @click="openCaptcha"
+            >
+              <template v-if="captchaOk">
+                <i class="mdi mdi-check-circle" style="color:#2ba471"></i> 验证通过
+              </template>
+              <template v-else>
+                <i class="mdi mdi-shield-check-outline"></i> 点击进行人机验证
+              </template>
+            </t-button>
           </t-form-item>
           <t-form-item>
             <t-button theme="primary" type="submit" block size="large" :loading="loading">
@@ -67,6 +63,17 @@
           </t-form-item>
         </t-form>
 
+        <!-- 行为验证码弹窗（官方组件，服务端二次校验） -->
+        <Verify
+          v-if="needCaptcha"
+          ref="captchaRef"
+          captcha-type="blockPuzzle"
+          mode="pop"
+          @success="onCaptchaSuccess"
+          @error="onCaptchaReset"
+          @close="onCaptchaClose"
+        />
+
         <p v-if="footer" class="footer-note" v-html="footer"></p>
       </div>
     </div>
@@ -74,10 +81,11 @@
 </template>
 
 <script setup>
-import { reactive, ref, computed, onMounted } from 'vue'
+import { reactive, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { MessagePlugin } from 'tdesign-vue-next'
 import { login } from '@/admin/api/auth'
+import Verify from '@/shared/captcha/Verify.vue'
 import bgImg from '@/shared/assets/login-bg.webp'
 
 const router = useRouter()
@@ -88,33 +96,48 @@ const needCaptcha = !!boot.needCaptcha
 
 const formRef = ref()
 const loading = ref(false)
-const captchaSeed = ref(Date.now())
+const captchaRef = ref(null)
+const captchaOk = ref(false)
+const captchaVerification = ref('')
 
 const form = reactive({
   user: '',
   pass: '',
-  code: '',
 })
 
 const rules = {
-  user: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
+  user: [{ required: true, message: '请输入管理员账号', trigger: 'blur' }],
   pass: [{ required: true, message: '请输入密码', trigger: 'blur' }],
-  code: needCaptcha
-    ? [{ required: true, message: '请输入验证码', trigger: 'blur' }]
-    : [],
 }
 
-const captchaUrl = computed(() => `${boot.codeUrl || './code.php'}?r=${captchaSeed.value}`)
+function openCaptcha() {
+  captchaRef.value?.show()
+}
 
-function refreshCaptcha() {
-  captchaSeed.value = Date.now()
+function onCaptchaSuccess(payload) {
+  // captchaVerification 为一次验证产物（一次性），随登录请求提交做服务端二次校验
+  captchaVerification.value = payload.captchaVerification
+  captchaOk.value = true
+}
+
+function onCaptchaReset() {
+  captchaOk.value = false
+  captchaVerification.value = ''
+}
+
+function onCaptchaClose() {
+  // 关闭弹窗不改变已通过的验证状态
 }
 
 async function onSubmit({ validateResult }) {
   if (validateResult !== true) return
+  if (needCaptcha && !captchaVerification.value) {
+    MessagePlugin.warning('请先完成人机验证')
+    openCaptcha()
+    return
+  }
   loading.value = true
-  const code = needCaptcha ? form.code : '0000'
-  const res = await login(form.user.trim(), form.pass, code)
+  const res = await login(form.user.trim(), form.pass, captchaVerification.value)
   loading.value = false
   if (res.ok) {
     MessagePlugin.success('登录成功,正在跳转…')
@@ -122,7 +145,8 @@ async function onSubmit({ validateResult }) {
     window.location.href = './index.php'
     return
   }
-  if (needCaptcha) refreshCaptcha()
+  // 登录失败后验证码已失效，重置验证状态
+  onCaptchaReset()
 }
 
 onMounted(() => {

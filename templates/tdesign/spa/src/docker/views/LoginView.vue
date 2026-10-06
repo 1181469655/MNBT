@@ -59,8 +59,7 @@
             variant="outline"
             block
             size="large"
-            :disabled="captchaOk"
-            @click="showCaptcha = true"
+            @click="onOpenCaptcha"
           >
             <template v-if="captchaOk">
               <i class="mdi mdi-check-circle" style="color:#2ba471"></i> 验证通过
@@ -75,35 +74,21 @@
             block
             size="large"
             :loading="loading"
-            :disabled="!captchaOk"
             @click="onSubmit"
           >
             登 录
           </t-button>
         </div>
 
-        <!-- 滑块验证码弹窗 -->
-        <Teleport to="body">
-          <Transition name="captcha-modal">
-            <div v-if="showCaptcha" class="captcha-overlay" @click.self="onCloseCaptcha">
-              <div class="captcha-dialog">
-                <div class="captcha-dialog__head">
-                  <h3>安全验证</h3>
-                  <button class="captcha-dialog__close" @click="onCloseCaptcha" title="关闭">
-                    <i class="mdi mdi-close"></i>
-                  </button>
-                </div>
-                <div class="captcha-dialog__body">
-                  <SliderCaptcha
-                    ref="captchaRef"
-                    @success="onCaptchaSuccess"
-                    @reset="onCaptchaReset"
-                  />
-                </div>
-              </div>
-            </div>
-          </Transition>
-        </Teleport>
+        <!-- 行为验证码弹窗（官方组件，服务端二次校验） -->
+        <Verify
+          ref="captchaRef"
+          captcha-type="blockPuzzle"
+          mode="pop"
+          @success="onCaptchaSuccess"
+          @error="onCaptchaReset"
+          @close="onCloseCaptcha"
+        />
 
         <p v-if="footer" class="footer-note" v-html="footer"></p>
       </div>
@@ -115,7 +100,7 @@
 import { reactive, ref } from 'vue'
 import { MessagePlugin } from 'tdesign-vue-next'
 import { dockerLogin } from '@/docker/api/docker'
-import SliderCaptcha from '@/docker/components/SliderCaptcha.vue'
+import Verify from '@/shared/captcha/Verify.vue'
 import logoImg from '@/shared/assets/docker.svg'
 import bgImg from '@/shared/assets/login-bg.webp'
 
@@ -127,19 +112,24 @@ const loading = ref(false)
 const showPwd = ref(false)
 const showCaptcha = ref(false)
 const captchaOk = ref(false)
+const captchaVerification = ref('')
 const captchaRef = ref(null)
 const form = reactive({ username: '', password: '' })
 
-function onCaptchaSuccess() {
+function onCaptchaSuccess(payload) {
+  // captchaVerification 为一次验证产物（一次性），随登录请求提交做服务端二次校验
+  captchaVerification.value = payload.captchaVerification
   captchaOk.value = true
-  // 短暂展示成功状态后关闭弹窗
-  setTimeout(() => {
-    showCaptcha.value = false
-  }, 800)
 }
 
 function onCaptchaReset() {
   captchaOk.value = false
+  captchaVerification.value = ''
+}
+
+function onOpenCaptcha() {
+  showCaptcha.value = true
+  captchaRef.value?.show()
 }
 
 function onCloseCaptcha() {
@@ -151,16 +141,18 @@ async function onSubmit() {
     MessagePlugin.warning('请输入账号和密码')
     return
   }
-  if (!captchaOk.value) {
-    MessagePlugin.warning('请完成滑块验证')
+  if (!captchaVerification.value) {
+    MessagePlugin.warning('请完成人机验证')
+    captchaRef.value?.show()
     return
   }
   loading.value = true
-  const r = await dockerLogin(form.username.trim(), form.password)
+  const r = await dockerLogin(form.username.trim(), form.password, captchaVerification.value)
   loading.value = false
   if (!r.ok) {
-    // 登录失败后刷新验证码状态
+    // 登录失败后验证码已失效，重置验证状态
     captchaOk.value = false
+    captchaVerification.value = ''
     showCaptcha.value = false
   } else {
     MessagePlugin.success(r.message || '登录成功')

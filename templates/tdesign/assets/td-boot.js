@@ -44,11 +44,13 @@
     var TDesign = window.TDesign || {};
     var axiosMod = window.axios || {};
     var echartsMod = window.echarts || {};
+    var cryptoJSMod = window.CryptoJS || {};
     if (!Vue.default) Vue.default = Vue;
     if (!VueRouter.default) VueRouter.default = VueRouter;
     if (!TDesign.default) TDesign.default = TDesign;
     if (!axiosMod.default) axiosMod.default = axiosMod;
     if (!echartsMod.default) echartsMod.default = echartsMod;
+    if (!cryptoJSMod.default) cryptoJSMod.default = cryptoJSMod;
 
     // 无原型对象：loader 会接管并写入加载过的模块
     var moduleCache = Object.assign(Object.create(null), {
@@ -57,6 +59,7 @@
         'tdesign-vue-next': TDesign,
         'axios': axiosMod,
         'echarts': echartsMod,
+        'crypto-js': cryptoJSMod,
         // 防御映射：src 内不再直接引用这些子路径，避免旧代码 404
         'echarts/core': echartsMod,
         'echarts/charts': echartsMod,
