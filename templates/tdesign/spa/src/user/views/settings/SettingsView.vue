@@ -537,7 +537,8 @@ async function loadTab(name) {
         const d = r.data
         const arr = Array.isArray(d) ? d : (d.versions || d.list || d.data || [])
         lists.php = arr.map((v) => (typeof v === 'object' ? v.ver || v.version || v.name : String(v)))
-        forms.php.ver = d.current || d.cur || d.ver || (lists.php[0] || '')
+        // 当前版本在 set_init section=php 的 php 字段,读不到才回落列表第一项
+        forms.php.ver = d.php || d.current || d.cur || d.ver || (lists.php[0] || '')
       }
     } else if (name === 'pass') {
       const r = await getPassList()
@@ -636,7 +637,10 @@ async function savePhp() {
   setSaving('php', true)
   const r = await setPhpVersion(forms.php.ver)
   setSaving('php', false)
-  if (r.ok) MessagePlugin.success('PHP 版本已切换')
+  if (r.ok) {
+    MessagePlugin.success('PHP 版本已切换')
+    loadTab('php')
+  }
 }
 
 async function savePass() {
