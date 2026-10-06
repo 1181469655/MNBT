@@ -3,7 +3,7 @@
 基于宝塔面板 API 的虚拟主机分销管理系统，支持多节点宝塔面板统一管理、用户自主开通主机、一键部署网站程序、在线文件管理、Gzip/缓存配置、URL/资源监控告警、违禁词扫描、**可切换前端主题**、**PHP 业务插件**等功能。
 
 ![PHP](https://img.shields.io/badge/PHP-7.4%20~%208.4-777BB4?logo=php&logoColor=white)
-![MySQL](https://img.shields.io/badge/MySQL-5.6%2B-4479A1?logo=mysql&logoColor=white)
+![MySQL](https://img.shields.io/badge/MySQL-5.6%20~%208.x-4479A1?logo=mysql&logoColor=white)
 ![License](https://img.shields.io/badge/license-Commercial-blue)
 ![Version](https://img.shields.io/badge/version-1.88-green)
 
@@ -16,6 +16,7 @@
 - ✅ **监控告警**：URL 监控（状态码/内容匹配）+ 资源监控（空间/流量）+ 到期提醒 + 邮件通知
 - ✅ **SSL 证书**：Let's Encrypt 一键申请/续签
 - ✅ **PHP 8.x 全面兼容 + SQL 参数化查询**：已修复全部废弃语法，彻底消除 SQL 注入风险
+- ✅ **MySQL 8.x 兼容**：兼容 MySQL 8 默认严格模式（sql_mode）与 caching_sha2_password 认证
 - ✅ **完善的操作日志**：所有关键操作可追溯
 - ✅ **可切换前端主题**：用户端 / 管理端独立皮肤，缺页回退 default
 - ✅ **PHP 业务插件**：`app_plugins/` 目录插件，钩子 / AJAX / 菜单 / 配置（与宝塔节点 Python 插件分离）
@@ -27,7 +28,7 @@
 | 依赖 | 版本要求 |
 |------|---------|
 | PHP | **7.4 ~ 8.4**（已全面兼容 PHP 8.x） |
-| MySQL | 5.6+ |
+| MySQL | 5.6 ~ 8.x（含 MySQL 8.0+） |
 | Web 服务器 | Nginx / Apache |
 | 宝塔面板 | Linux 版 / Windows 版 |
 | PHP 扩展 | curl、mysqli、json、mbstring |

@@ -10,13 +10,15 @@ description: 环境要求、安装部署步骤与快速开始
 | 依赖 | 版本要求 |
 |------|---------|
 | PHP | **7.4 ~ 8.4**（已全面兼容 PHP 8.x） |
-| MySQL | 5.6+ |
+| MySQL | 5.6 ~ 8.x（含 MySQL 8.0+） |
 | Web 服务器 | Nginx / Apache |
 | 宝塔面板 | Linux 版 / Windows 版 |
 | PHP 扩展 | curl、mysqli、json、mbstring |
 | Composer | 可选（仅用于 PHPMailer 安装） |
 
 > 已修复 `each()`、`count($string)`、`get_magic_quotes_gpc()` 等 PHP 8 废弃语法；所有 SQL 已迁移至参数化查询。
+>
+> **MySQL 8 用户**：系统在安装与运行时会话级清空 `sql_mode`，兼容 MySQL 8 默认严格模式；MySQL 8 默认认证插件为 `caching_sha2_password`，需 PHP 使用 mysqlnd 驱动（PHP 7.4+ 默认自带）方可连接，若 PHP 编译时使用 libmysqlclient 可能报 "Authentication plugin not supported"。
 
 ## 安装部署
 

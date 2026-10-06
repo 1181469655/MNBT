@@ -436,7 +436,7 @@ switch ($action) {
                 }
             }
             if ($e != 0) {
-                exit(Res(0, "安装失败！SQL成功{$t}句，失败{$e}句，请确保您的数据库版本在Mysql5.6(含)~5.7(含)之间，错误信息：" . $error));
+                exit(Res(0, "安装失败！SQL成功{$t}句，失败{$e}句，本系统支持 MySQL 5.6 ~ 8.x，请检查数据库账号是否有建表权限（SQL 报错已列出失败语句），错误信息：" . $error));
             }
         } else {
             $exists = table_exists_case('MN_config');

@@ -1176,6 +1176,8 @@ function mnbt_updater_run_sql($file, $dbconfig)
 		return '连接数据库出错：' . mysqli_connect_error();
 	}
 	$_mysqli->query('set names utf8;');
+	// MySQL 8 默认严格模式会拦截旧版增量 SQL 里的宽松写法，与 migrations.php 保持一致清空会话 sql_mode
+	$_mysqli->query("set sql_mode = ''");
 	foreach (explode(';', $_sql) as $_value) {
 		if (trim((string)$_value) === '') continue;
 		$_mysqli->query($_value);
