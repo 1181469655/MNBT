@@ -34,8 +34,8 @@
           </div>
         </template>
         <template #status="{ row }">
-          <span :class="statusClass(row.status || row.qk)">
-            {{ statusText(row.status || row.qk) }}
+          <span :class="statusClass(row.enabled)">
+            {{ statusText(row.enabled) }}
           </span>
         </template>
         <template #operate="{ row }">
@@ -134,7 +134,7 @@ async function load() {
   loading.value = false
   if (r.ok && r.data) {
     const d = r.data
-    rows.value = Array.isArray(d) ? d : (d.rows || d.list || d.data || [])
+    rows.value = Array.isArray(d) ? d : (d.tasks || d.rows || d.list || [])
   } else {
     rows.value = []
   }
@@ -153,9 +153,8 @@ function openEdit(row) {
   editForm.id = row.id
   editForm.name = row.name || ''
   editForm.url = row.url || ''
-  editForm.interval = Number(row.interval) || 60
-  editForm.kg = row.status === true || row.status === 'true' || row.status === 1 ||
-    row.status === '1' || row.qk === true || row.qk === 'true' || row.qk === 1 || row.qk === '1' || row.kg === true
+  editForm.interval = Number(row.interval_seconds) || 60
+  editForm.kg = row.enabled === true || row.enabled === 'true' || row.enabled === 1 || row.enabled === '1'
   dialogVisible.value = true
 }
 
@@ -169,11 +168,12 @@ async function onSave() {
     return
   }
   saving.value = true
+  // 后端 monitor_save 读取 interval_seconds / enabled
   const payload = {
     name: editForm.name,
     url: editForm.url,
-    interval: String(editForm.interval),
-    kg: editForm.kg ? 'true' : 'false',
+    interval_seconds: String(editForm.interval),
+    enabled: editForm.kg ? 'true' : 'false',
   }
   const r = editForm.id
     ? await saveMonitorTask({ id: editForm.id, ...payload })

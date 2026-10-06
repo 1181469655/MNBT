@@ -382,6 +382,8 @@ async function loadSpace() {
     if (d.hxb) hxb.value = parseSpace(d.hxb)
     if (d.llmax) llmax.value = parseSpace(d.llmax)
     nextTick(renderGauges)
+    // sxsyxx 只写库不回传新值,刷新后重读 indexconf(web/sql/lls 即新值)
+    await loadIndexConf()
   }
 }
 

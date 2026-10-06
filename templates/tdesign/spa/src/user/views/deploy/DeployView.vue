@@ -33,18 +33,11 @@
             </div>
             <div class="deploy-name">
               <strong>{{ row.name || '-' }}</strong>
-              <span>{{ fmtSize(row.cxdx) }}</span>
             </div>
           </div>
           <div class="deploy-card-body">
-            <p class="deploy-desc">{{ row.jc || row.desc || '暂无介绍' }}</p>
+            <p class="deploy-desc">{{ row.jc || '暂无介绍' }}</p>
             <div class="deploy-meta">
-              <span class="td-chip td-chip-info" v-if="row.webkj">
-                <i class="mdi mdi-web"></i> {{ row.webkj }}MB
-              </span>
-              <span class="td-chip td-chip-default" v-if="row.sqlkj">
-                <i class="mdi mdi-database"></i> {{ row.sqlkj }}MB
-              </span>
               <span class="td-chip td-chip-warning" v-if="row.jg">
                 <i class="mdi mdi-currency-cny"></i> {{ row.jg }}
               </span>
@@ -87,13 +80,6 @@ function parseThumb(src) {
   }
 }
 
-function fmtSize(v) {
-  const n = Number(v) || 0
-  if (n === 0) return ''
-  if (n < 1024) return n + ' MB'
-  return (n / 1024).toFixed(2) + ' GB'
-}
-
 function onImgError(e) {
   e.target.style.display = 'none'
 }
@@ -122,7 +108,8 @@ function deploy(row) {
       deploying.value = null
       if (r.ok) {
         const msg = r.message || '部署成功'
-        const alert = row.alerts || row.alert || ''
+        // MN_bs.alet 为部署完成后的弹窗提示
+        const alert = row.alet || ''
         if (alert) {
           MessagePlugin.success(alert, 5000)
         } else {

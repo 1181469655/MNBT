@@ -44,16 +44,19 @@
         @page-change="onPageChange"
       >
         <template #status="{ row }">
-          <span :class="row.status === 'enabled' ? 'td-chip td-chip-success' : 'td-chip td-chip-danger'">
-            {{ row.status === 'enabled' ? '已启用' : '已停用' }}
+          <span :class="row.enabled === 'true' || row.enabled === true ? 'td-chip td-chip-success' : 'td-chip td-chip-danger'">
+            {{ row.enabled === 'true' || row.enabled === true ? '已启用' : '已停用' }}
+          </span>
+          <span v-if="row.enabled === 'true' || row.enabled === true" :class="row.status === 'online' ? 'td-chip td-chip-info' : 'td-chip td-chip-default'" style="margin-left:4px">
+            {{ row.status === 'online' ? '在线' : '离线' }}
           </span>
         </template>
         <template #created_at="{ row }">{{ fmtTime(row.created_at) }}</template>
-        <template #last_ping="{ row }">{{ fmtTime(row.last_ping) }}</template>
+        <template #last_ping="{ row }">{{ fmtTime(row.last_heartbeat) }}</template>
         <template #operate="{ row }">
           <div class="td-row-actions">
             <t-button
-              v-if="row.status === 'enabled'"
+              v-if="row.enabled === 'true' || row.enabled === true"
               theme="default"
               variant="outline"
               size="small"
@@ -115,11 +118,11 @@
       <div class="td-form">
         <div class="td-form-row">
           <label>节点名称 <span class="td-text-danger">*</span></label>
-          <t-input v-model="addForm.name" />
+          <t-input v-model="addForm.name" placeholder="留空则使用所属宝塔的编号" />
         </div>
         <div class="td-form-row">
-          <label>所属宝塔</label>
-          <t-select v-model="addForm.bt_id" :loading="btLoading" clearable placeholder="可选">
+          <label>所属宝塔 <span class="td-text-danger">*</span></label>
+          <t-select v-model="addForm.bt_id" :loading="btLoading" placeholder="必选,节点配置由宝塔服务器自动派生">
             <t-option
               v-for="b in baotaList"
               :key="b.id"
@@ -127,14 +130,7 @@
               :label="`${b.btdh} (${b.btip})`"
             />
           </t-select>
-        </div>
-        <div class="td-form-row">
-          <label>Base URL</label>
-          <t-input v-model="addForm.base_url" placeholder="如 https://node.example.com" />
-        </div>
-        <div class="td-form-row">
-          <label>API Key</label>
-          <t-input v-model="addForm.api_key" />
+          <div class="td-form-hint">节点的通信地址与密钥直接取自所选宝塔服务器,无需单独填写</div>
         </div>
       </div>
     </t-dialog>
@@ -168,7 +164,7 @@ const pingLoading = reactive({})
 const pagination = reactive({ current: 1, pageSize: 10, total: 0, showJumper: true })
 
 const addVisible = ref(false)
-const addForm = reactive({ name: '', bt_id: '', base_url: '', api_key: '' })
+const addForm = reactive({ name: '', bt_id: '' })
 const btLoading = ref(false)
 const baotaList = ref([])
 
@@ -178,12 +174,12 @@ const cfgText = ref('')
 
 const columns = [
   { colKey: 'id', title: 'ID', width: 70, sorter: true },
-  { colKey: 'name', title: '节点名称', width: 160, ellipsis: true },
+  { colKey: 'node_name', title: '节点名称', width: 160, ellipsis: true },
   { colKey: 'btdh', title: '所属宝塔', width: 140, ellipsis: true },
   { colKey: 'btip', title: '节点IP', width: 140 },
-  { colKey: 'status', title: '状态', width: 100 },
+  { colKey: 'status', title: '状态', width: 150 },
   { colKey: 'created_at', title: '创建时间', width: 160 },
-  { colKey: 'last_ping', title: '最后 ping', width: 160 },
+  { colKey: 'last_heartbeat', title: '最后心跳', width: 160 },
   { colKey: 'version', title: '版本', width: 100 },
   { colKey: 'operate', title: '操作', width: 200, fixed: 'right' },
 ]
@@ -192,10 +188,11 @@ const filteredRows = computed(() => {
   let arr = rows.value
   if (keyword.value) {
     const k = keyword.value.toLowerCase()
-    arr = arr.filter((r) => (r.name || '').toLowerCase().includes(k))
+    arr = arr.filter((r) => ((r.node_name || '') + (r.node_id || '') + (r.btdh || '')).toLowerCase().includes(k))
   }
   if (statusFilter.value) {
-    arr = arr.filter((r) => r.status === statusFilter.value)
+    const enabled = statusFilter.value === 'enabled'
+    arr = arr.filter((r) => (r.enabled === 'true' || r.enabled === true) === enabled)
   }
   return arr
 })
@@ -260,20 +257,17 @@ async function loadBaota() {
 function openAdd() {
   addForm.name = ''
   addForm.bt_id = ''
-  addForm.base_url = ''
-  addForm.api_key = ''
   addVisible.value = true
   if (!baotaList.value.length) loadBaota()
 }
 
 async function onAdd() {
-  if (!addForm.name) { MessagePlugin.warning('请输入节点名称'); return }
+  if (!addForm.bt_id) { MessagePlugin.warning('请选择所属宝塔服务器'); return }
   saving.value = true
+  // 后端 addnode 读 node_name(缺省回落宝塔编号)与 bt_id,通信配置自动派生
   const r = await addNode({
-    name: addForm.name,
+    node_name: addForm.name,
     bt_id: addForm.bt_id,
-    base_url: addForm.base_url,
-    api_key: addForm.api_key,
   })
   saving.value = false
   if (r.ok) {
@@ -297,7 +291,7 @@ async function toggleStatus(row, enabled) {
 
 async function ping(row) {
   pingLoading[row.id] = true
-  MessagePlugin.info(`正在 ping ${row.name || row.id}…`)
+  MessagePlugin.info(`正在 ping ${row.node_name || row.id}…`)
   const r = await nodePing(row.id)
   pingLoading[row.id] = false
   if (r.ok) {
@@ -325,7 +319,7 @@ async function viewConfig(row) {
 function del(row) {
   const dlg = DialogPlugin.confirm({
     header: '删除节点',
-    body: `确定删除节点 #${row.id}(${row.name || ''})吗?`,
+    body: `确定删除节点 #${row.id}(${row.node_name || ''})吗?`,
     theme: 'warning',
     onConfirm: async () => {
       const r = await deleteNode(row.id)

@@ -551,13 +551,15 @@ async function loadTab(name) {
       const r = await getDefaultDoc()
       if (r.ok && r.data) {
         const d = r.data
-        forms.defaultDoc.doc = d.doc || d.docs || d.default || d.mrwd || (typeof d === 'string' ? d : '') || ''
+        // set_init section=mrwd 的当前文档在 index 字段
+        forms.defaultDoc.doc = d.index || d.doc || d.docs || d.default || (typeof d === 'string' ? d : '') || ''
       }
     } else if (name === 'run-dir') {
       const r = await getRunDir()
       if (r.ok && r.data) {
         const d = r.data
-        forms.runDir.dir = d.dir || d.path || d.run_dir || d.yxml || (typeof d === 'string' ? d : '') || ''
+        // set_init section=yxml 的当前目录在 current 字段
+        forms.runDir.dir = d.current || d.dir || d.path || d.run_dir || (typeof d === 'string' ? d : '') || ''
       }
     } else if (name === 'rewrite') {
       // 并行加载模板列表与当前规则内容

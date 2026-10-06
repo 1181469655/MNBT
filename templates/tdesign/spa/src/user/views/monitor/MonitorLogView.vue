@@ -36,17 +36,17 @@
             暂无监控日志
           </div>
         </template>
-        <template #time="{ row }">{{ fmtTime(row.time || row.data || row.created_at) }}</template>
-        <template #task_name="{ row }">{{ row.task_name || row.name || '-' }}</template>
+        <template #time="{ row }">{{ fmtTime(row.created_at) }}</template>
+        <template #task_name="{ row }">{{ row.task_id ? '#' + row.task_id : '-' }}</template>
         <template #status_code="{ row }">
-          <span :class="codeClass(row.status_code || row.code)">
-            {{ row.status_code || row.code || '-' }}
+          <span :class="codeClass(row.http_code)">
+            {{ row.http_code || '-' }}
           </span>
         </template>
-        <template #response_time="{ row }">{{ fmtMs(row.response_time || row.rt || row.time_ms) }}</template>
+        <template #response_time="{ row }">{{ fmtMs(row.response_time) }}</template>
         <template #result="{ row }">
-          <span :class="resultClass(row.result || row.qk)">
-            {{ resultText(row.result || row.qk) }}
+          <span :class="resultClass(row.check_status)">
+            {{ resultText(row.check_status) }}
           </span>
         </template>
       </t-table>
@@ -76,7 +76,7 @@ const filter = reactive({
 const columns = [
   { colKey: 'id', title: 'ID', width: 70 },
   { colKey: 'time', title: '时间', width: 160 },
-  { colKey: 'task_name', title: '任务名', minWidth: 160, ellipsis: true },
+  { colKey: 'task_name', title: '任务', width: 100 },
   { colKey: 'status_code', title: '状态码', width: 100 },
   { colKey: 'response_time', title: '响应时间', width: 120 },
   { colKey: 'result', title: '结果', width: 100 },
@@ -84,7 +84,7 @@ const columns = [
 
 function fmtTime(v) {
   if (!v) return '-'
-  const d = new Date(v)
+  const d = new Date(String(v).replace(/-/g, '/'))
   if (isNaN(d.getTime())) return String(v)
   return d.toLocaleString('zh-CN', { hour12: false })
 }
@@ -106,15 +106,16 @@ function codeClass(code) {
   return 'td-chip td-chip-default'
 }
 
+// 后端 check_status 值域为 ok / fail
 function resultClass(v) {
-  if (v === true || v === 'true' || v === 1 || v === '1' || v === 'success') return 'td-chip td-chip-success'
-  if (v === false || v === 'false' || v === 0 || v === '0' || v === 'fail' || v === 'error') return 'td-chip td-chip-danger'
+  if (v === 'ok') return 'td-chip td-chip-success'
+  if (v === 'fail') return 'td-chip td-chip-danger'
   return 'td-chip td-chip-default'
 }
 
 function resultText(v) {
-  if (v === true || v === 'true' || v === 1 || v === '1' || v === 'success') return '成功'
-  if (v === false || v === 'false' || v === 0 || v === '0' || v === 'fail' || v === 'error') return '失败'
+  if (v === 'ok') return '成功'
+  if (v === 'fail') return '失败'
   return v || '-'
 }
 
@@ -125,15 +126,16 @@ function onFilterChange() {
 
 async function load() {
   loading.value = true
-  const r = await listMonitorLog(pagination.current, pagination.pageSize)
+  // 签名 listMonitorLog(id, page, page_size):第一参为任务ID(0=全部)
+  const r = await listMonitorLog(0, pagination.current, pagination.pageSize)
   loading.value = false
   if (r.ok && r.data) {
     const d = r.data
-    let list = Array.isArray(d) ? d : (d.rows || d.list || d.data || [])
+    let list = Array.isArray(d) ? d : (d.logs || d.rows || d.list || [])
     if (filter.status === 'success') {
-      list = list.filter((row) => isResultSuccess(row.result || row.qk))
+      list = list.filter((row) => isResultSuccess(row.check_status))
     } else if (filter.status === 'fail') {
-      list = list.filter((row) => !isResultSuccess(row.result || row.qk))
+      list = list.filter((row) => !isResultSuccess(row.check_status))
     }
     rows.value = list
     pagination.total = d.total || list.length
@@ -145,7 +147,7 @@ async function load() {
 }
 
 function isResultSuccess(v) {
-  return v === true || v === 'true' || v === 1 || v === '1' || v === 'success'
+  return v === 'ok'
 }
 
 function onPageChange(p) {

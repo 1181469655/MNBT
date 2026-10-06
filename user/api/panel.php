@@ -172,6 +172,7 @@ if ($egn === 'deploy_list') {
 			'src' => $src,
 			'sxpz' => $sxpz,
 			'tj' => $tj,
+			'alet' => $r['alet'] ?? '',
 			'qk' => $r['qk'] ?? '1',
 		];
 	}

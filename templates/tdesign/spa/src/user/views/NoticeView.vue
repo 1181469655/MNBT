@@ -10,9 +10,9 @@
     <div class="td-table-wrap">
       <div class="td-toolbar">
         <t-select v-model="filter.type" style="width: 140px" placeholder="全部类型" clearable @change="onFilterChange">
-          <t-option value="email" label="邮件" />
-          <t-option value="sms" label="短信" />
-          <t-option value="system" label="系统" />
+          <t-option value="monitor" label="监控告警" />
+          <t-option value="expire" label="主机到期" />
+          <t-option value="traffic" label="流量提醒" />
         </t-select>
         <div class="td-toolbar-spacer"></div>
         <t-button theme="default" variant="text" @click="load">
@@ -37,18 +37,18 @@
             暂无通知日志
           </div>
         </template>
-        <template #time="{ row }">{{ fmtTime(row.time || row.data || row.created_at) }}</template>
+        <template #time="{ row }">{{ fmtTime(row.created_at) }}</template>
         <template #type="{ row }">
-          <span :class="typeClass(row.type || row.leixing)">
-            {{ typeText(row.type || row.leixing) }}
+          <span :class="typeClass(row.type)">
+            {{ typeText(row.type) }}
           </span>
         </template>
         <template #content="{ row }">
-          <span class="cell-clip" :title="row.content || row.nr || row.text">{{ row.content || row.nr || row.text || '-' }}</span>
+          <span class="cell-clip" :title="row.content">{{ row.content || '-' }}</span>
         </template>
         <template #status="{ row }">
-          <span :class="statusClass(row.status || row.qk)">
-            {{ statusText(row.status || row.qk) }}
+          <span :class="statusClass(row.is_read)">
+            {{ statusText(row.is_read) }}
           </span>
         </template>
       </t-table>
@@ -85,37 +85,35 @@ const columns = [
 
 function fmtTime(v) {
   if (!v) return '-'
-  const d = new Date(v)
+  const d = new Date(String(v).replace(/-/g, '/'))
   if (isNaN(d.getTime())) return String(v)
   return d.toLocaleString('zh-CN', { hour12: false })
 }
 
+// 后端 type 值域:monitor / expire / traffic
 function typeClass(v) {
-  if (v === 'email' || v === '邮件' || v === 'mail') return 'td-chip td-chip-info'
-  if (v === 'sms' || v === '短信' || v === 'message') return 'td-chip td-chip-warning'
-  if (v === 'system' || v === '系统' || v === 'sys') return 'td-chip td-chip-default'
+  if (v === 'monitor') return 'td-chip td-chip-warning'
+  if (v === 'expire') return 'td-chip td-chip-danger'
+  if (v === 'traffic') return 'td-chip td-chip-info'
   return 'td-chip td-chip-default'
 }
 
 function typeText(v) {
-  if (v === 'email' || v === '邮件' || v === 'mail') return '邮件'
-  if (v === 'sms' || v === '短信' || v === 'message') return '短信'
-  if (v === 'system' || v === '系统' || v === 'sys') return '系统'
+  if (v === 'monitor') return '监控告警'
+  if (v === 'expire') return '主机到期'
+  if (v === 'traffic') return '流量提醒'
   return v || '-'
 }
 
+// 状态列展示已读/未读(MN_notice_log.is_read)
 function statusClass(v) {
-  if (v === true || v === 'true' || v === 1 || v === '1' || v === 'success' || v === 'ok') return 'td-chip td-chip-success'
-  if (v === false || v === 'false' || v === 0 || v === '0' || v === 'fail' || v === 'error') return 'td-chip td-chip-danger'
-  if (v === 'pending' || v === 'wait' || v === 'waiting') return 'td-chip td-chip-warning'
-  return 'td-chip td-chip-default'
+  if (v === true || v === 'true' || v === 1 || v === '1') return 'td-chip td-chip-default'
+  return 'td-chip td-chip-warning'
 }
 
 function statusText(v) {
-  if (v === true || v === 'true' || v === 1 || v === '1' || v === 'success' || v === 'ok') return '已发送'
-  if (v === false || v === 'false' || v === 0 || v === '0' || v === 'fail' || v === 'error') return '失败'
-  if (v === 'pending' || v === 'wait' || v === 'waiting') return '待发送'
-  return v || '-'
+  if (v === true || v === 'true' || v === 1 || v === '1') return '已读'
+  return '未读'
 }
 
 function onFilterChange() {
@@ -129,9 +127,9 @@ async function load() {
   loading.value = false
   if (r.ok && r.data) {
     const d = r.data
-    let list = Array.isArray(d) ? d : (d.rows || d.list || d.data || [])
+    let list = Array.isArray(d) ? d : (d.logs || d.rows || d.list || [])
     if (filter.type) {
-      list = list.filter((row) => typeMatch(row.type || row.leixing, filter.type))
+      list = list.filter((row) => row.type === filter.type)
     }
     rows.value = list
     pagination.total = d.total || list.length
@@ -140,13 +138,6 @@ async function load() {
     pagination.total = 0
     if (!r.ok) MessagePlugin.error(r.message || '加载失败')
   }
-}
-
-function typeMatch(v, target) {
-  if (target === 'email') return v === 'email' || v === '邮件' || v === 'mail'
-  if (target === 'sms') return v === 'sms' || v === '短信' || v === 'message'
-  if (target === 'system') return v === 'system' || v === '系统' || v === 'sys'
-  return false
 }
 
 function onPageChange(p) {

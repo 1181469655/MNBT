@@ -68,6 +68,7 @@
             暂无统计数据
           </div>
         </template>
+        <template #traffic="{ row }">{{ fmtFlow(row.bytes) }}</template>
       </t-table>
     </div>
   </div>
@@ -119,10 +120,11 @@ const columns = computed(() => {
 const summaryCards = computed(() => {
   const d = overview.value
   if (!d) return []
-  const totalReq = Number(d.total_requests || d.requests || d.count || 0)
-  const totalIp = Number(d.unique_ips || d.ips || 0)
-  const totalTraffic = Number(d.total_traffic || d.traffic || 0)
-  const totalErr = Number(d.error_count || d.errors || 0)
+  // 连接插件 overview 返回 requests / ip_count / total_bytes / error_count
+  const totalReq = Number(d.requests || d.total_requests || d.pv || 0)
+  const totalIp = Number(d.ip_count || d.unique_ips || 0)
+  const totalTraffic = Number(d.total_bytes || d.total_traffic || 0)
+  const totalErr = Number(d.error_count || 0)
   return [
     {
       label: '总请求数',
@@ -191,9 +193,7 @@ async function loadOverview() {
   const r = await getSiteStats('overview', range.value)
   overviewLoading.value = false
   if (r.ok && r.data) {
-    // 后端透传宝塔插件响应,数据可能在 data.msg 或 data 本身
-    const d = r.data
-    overview.value = d.msg || d.data || d
+    overview.value = r.data
   } else {
     overview.value = null
   }
@@ -201,14 +201,14 @@ async function loadOverview() {
 
 async function loadDetail() {
   detailLoading.value = true
-  const r = await getSiteStats(detailTab.value, range.value)
+  const r = await getSiteStats(detailTab.value, range.value, pagination.current, pagination.pageSize)
   detailLoading.value = false
   if (r.ok && r.data) {
+    // 排行/日志统一在 data 字段返回行数组,total 为总数(后端已按 page/page_size 分页)
     const d = r.data
-    const msg = d.msg || d.data || d
-    const list = Array.isArray(msg) ? msg : (msg.list || msg.rows || msg.items || [])
-    rows.value = list
-    pagination.total = msg.total || d.total || list.length
+    const obj = Array.isArray(d) ? { data: d } : (d || {})
+    rows.value = obj.data || obj.list || obj.rows || []
+    pagination.total = obj.total || rows.value.length
   } else {
     rows.value = []
     pagination.total = 0
