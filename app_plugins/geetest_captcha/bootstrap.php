@@ -81,8 +81,16 @@ if (!function_exists('geetest4_second_validate')) {
 mnbt_plugin_register('geetest_captcha', ['name' => '极验行为验证 4.0']);
 
 /* ============================================================
- * 后台设置页
+ * 后台菜单与设置页
  * ============================================================ */
+// 单入口：不带 children，自动归入侧栏「插件管理」分组
+mnbt_register_menu('admin', [
+	'title'     => '极验行为验证 4.0',
+	'page'      => 'settings',
+	'icon'      => 'mdi-shield-check',
+	'order'     => 28,
+	'multitabs' => true,
+]);
 mnbt_register_page('admin', 'settings', 'admin/settings.php', '极验行为验证 4.0 设置');
 mnbt_register_settings_tab([
 	'title' => '极验行为验证 4.0',
