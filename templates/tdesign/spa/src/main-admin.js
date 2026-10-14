@@ -1,7 +1,7 @@
 import { createApp } from 'vue'
 import TDesign from 'tdesign-vue-next'
 import App from './App-admin.vue'
-import router from './admin/router'
+import router from './admin/router/index.js'
 import './shared/styles/theme.css'
 
 const app = createApp(App)
