@@ -2,7 +2,9 @@
 install/install.lock
 
 # 配置文件
-config.php
+# 必须根限定：裸 config.php 会匹配任意层级，曾把 vendor/fastknife/ajcaptcha/src/config.php
+# 一并忽略，导致 git clone 出来的部署缺该文件、内置验证码直接 fatal
+/config.php
 .env
 *.local.php
 
