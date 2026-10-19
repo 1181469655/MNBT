@@ -1,4 +1,42 @@
 <?php
+/**
+ * 保存控制面板页上传的三张 Logo：只收 PNG/JPG，超大文件或伪造图片一律拒绝。
+ * 先全部校验再落盘，避免出现「前一张已覆盖、后一张报错」的半更新状态。
+ * 返回 ['saved' => 已保存文件名(逗号分隔), 'error' => 失败原因]。
+ */
+function setkzmb_save_logos($maxMb)
+{
+	$map = ['loa' => 'logo.login.png', 'lob' => 'logo.index.png', 'loc' => 'logo.head.png'];
+	$ready = [];
+	foreach ($map as $key => $filename) {
+		$file = isset($_FILES[$key]) ? $_FILES[$key] : null;
+		if (!is_array($file)) continue;
+		$err = isset($file['error']) ? (int)$file['error'] : UPLOAD_ERR_NO_FILE;
+		if ($err === UPLOAD_ERR_NO_FILE) continue;
+		if ($err !== UPLOAD_ERR_OK) {
+			return ['error' => $filename.' 上传失败（错误码 '.$err.'），请确认文件不超过 PHP 的 upload_max_filesize'];
+		}
+		if (empty($file['tmp_name']) || !is_uploaded_file($file['tmp_name'])) {
+			return ['error' => $filename.' 上传无效，请重新选择文件'];
+		}
+		if ((int)$file['size'] > $maxMb * 1024 * 1024) {
+			return ['error' => $filename.' 超过 '.$maxMb.'MB 限制'];
+		}
+		$info = @getimagesize($file['tmp_name']);
+		if ($info === false || !in_array($info[2], [IMAGETYPE_PNG, IMAGETYPE_JPEG], true)) {
+			return ['error' => $filename.' 不是有效的 PNG 或 JPG 图片'];
+		}
+		$ready[$key] = $file['tmp_name'];
+	}
+	$saved = [];
+	foreach ($ready as $key => $tmp) {
+		if (!move_uploaded_file($tmp, '../imsetes/upload_logo/'.$map[$key])) {
+			return ['error' => $map[$key].' 保存失败，请检查 imsetes/upload_logo 目录写入权限'];
+		}
+		$saved[] = $map[$key];
+	}
+	return ['saved' => implode(',', $saved)];
+}
 if($egn=='setwz') {
 	$copy=daddslashes($_POST['gg']);
 	$sitename=daddslashes($_POST['qq']);
@@ -14,17 +52,17 @@ if($egn=='setapi') {
 	$apiqk=daddslashes($_POST['apiqk']);
 	$lin=daddslashes($_POST['linux']);
 	$win=daddslashes($_POST['windows']);
-	logjl($user,'API设置','对网站的API设置进行了修改','修改成功',$DB);
 	$sql="update `MN_config` set `api` =?, `apiqk` =?, `hxi` =?, `hxo` =? where `id`=?";
-	if($DB->query_prepare($sql,[$apikey,$apiqk,$lin,$win,$siteid]))json_exit('修改成功'); else json_exit('修改失败'.$DB->error());
-	return;
-}
-if($egn=='setapicompat') {
-	// 对外 API 协议模式开关：0=新版协议（1.83+ 严格），1=兼容 1.81 对接模块
-	$apicompat = (daddslashes($_POST['api_compat'] ?? '0') === '1') ? '1' : '0';
-	logjl($user,'API设置','对外API协议模式切换为'.($apicompat==='1'?'兼容1.81':'新版1.83+'),'修改成功',$DB);
-	$sql="update `MN_config` set `api_compat` =? where `id`=?";
-	if($DB->query_prepare($sql,[$apicompat,$siteid]))json_exit('修改成功'); else json_exit('修改失败'.$DB->error());
+	if(!$DB->query_prepare($sql,[$apikey,$apiqk,$lin,$win,$siteid]))json_exit_error('修改失败'.$DB->error());
+	// 协议模式随保存一并提交；未携带该字段的旧页面不改列，避免把兼容模式误切回严格模式
+	if(isset($_POST['api_compat'])) {
+		$apicompat = ($_POST['api_compat'] === '1') ? '1' : '0';
+		$sql="update `MN_config` set `api_compat` =? where `id`=?";
+		if(!$DB->query_prepare($sql,[$apicompat,$siteid]))json_exit_error('修改失败'.$DB->error());
+		logjl($user,'API设置','对外API协议模式切换为'.($apicompat==='1'?'兼容1.81':'新版1.83+'),'修改成功',$DB);
+	}
+	logjl($user,'API设置','对网站的API设置进行了修改','修改成功',$DB);
+	json_exit('修改成功');
 	return;
 }
 if($egn=='setkzmb') {
@@ -32,17 +70,12 @@ if($egn=='setkzmb') {
 	$yzm=daddslashes($_POST['yzm']);
 	$kg=daddslashes($_POST['kg']);
 	$bq=daddslashes($_POST['bq']);
-	if(isset($_FILES['loa'])) {
-		move_uploaded_file($_FILES['loa']['tmp_name'],'../imsetes/upload_logo/logo.login.png');
-	}
-	if(isset($_FILES['lob'])) {
-		move_uploaded_file($_FILES['lob']['tmp_name'],'../imsetes/upload_logo/logo.index.png');
-	}
-	if(isset($_FILES['loc'])) {
-		move_uploaded_file($_FILES['loc']['tmp_name'],'../imsetes/upload_logo/logo.head.png');
-	}
+	// 上传体积超过 PHP post_max_size 时 $_POST 会整体为空，缺此校验会把面板名称洗成空串
+	if($name==='') json_exit_error('控制面板名称不能为空');
+	$logoFiles = setkzmb_save_logos(mnbt_panel_logo_max_mb());
+	if(isset($logoFiles['error'])) json_exit_error($logoFiles['error']);
 	$auther=md5($date);
-	logjl($user,'控制面板设置','对主机的控制面板进行了修改','修改成功',$DB);
+	logjl($user,'控制面板设置','对主机的控制面板进行了修改'.($logoFiles['saved'] ? '(已更新 Logo: '.$logoFiles['saved'].')' : ''),'修改成功',$DB);
 	$sql="update `MN_config` set `name` =?, `yzme` =?, `kzmbqk` =?, `hxp` =?, `auther` =? where `id`=?";
 	if($DB->query_prepare($sql,[$name,$yzm,$kg,$bq,$auther,$siteid]))json_exit('修改成功'); else json_exit('修改失败'.$DB->error());
 	return;

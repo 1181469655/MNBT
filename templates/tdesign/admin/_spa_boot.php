@@ -29,6 +29,13 @@ $boot = [
 	'vendorBase'   => mnbt_asset_url('vendor/'),
 	'entry'        => $td_entry ?? 'dashboard',
 	'hash'         => $td_hash ?? '',
+	// 控制面板设置页的 Logo 预览:上传落盘 upload_logo(用户端面板与官网首页读取),管理端品牌图另有 admin_logo
+	'panelLogos'   => [
+		'loa' => mnbt_asset_url('upload_logo/logo.login.png'),
+		'lob' => mnbt_asset_url('upload_logo/logo.index.png'),
+		'loc' => mnbt_asset_url('upload_logo/logo.head.png'),
+	],
+	'panelLogoMaxMb' => mnbt_panel_logo_max_mb(),
 	'pluginMenuHtml' => '',
 	'conf'         => $conf ?? [],
 	'serverHost'   => $_SERVER['HTTP_HOST'] ?? '',

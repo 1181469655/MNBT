@@ -293,6 +293,12 @@ function mnbt_api_compat_mode()
 	return isset($conf['api_compat']) && (string)$conf['api_compat'] === '1';
 }
 
+/** 控制面板 Logo 上传单张大小上限（MB）：后端校验与设置页提示共用同一取值 */
+function mnbt_panel_logo_max_mb()
+{
+	return 2;
+}
+
 // ---------------------------------------------------------------------------
 //  监控/定时入口鉴权（jk.php / jk_monitor.php / docker_cron.php）
 //  新方式：?t=<unix秒>&sign=hash_hmac('sha256', '<脚本名>|<t>', API密钥)，±300 秒有效

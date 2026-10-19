@@ -9,9 +9,7 @@ export function listProgram(params) {
 
 /** 添加程序(含文件上传,需用 FormData) */
 export async function addProgram(formData) {
-  formData.append('gn', 'cxtj')
   const res = await postGn('cxtj', formData)
-  // 文件上传走 postGn 的原始调用,这里直接 parse
   return parseResult(res)
 }
 

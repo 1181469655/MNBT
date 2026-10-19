@@ -18,8 +18,17 @@ const http = axios.create({
 
 /**
  * POST 表单到 ajax.php
+ * data 为 FormData 时按 multipart 原样发送（文件上传走这条路径）
  */
 export async function postGn(gn, data = {}) {
+  if (data instanceof FormData) {
+    if (!data.has('gn')) data.append('gn', gn)
+    const res = await http.post(ajaxUrl(), data, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return res.data
+  }
+
   const body = new URLSearchParams()
   body.append('gn', gn)
   Object.keys(data).forEach((k) => {

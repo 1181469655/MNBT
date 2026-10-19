@@ -3,7 +3,7 @@
     <div class="td-page-head">
       <div>
         <h3 class="td-page-title"><i class="mdi mdi-key-variant"></i>API 设置</h3>
-        <p class="td-page-subtitle">接口密钥、建站目录与外部调用开关</p>
+        <p class="td-page-subtitle">接口密钥、建站目录与外部调用开关及协议模式</p>
       </div>
     </div>
 
@@ -50,8 +50,17 @@
               <t-switch v-model="form.apiqk" />
             </div>
 
+            <div class="td-form-row">
+              <label>对外 API 协议模式</label>
+              <t-select v-model="form.api_compat">
+                <t-option value="0" label="新版协议（1.83+，默认）" />
+                <t-option value="1" label="兼容 1.81 对接模块" />
+              </t-select>
+              <div class="td-form-hint">兼容模式仅还原 1.81 老协议的行为约束（跨节点校验、站点名规则等），供未升级对接模块的老客户过渡使用</div>
+            </div>
+
             <div class="td-form-note">
-              <b>注意:</b> 建站目录请勿随意修改,已开通主机可能受影响。API 密钥修改后,监控 URL 与外部对接均需同步更新。
+              <b>注意:</b> 建站目录请勿随意修改,已开通主机可能受影响。API 密钥修改后,监控 URL 与外部对接均需同步更新。兼容模式只是过渡期方案,建议尽快升级对接模块（WordPress 销售插件 / 魔方财务 server module）后切回新版协议。
             </div>
 
             <div class="td-form-actions">
@@ -80,6 +89,7 @@ const form = reactive({
   hxi: conf.hxi || '/www/wwwroot',
   hxo: conf.hxo || 'D:/wwwroot',
   apiqk: conf.apiqk === 'true',
+  api_compat: String(conf.api_compat ?? '0') === '1' ? '1' : '0',
 })
 
 function genApiKey() {
@@ -98,6 +108,7 @@ async function save() {
     linux: form.hxi,
     windows: form.hxo,
     apiqk: form.apiqk ? 'true' : 'false',
+    api_compat: form.api_compat,
   })
   loading.value = false
   if (r.ok) {
@@ -108,6 +119,7 @@ async function save() {
     c.apiqk = form.apiqk ? 'true' : 'false'
     c.hxi = form.hxi
     c.hxo = form.hxo
+    c.api_compat = form.api_compat
   }
 }
 </script>

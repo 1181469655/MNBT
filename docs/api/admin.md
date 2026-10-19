@@ -208,8 +208,8 @@ description: admin/ajax.php 后台管理 AJAX 接口（登录、宝塔节点、�
 | `gn` | 功能 | 必需参数 | 返回要点 |
 |------|------|----------|----------|
 | `setwz` | 修改网站设置 | `gg`、`qq`、`yzm`、`zjyx` | `code`、`msg` |
-| `setapi` | 修改 API 设置 | `apikey`、`apiqk`、`linux`、`windows` | `code`、`msg` |
-| `setkzmb` | 修改控制面板 | `name`、`ftp`、`yzm`、`kg`、`bq`、`loa`、`lob`、`loc` | `code`、`msg` |
+| `setapi` | 修改 API 设置 | `apikey`、`apiqk`、`linux`、`windows`；可选 `api_compat`（`0`/`1`，不传则不改协议模式） | `code`、`msg` |
+| `setkzmb` | 修改控制面板 | `name`（必填）、`yzm`、`kg`、`bq`；可选 multipart 文件 `loa`/`lob`/`loc`（登录页/侧栏/浏览器图标 Logo，PNG·JPG 且 ≤2MB） | `code`、`msg` |
 | `setpaymethods` | 设置支付方式 | `methods`（JSON） | `code`、`msg` |
 | `gl` | 修改管理员账户 | `yuser`、`ypass`、`xuser`、`xpass` | `code`、`msg` |
 | `mailmode` | 邮箱配置 | `host`、`user`、`password`、`port` | `code`、`msg` |

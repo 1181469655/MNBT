@@ -5,12 +5,12 @@ export function setWebsite(data) {
   return apiGn('setwz', data)
 }
 
-/** API 设置: apikey / apiqk / linux / windows */
+/** API 设置: apikey / apiqk / linux / windows / api_compat */
 export function setApi(data) {
   return apiGn('setapi', data)
 }
 
-/** 控制面板: name / ftp / yzm / kg / bq + 文件上传 loa/lob/loc */
+/** 控制面板: name / yzm / kg / bq,以及可选的 loa / lob / loc 三个 Logo 文件(传 FormData) */
 export function setPanel(data) {
   return apiGn('setkzmb', data)
 }
