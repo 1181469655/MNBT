@@ -129,7 +129,7 @@ if($egn=='xgpass') {
 		$gpwd=$sqlmm;
 	}
 	logjl($yhc['user'],'密码修改','修改了FTP和数据库密码','修改成功',$DB);
-	if($DB->query_prepare("update `MN_zj` set `sqlpass` =?, `pass` =? where `user`=?", [$gpwd, $pass, $user])) json_exit('修改成功'); else json_exit('修改失败');
+	if($DB->query_prepare("update `MN_zj` set `sqlpass` =?, `pass` =? where `user`=?", [mnbt_secret_encrypt($gpwd), mnbt_secret_encrypt($pass), $user])) json_exit('修改成功'); else json_exit('修改失败');
 	return;
 }
 if($egn=='setyxml') {

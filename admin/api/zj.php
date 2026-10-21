@@ -128,7 +128,7 @@ if($egn=='zjxgjl') {
 		mnbt_log($user,'修改主机','修改ID'.$id.'配置','修改成功',$DB);
 			if($cres['datae'] != $datar) mnbt_log($user,'主机续费','ID'.$id.'到期'.$cres['datae'].'=>'.$datar,'修改成功',$DB);
 		@header('Content-Type: text/html; charset=UTF-8');
-		if($DB->query_prepare("update `MN_zj` set `datae` =?, `ymbds` =?, `hxa` =?, `hxb` =?, `sqlpass` =?, `pass` =?, `qk` =?, `llmax` =? where `id`=?", [$datar, $ymbds, $s_web, $s_sql, $sqlpass, $pass, $kg, $llde, $id])){
+		if($DB->query_prepare("update `MN_zj` set `datae` =?, `ymbds` =?, `hxa` =?, `hxb` =?, `sqlpass` =?, `pass` =?, `qk` =?, `llmax` =? where `id`=?", [$datar, $ymbds, $s_web, $s_sql, mnbt_secret_encrypt($sqlpass), mnbt_secret_encrypt($pass), $kg, $llde, $id])){
 			if (function_exists('mnbt_do_action') && $cres['datae'] != $datar) {
 				$host_row = $DB->get_row_prepare("SELECT * FROM MN_zj WHERE id=? limit 1", [$id]);
 				mnbt_do_action('host.renewed', $host_row ?: array_merge($cres, ['datae'=>$datar]), ['source'=>'admin','old_date'=>$cres['datae'],'new_date'=>$datar]);
@@ -215,7 +215,7 @@ if($egn=='addzj') {
 			for($tryi = 0; $tryi < 3; $tryi++){
 				$rowe=$DB->get_row_prepare("SELECT id FROM MN_zj WHERE 1 order by id desc limit 1");
 				$id=($rowe['id'] ?? 0)+1;
-				if($DB->query_prepare("INSERT INTO `MN_zj` (`id`, `ssbt`, `user`, `pass`, `sqluser`, `sqlpass`, `data`, `datae`, `qk`, `btid`, `sqldz`, `ftpid`, `ymbds`, `hxa`, `hxb`, `hxc`, `hxd`, `llmax`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", [$id, $btdh, $user, $pass, $user, $pass, $date, $datae, $kg, $zdide, $btserw, $aedfs, $ymbds, $webdx, $sqldx, '2', $sqlfs, $flowratemax])){
+				if($DB->query_prepare("INSERT INTO `MN_zj` (`id`, `ssbt`, `user`, `pass`, `sqluser`, `sqlpass`, `data`, `datae`, `qk`, `btid`, `sqldz`, `ftpid`, `ymbds`, `hxa`, `hxb`, `hxc`, `hxd`, `llmax`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", [$id, $btdh, $user, mnbt_secret_encrypt($pass), $user, mnbt_secret_encrypt($pass), $date, $datae, $kg, $zdide, $btserw, $aedfs, $ymbds, $webdx, $sqldx, '2', $sqlfs, $flowratemax])){
 					$insert_ok = true;
 					break;
 				}
@@ -261,6 +261,14 @@ if($egn=='listzj') {
 	$countdata=$DB->count_prepare("SELECT count(*) from MN_zj WHERE 1 {$pswhere}", $param_arr);
 	$data=["total"=>$countdata];
 	$data["rows"]=$DB->get_all_prepare("SELECT * FROM MN_zj where 1 {$pswhere} order by $paixu $sorting limit $pageu,$pagesize", $param_arr);
+	// pass/sqlpass 库内为 enc1: 密文,列表供管理端查看与编辑回填,输出前解密
+	if (is_array($data["rows"])) {
+		foreach ($data["rows"] as &$r) {
+			$r['pass'] = mnbt_secret_decrypt($r['pass']);
+			$r['sqlpass'] = mnbt_secret_decrypt($r['sqlpass']);
+		}
+		unset($r);
+	}
 	exit(json_encode($data));
 	return;
 }

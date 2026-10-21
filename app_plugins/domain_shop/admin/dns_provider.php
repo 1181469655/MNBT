@@ -7,6 +7,8 @@ if (!defined('IN_CRONLITE')) exit;
 mnbt_admin_include('head');
 global $DB;
 $providers = $DB->get_all_prepare("SELECT * FROM plg_dns_provider order by id asc") ?: [];
+foreach ($providers as &$p) { $p['api_secret'] = mnbt_secret_decrypt($p['api_secret'] ?? ''); }
+unset($p);
 ?>
 <div class="container-fluid p-t-15">
   <div class="row">

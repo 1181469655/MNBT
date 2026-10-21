@@ -159,12 +159,12 @@ mnbt_register_ajax('admin', 'p_dns_provider_save', function () {
 	if ($id > 0) {
 		$ok = $DB->query_prepare(
 			"update `plg_dns_provider` set `slug`=?, `name`=?, `api_id`=?, `api_secret`=?, `qk`=? where `id`=?",
-			[$slug, $name, $apiId, $apiSecret, $kg ? 'true' : 'false', $id]
+			[$slug, $name, $apiId, mnbt_secret_encrypt($apiSecret), $kg ? 'true' : 'false', $id]
 		);
 	} else {
 		$ok = $DB->query_prepare(
 			"INSERT INTO `plg_dns_provider` (`slug`, `name`, `api_id`, `api_secret`, `extra`, `qk`, `created_at`) VALUES (?,?,?,?,?,?,?)",
-			[$slug, $name, $apiId, $apiSecret, '{}', $kg ? 'true' : 'false', $date]
+			[$slug, $name, $apiId, mnbt_secret_encrypt($apiSecret), '{}', $kg ? 'true' : 'false', $date]
 		);
 	}
 	if (!$ok) json_exit_error('保存失败：' . $DB->error());

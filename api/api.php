@@ -35,7 +35,7 @@ if($key!=$conf['api']){
 $cert=$DB->get_row_prepare("SELECT * FROM MN_bt WHERE btdh=? limit 1", [$bh]);
 $et_zj=$DB->get_row_prepare("SELECT * FROM MN_zj WHERE user=? limit 1", [$user]);
 if($cert=='' || $cert['qk']=='false')api_json_exit(100, '错误！该宝塔不存在或该宝塔已经被关闭');
-$adyjm=$cert['ktmy'].$cert['qmk'];$mdjm=md5($adyjm);
+$adyjm=mnbt_secret_decrypt($cert['ktmy']).mnbt_secret_decrypt($cert['qmk']);$mdjm=md5($adyjm);
 if($keye!=$mdjm){
     if(mnbt_api_compat_mode()){
         // 1.81 兼容：老对接模块按 msg 文案分支，沿用原文案与不带 key 前缀的日志
@@ -132,7 +132,7 @@ if($gn=='cfif'){
         $sqlfs = $api->sjid('databases', $user);
         // 写入主机记录：max(id)+1 在并发下可能重复导致插入失败，失败时重新取号重试几次
         $insert_sql = "INSERT INTO `MN_zj` (`id`, `ssbt`, `user`, `pass`, `sqluser`, `sqlpass`, `data`, `datae`, `qk`, `btid`, `sqldz`, `ftpid`, `ymbds`, `hxa`, `hxb`, `hxc`, `hxd`, `llmax`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-        $insert_args = [$bh, $user, $pass, $user, $pass, $date, $datae, 'true', $zdide, $btserw, $aedfs, $ymbds, $webdx, $sqldx, '2', $sqlfs, $flowratemax];
+        $insert_args = [$bh, $user, mnbt_secret_encrypt($pass), $user, mnbt_secret_encrypt($pass), $date, $datae, 'true', $zdide, $btserw, $aedfs, $ymbds, $webdx, $sqldx, '2', $sqlfs, $flowratemax];
         $insert_ok = false;
         if(mnbt_api_compat_mode()){
             // 1.81 兼容：沿用建站前取的号单次插入，保证站点名与 id 序列一致
@@ -234,7 +234,7 @@ if($gn=='cfif'){
     $x_up_pass=daddslashes($_POST['password']);
     $api = new bt_api($btipe,$btkeye);
     $api->setftppass($et_zj['ftpid'],$user,$x_up_pass);
-    if($DB->query_prepare("update `MN_zj` set `pass` =? where `user`=?", [$x_up_pass, $user]))api_json_exit(200, '主机FTP及控制面板登陆密码重置成功！');
+    if($DB->query_prepare("update `MN_zj` set `pass` =? where `user`=?", [mnbt_secret_encrypt($x_up_pass), $user]))api_json_exit(200, '主机FTP及控制面板登陆密码重置成功！');
     else api_json_exit(100, '主机FTP密码重置成功！但是控制面板登陆密码重置失败，因为数据写入数据库失败！请站长排查');
 }elseif($gn == 'zjmode'){
     $zjdata=$DB->get_row_prepare("SELECT * FROM MN_zj WHERE user=?", [$user]);

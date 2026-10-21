@@ -143,7 +143,7 @@ if($egn == "mailmode")
     $mailuser = daddslashes($_POST['user']);
     $passwrod = daddslashes($_POST['password']);
     $port = daddslashes($_POST['port']);
-    if(!$DB->query_prepare("UPDATE `MN_config` SET `mailhost` = ?, `mailuser` = ?, `mailpassword` = ?, `mailport` = ? WHERE `id` = 1", [$host, $mailuser, $passwrod, $port]))
+    if(!$DB->query_prepare("UPDATE `MN_config` SET `mailhost` = ?, `mailuser` = ?, `mailpassword` = ?, `mailport` = ? WHERE `id` = 1", [$host, $mailuser, mnbt_secret_encrypt($passwrod), $port]))
     {
         json_exit('数据库操作失败请联系开发人员判断错误');
     }

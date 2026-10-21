@@ -36,7 +36,7 @@ var spa = document.getElementById("sjs");
 
  echo "<form style='display:none;' id='form1' name='form1' method='post' action='".$ext_url."/index.php'> 
               <input name='pma_username' type='text' value='".$yhc['sqluser']."' />
-              <input name='pma_password' type='text' value='".$yhc['sqlpass']."'/>
+              <input name='pma_password' type='text' value='".mnbt_secret_decrypt($yhc['sqlpass'] ?? '')."'/>
               <input name='server' type='text' value='1'/>
               <input name='target' type='text' value='index.php'/>
               <input name='token' type='text' value=''/>

@@ -20,7 +20,8 @@ class bt_proxy
     public function __construct($bt_panel = null, $bt_key = null)
     {
         $this->BT_PANEL = rtrim((string)$bt_panel, '/');
-        $this->BT_KEY = (string)$bt_key;
+        // 库内密钥可能为 enc1: 密文(secret.php),明文历史数据原样透传
+        $this->BT_KEY = function_exists('mnbt_secret_decrypt') ? mnbt_secret_decrypt((string)$bt_key) : (string)$bt_key;
     }
 
     // ========================================================================

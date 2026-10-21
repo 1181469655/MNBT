@@ -27,7 +27,8 @@ if($egn=='login') {
 			}
 		}
 		$wedsv=$DB->get_row_prepare("SELECT * FROM MN_zj WHERE user=? limit 1", [$user]);
-		if($user==$wedsv['user'] && $pass==$wedsv['pass']) {
+		$stored_pass=mnbt_secret_decrypt($wedsv['pass'] ?? '');
+		if($user==$wedsv['user'] && hash_equals((string)$stored_pass, (string)$pass)) {
 			mnbt_throttle_clear('login_user', $ip);
 			$session=md5($user.$pass.$password_hash);
 			$token=authcode("{$user}\t{$session}", 'ENCODE', SYS_KEY);

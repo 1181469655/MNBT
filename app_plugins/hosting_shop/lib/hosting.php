@@ -748,7 +748,7 @@ function hosting_open_host($order_id)
 		$new_zj_id = $rowe ? ((int)$rowe['id'] + 1) : 1;
 		if($DB->query_prepare(
 			"INSERT INTO `MN_zj` (`id`, `ssbt`, `user`, `pass`, `sqluser`, `sqlpass`, `data`, `datae`, `qk`, `btid`, `sqldz`, `ftpid`, `ymbds`, `hxa`, `hxb`, `hxc`, `hxd`, `llmax`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-			[$new_zj_id, $order['node'], $bt_user, $bt_pass, $bt_user, $bt_pass, $now, $datae, $kg, $zdide, $btserw, $aedfs, $ymbds, $webdx, $sqldx, '2', $sqlfs, $flowratemax]
+			[$new_zj_id, $order['node'], $bt_user, mnbt_secret_encrypt($bt_pass), $bt_user, mnbt_secret_encrypt($bt_pass), $now, $datae, $kg, $zdide, $btserw, $aedfs, $ymbds, $webdx, $sqldx, '2', $sqlfs, $flowratemax]
 		)){
 			$insert_ok = true;
 			break;

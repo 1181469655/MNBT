@@ -153,7 +153,8 @@ switch ($action) {
             'pwd'  => (string)$db_pwd,      //数据库密码
             'dbname' => (string)$db_name,   //数据库名
         );
-        $config = "<?php\n" . '/*数据库配置*/' . "\n" . '$dbconfig=' . var_export($dbconfig_out, true) . ";\n";
+        $mnbt_secret_key = bin2hex(random_bytes(32));//密文密钥：宝塔密钥/数据库密码/邮箱授权码等加密存储用
+        $config = "<?php\n" . '/*数据库配置*/' . "\n" . '$dbconfig=' . var_export($dbconfig_out, true) . ";\n" . '/*加密密钥（64位hex），请勿泄露*/' . "\n" . '$mnbt_secret_key=' . var_export($mnbt_secret_key, true) . ";\n";
         if(!$con=DB::connect($db_host,$db_user,$db_pwd,$db_name,$db_port)){
             $enumMsg=[
                 2002=>'连接数据库失败，数据库地址填写错误！',

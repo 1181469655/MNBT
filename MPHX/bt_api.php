@@ -14,7 +14,8 @@ class bt_api
     public function __construct($bt_panel = null, $bt_key = null)
     {
         $this->BT_PANEL = $bt_panel;
-        $this->BT_KEY = $bt_key;
+        // 库内密钥可能为 enc1: 密文(secret.php),明文历史数据原样透传
+        $this->BT_KEY = function_exists('mnbt_secret_decrypt') ? mnbt_secret_decrypt($bt_key) : $bt_key;
     }
 
     // ========================================================================

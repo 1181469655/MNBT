@@ -601,7 +601,7 @@ function realname_admin_decrypt()
 	if ($id <= 0) {
 		realname_json('参数错误');
 	}
-	if ($password === '' || $password !== ($conf['pwd'] ?? '')) {
+	if ($password === '' || !mnbt_admin_password_verify($password, (string)($conf['pwd'] ?? ''))) {
 		realname_json('管理密码错误');
 	}
 	$row = realname_get_by_id($id);

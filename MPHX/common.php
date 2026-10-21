@@ -68,6 +68,8 @@ exit();
 $siteid=1;
 $conf=$DB->get_row_prepare("SELECT * FROM MN_config WHERE id=? limit 1", [$siteid]);//获取系统配置
 $password_hash='!@#%!s!0';
+include_once(SYSTEM_ROOT."secret.php");
+$conf['mailpassword']=mnbt_secret_decrypt($conf['mailpassword'] ?? '');//库内邮箱授权码为密文，读入统一还原
 	include_once(SYSTEM_ROOT."Response.php");
 include_once(SYSTEM_ROOT."function.php");
 include_once(SYSTEM_ROOT."member.php");

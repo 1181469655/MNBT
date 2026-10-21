@@ -141,7 +141,7 @@ if (!function_exists('mnbt_app_db_table_count')) {
 		if (!function_exists('mysqli_connect')) return -1;
 		$user = (string)($yhc['sqluser'] ?? '');
 		if ($user === '') return -1;
-		$conn = @mysqli_connect('localhost', $user, (string)($yhc['sqlpass'] ?? ''), $user);
+		$conn = @mysqli_connect('localhost', $user, (string)mnbt_secret_decrypt($yhc['sqlpass'] ?? ''), $user);
 		if (!$conn) return -1;
 		$count = -1;
 		$res = @mysqli_query($conn, "SHOW TABLES");

@@ -387,7 +387,7 @@ function rp_create($in)
 	$now = rp_now();
 	$ok  = $DB->query_prepare(
 		"INSERT INTO " . RP_TABLE . " (name, username, password, nodes, web_space, sql_space, flow, expire_date, status, remark, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-		[$d['name'], $d['username'], $d['password'], $d['nodes'], $d['web_space'], $d['sql_space'], $d['flow'], $d['expire_date'], $d['status'], $d['remark'], $now, $now]
+		[$d['name'], $d['username'], mnbt_secret_encrypt($d['password']), $d['nodes'], $d['web_space'], $d['sql_space'], $d['flow'], $d['expire_date'], $d['status'], $d['remark'], $now, $now]
 	);
 	if (!$ok) {
 		return ['ok' => false, 'msg' => '写入数据库失败：' . $DB->error()];
@@ -423,7 +423,7 @@ function rp_update($id, $in)
 	} else {
 		$ok = $DB->query_prepare(
 			"UPDATE " . RP_TABLE . " SET name=?, username=?, password=?, nodes=?, web_space=?, sql_space=?, flow=?, expire_date=?, status=?, remark=?, updated_at=? WHERE id=?",
-			[$d['name'], $d['username'], $d['password'], $d['nodes'], $d['web_space'], $d['sql_space'], $d['flow'], $d['expire_date'], $d['status'], $d['remark'], rp_now(), $id]
+			[$d['name'], $d['username'], mnbt_secret_encrypt($d['password']), $d['nodes'], $d['web_space'], $d['sql_space'], $d['flow'], $d['expire_date'], $d['status'], $d['remark'], rp_now(), $id]
 		);
 	}
 	if (!$ok) {
@@ -907,7 +907,7 @@ function rp_open_host($pool_id, $args)
 	// 随后用唯一的 user 字段回查真实 id。写入的是核心原有字段，未改主机表结构。
 	$ok = $DB->query_prepare(
 		"INSERT INTO `MN_zj` (`ssbt`, `user`, `pass`, `sqluser`, `sqlpass`, `data`, `datae`, `qk`, `btid`, `sqldz`, `ftpid`, `ymbds`, `hxa`, `hxb`, `hxc`, `hxd`, `llmax`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-		[$node_dh, $hostuser, $hostpass, $hostuser, $hostpass, $now, $datae, $switch, $siteId, $btserw, $ftpid, (string)$ymbds, $webdx, $sqldx, '2', $sqlid, $lldx]
+		[$node_dh, $hostuser, mnbt_secret_encrypt($hostpass), $hostuser, mnbt_secret_encrypt($hostpass), $now, $datae, $switch, $siteId, $btserw, $ftpid, (string)$ymbds, $webdx, $sqldx, '2', $sqlid, $lldx]
 	);
 	if (!$ok) {
 		return ['ok' => false, 'msg' => '宝塔已开通但本地写库失败，请联系管理员（siteId=' . $siteId . '）：' . $DB->error()];

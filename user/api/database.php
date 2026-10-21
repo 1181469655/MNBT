@@ -118,7 +118,7 @@ if($egn == "Delalldatabase")
 {
     $name = $yhc['sqldz'];
 	$mysqluser = $yhc['sqluser'];
-	$mysqpassword = $yhc['sqlpass'];
+	$mysqpassword = mnbt_secret_decrypt($yhc['sqlpass'] ?? '');
 	$mysqldb = $mysqluser;
 	$conn = mysqli_connect("localhost",$mysqluser,$mysqpassword,$mysqldb);
 	if (!$conn) {

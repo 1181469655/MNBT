@@ -39,9 +39,10 @@ function dns_provider_adapter($providerRow)
 {
 	if (!$providerRow) return null;
 	$slug = $providerRow['slug'] ?? '';
+	$apiSecret = mnbt_secret_decrypt($providerRow['api_secret'] ?? '');
 	switch ($slug) {
 		case 'dnspod':
-			return new DomainShop_DNSPod($providerRow['api_id'], $providerRow['api_secret']);
+			return new DomainShop_DNSPod($providerRow['api_id'], $apiSecret);
 		// 后续扩展：cloudflare / aliyun
 		default:
 			return null;

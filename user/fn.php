@@ -18,7 +18,7 @@ function tihs($data,$arr=false,$yhc){            //替换数据
     $data=str_ireplace('[cn_host]','localhost',$data);
     $data=str_ireplace('[cn_port]','3306',$data);
     $data=str_ireplace('[cn_user]',$yhc['sqluser'],$data);
-    $data=str_ireplace('[cn_pass]',$yhc['sqlpass'],$data);
+    $data=str_ireplace('[cn_pass]',mnbt_secret_decrypt($yhc['sqlpass'] ?? ''),$data);
     $data=str_ireplace('[cn_name]',$yhc['sqluser'],$data);
     $data=str_ireplace('[cn_date]',date("Y-m-d H:i:s"),$data);
     if($arr){

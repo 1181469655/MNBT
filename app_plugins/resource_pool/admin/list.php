@@ -120,7 +120,7 @@ $page_url = function ($n) use ($kw, $status_f) {
                 </td>
                 <td><?= htmlspecialchars($p['username'], ENT_QUOTES, 'UTF-8') ?></td>
                 <td>
-                  <span class="rp-pass" data-pass="<?= htmlspecialchars($p['password'], ENT_QUOTES, 'UTF-8') ?>">••••••</span>
+                  <span class="rp-pass" data-pass="<?= htmlspecialchars(mnbt_secret_decrypt($p['password'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">••••••</span>
                   <a href="#!" class="ml-1 small" onclick="rpTogglePass(this);return false;">显示</a>
                 </td>
                 <td>

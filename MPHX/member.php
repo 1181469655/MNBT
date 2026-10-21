@@ -32,7 +32,7 @@ if($conf['kzmbqk']=='false'){sysmsg('控制面板已经被关闭详细请联系�
 	$user = $td_token_parts[0] ?? '';
 	$sid = $td_token_parts[1] ?? '';
 	$yhc = $DB->get_row_prepare("SELECT * FROM MN_zj WHERE user=? limit 1", [$user]);
-	$session=is_array($yhc) ? md5($yhc['user'].$yhc['pass'].$password_hash) : '';
+	$session=is_array($yhc) ? md5($yhc['user'].mnbt_secret_decrypt($yhc['pass']).$password_hash) : '';
 	if(is_array($yhc) && $session==$sid) {
 		$islogins=1;
 		$yhid=$yhc['id'];

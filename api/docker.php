@@ -47,7 +47,7 @@ if ($key != $conf['api']) {
 }
 $cert = $DB->get_row_prepare("SELECT * FROM MN_docker_node WHERE id=? limit 1", [(int)$bh]);
 if (!$cert || $cert['qk'] !== 'true') api_json_exit(100, '错误！该 Docker 节点不存在或已被关闭');
-if ($keye != md5($cert['ktmy'] . $cert['qmk'])) {
+if ($keye != md5(mnbt_secret_decrypt($cert['ktmy']) . mnbt_secret_decrypt($cert['qmk']))) {
 	mnbt_log('外部API', 'DockerAPI鉴权', 'DockerAPI-' . $bh . ' ' . $user . ' 调用密钥错误', '鉴权失败', $DB);
 	api_json_exit(100, '错误！节点调用密钥不匹配');
 }

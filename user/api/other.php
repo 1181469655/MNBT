@@ -69,9 +69,9 @@ if($egn=='indexconf'){
     $ftpdz = $cert['ftpdz'] ?? false;
     $arr['config']['ftp']['host']=$ftpdz==false ? ($cert['btip'] ?? '') : $ftpdz;
     $arr['config']['ftp']['user']=$yhc['user'] ?? '';
-    $arr['config']['ftp']['pass']=$yhc['pass'] ?? '';
+    $arr['config']['ftp']['pass']=mnbt_secret_decrypt($yhc['pass'] ?? '');
     $arr['config']['sql']['user']=$yhc['sqluser'] ?? '';
-    $arr['config']['sql']['pass']=$yhc['sqlpass'] ?? '';
+    $arr['config']['sql']['pass']=mnbt_secret_decrypt($yhc['sqlpass'] ?? '');
     $arr['php']=['dq'=>$r_datc['phpversion'] ?? '', 'list'=>$r_data];
     exit(json_encode(["qk"=>1,'code'=>"获取成功！",'msg'=>$arr],256));
     return;

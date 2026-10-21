@@ -20,7 +20,7 @@ if($egn=='addbt') {
 	$ktmy=md5($dati);
 	$qmk=md5($kiterw);
 	logjl($user,'添加宝塔','添加了一个编号为'.$bh.'的宝塔','添加成功',$DB);
-	if($DB->query_prepare("INSERT INTO `MN_bt` (`id`, `btip`, `btdk`, `btmy`, `date`, `ktmy`, `qmk`, `btdh`, `qk`, `btos`, `als`, `ptl`, `ftpdz`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)", [$id, $ip, $dk, $key, $date, $ktmy, $qmk, $bh, $kg, $btos, $urlla, $xieyi, $ftpdz])) {
+	if($DB->query_prepare("INSERT INTO `MN_bt` (`id`, `btip`, `btdk`, `btmy`, `date`, `ktmy`, `qmk`, `btdh`, `qk`, `btos`, `als`, `ptl`, `ftpdz`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)", [$id, $ip, $dk, mnbt_secret_encrypt($key), $date, mnbt_secret_encrypt($ktmy), mnbt_secret_encrypt($qmk), $bh, $kg, $btos, $urlla, $xieyi, $ftpdz])) {
 		// 添加成功后自动检测并设置默认 PHP 版本（非阻塞）
 		if (is_file(SYSTEM_ROOT . 'bt_php.function.php')) {
 			require_once SYSTEM_ROOT . 'bt_php.function.php';
@@ -54,7 +54,7 @@ if($egn=='btsc') {
 if($egn=='btsj') {
 	$id=$_POST['id'];
 	$cres=$DB->get_row_prepare("SELECT * FROM MN_bt WHERE id=? limit 1", [$id]);
-	exit('{"code":"1","ip":"'.$cres['btip'].'","dk":"'.$cres['btdk'].'","my":"'.$cres['btmy'].'","kg":"'.$cres['qk'].'","btos":"'.$cres['btos'].'"}');
+	exit('{"code":"1","ip":"'.$cres['btip'].'","dk":"'.$cres['btdk'].'","my":"'.mnbt_secret_decrypt($cres['btmy']).'","kg":"'.$cres['qk'].'","btos":"'.$cres['btos'].'"}');
 	return;
 }
 if($egn=='xgjl') {
@@ -68,7 +68,7 @@ if($egn=='xgjl') {
 	$ftpdz=daddslashes($_POST['ftpdz']);
 	$xieyi=daddslashes($_POST['xieyi']);
 	logjl($user,'修改宝塔','对ID为'.$id.'的宝塔进行了修改','修改成功',$DB);
-	if($DB->query_prepare("update `MN_bt` set `btip` =?,`btdk` =?,`btmy` =?,`qk` =?,`btos` =?,`als` =?,`ptl` =?,`ftpdz` =? where `id`=?", [$ip,$dk,$key,$kg,$btos,$urlla,$xieyi,$ftpdz,$id]))json_exit('修改成功'); else json_exit('修改失败'.$DB->error());
+	if($DB->query_prepare("update `MN_bt` set `btip` =?,`btdk` =?,`btmy` =?,`qk` =?,`btos` =?,`als` =?,`ptl` =?,`ftpdz` =? where `id`=?", [$ip,$dk,mnbt_secret_encrypt($key),$kg,$btos,$urlla,$xieyi,$ftpdz,$id]))json_exit('修改成功'); else json_exit('修改失败'.$DB->error());
 	return;
 }
 if($egn=='mnbt') {
@@ -106,8 +106,11 @@ if($egn=='listbt') {
 	$countdata=$DB->count_prepare("SELECT count(*) from MN_bt WHERE 1");
 	$data=["total"=>$countdata];
 	$rows=$DB->get_all_prepare("SELECT * FROM MN_bt order by $paixu $sorting limit $pageu,$pagesize");
-	// 计算调用密钥 dymy = md5(ktmy.qmk)，前端直接用不需要算 md5
+	// 计算调用密钥 dymy = md5(ktmy.qmk)，前端直接用不需要算 md5;btmy 解密供编辑表单回填
 	foreach($rows as &$r){
+		$r['btmy'] = mnbt_secret_decrypt($r['btmy']);
+		$r['ktmy'] = mnbt_secret_decrypt($r['ktmy']);
+		$r['qmk'] = mnbt_secret_decrypt($r['qmk']);
 		$r['dymy']=md5($r['ktmy'].$r['qmk']);
 	}
 	unset($r);

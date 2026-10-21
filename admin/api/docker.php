@@ -25,6 +25,13 @@ function docker_admin_node_instance($nodeId)
 // ===== 节点列表 =====
 if ($egn === 'docker_node_list') {
 	$rows = $DB->get_all_prepare("SELECT * FROM MN_docker_node ORDER BY id DESC") ?: [];
+	// btmy/ktmy/qmk 解密：btmy 供编辑表单回填，ktmy/qmk 回填防误清空（列表页只显示"已设置"标记）
+	foreach ($rows as &$r) {
+		$r['btmy'] = mnbt_secret_decrypt($r['btmy']);
+		$r['ktmy'] = mnbt_secret_decrypt($r['ktmy']);
+		$r['qmk'] = mnbt_secret_decrypt($r['qmk']);
+	}
+	unset($r);
 	exit(json_encode(['code' => 0, 'msg' => '', 'count' => count($rows), 'data' => $rows], JSON_UNESCAPED_UNICODE));
 }
 
@@ -39,7 +46,7 @@ if ($egn === 'docker_node_add') {
 	$qmk = daddslashes($_POST['qmk'] ?? '');
 	$qk = daddslashes($_POST['qk'] ?? 'true');
 	if ($name === '' || $btip === '' || $btmy === '') json_exit('节点名、面板地址、接口密钥不能为空');
-	if ($DB->query_prepare("INSERT INTO MN_docker_node (name,btip,btdk,ptl,btmy,ktmy,qmk,qk,date) VALUES (?,?,?,?,?,?,?,?,?)", [$name, $btip, $btdk, $ptl, $btmy, $ktmy, $qmk, $qk, $date])) {
+	if ($DB->query_prepare("INSERT INTO MN_docker_node (name,btip,btdk,ptl,btmy,ktmy,qmk,qk,date) VALUES (?,?,?,?,?,?,?,?,?)", [$name, $btip, $btdk, $ptl, mnbt_secret_encrypt($btmy), mnbt_secret_encrypt($ktmy), mnbt_secret_encrypt($qmk), $qk, $date])) {
 		mnbt_log($user, 'Docker节点', '添加节点 ' . $name, '添加成功', $DB);
 		json_exit('添加成功');
 	}
@@ -59,7 +66,7 @@ if ($egn === 'docker_node_edit') {
 	$qk = daddslashes($_POST['qk'] ?? 'true');
 	if ($id <= 0) json_exit('参数错误');
 	if ($name === '' || $btip === '' || $btmy === '') json_exit('节点名、面板地址、接口密钥不能为空');
-	if ($DB->query_prepare("UPDATE MN_docker_node SET name=?,btip=?,btdk=?,ptl=?,btmy=?,ktmy=?,qmk=?,qk=? WHERE id=?", [$name, $btip, $btdk, $ptl, $btmy, $ktmy, $qmk, $qk, $id])) {
+	if ($DB->query_prepare("UPDATE MN_docker_node SET name=?,btip=?,btdk=?,ptl=?,btmy=?,ktmy=?,qmk=?,qk=? WHERE id=?", [$name, $btip, $btdk, $ptl, mnbt_secret_encrypt($btmy), mnbt_secret_encrypt($ktmy), mnbt_secret_encrypt($qmk), $qk, $id])) {
 		mnbt_log($user, 'Docker节点', '编辑节点 ID' . $id, '编辑成功', $DB);
 		json_exit('编辑成功');
 	}
