@@ -9,8 +9,8 @@
         <t-select v-model="range" style="width: 130px" @change="onRangeChange">
           <t-option value="today" label="今日" />
           <t-option value="yesterday" label="昨日" />
-          <t-option value="7days" label="近7天" />
-          <t-option value="30days" label="近30天" />
+          <t-option value="7d" label="近7天" />
+          <t-option value="30d" label="近30天" />
         </t-select>
         <t-button theme="default" variant="outline" @click="loadAll">
           <i class="mdi mdi-refresh"></i> 刷新
@@ -166,7 +166,7 @@ const summaryCards = computed(() => {
 })
 
 function rangeText() {
-  const m = { today: '今日', yesterday: '昨日', '7days': '近7天', '30days': '近30天' }
+  const m = { today: '今日', yesterday: '昨日', '7d': '近7天', '30d': '近30天' }
   return m[range.value] || range.value
 }
 
@@ -192,30 +192,42 @@ async function loadOverview() {
   overviewLoading.value = true
   const r = await getSiteStats('overview', range.value)
   overviewLoading.value = false
-  if (r.ok && r.data) {
-    overview.value = r.data
-  } else {
+  if (!r.ok || !r.data || typeof r.data !== 'object') {
     overview.value = null
+    if (!r.ok && r.message && r.message !== 'ok') MessagePlugin.warning(r.message)
+    return
   }
+  // 插件返回 {status, data:{...}} 信封，parseResult 会把整个信封当 data 给前端
+  if (r.data.status === false) {
+    overview.value = null
+    MessagePlugin.warning(r.data.msg || '统计插件返回失败')
+    return
+  }
+  const inner = r.data.data
+  overview.value = inner && typeof inner === 'object' && !Array.isArray(inner) ? inner : r.data
 }
 
 async function loadDetail() {
   detailLoading.value = true
   const r = await getSiteStats(detailTab.value, range.value, pagination.current, pagination.pageSize)
   detailLoading.value = false
-  if (r.ok && r.data) {
-    // 排行/日志统一在 data 字段返回行数组,total 为总数(后端已按 page/page_size 分页)
-    const d = r.data
-    const obj = Array.isArray(d) ? { data: d } : (d || {})
-    rows.value = obj.data || obj.list || obj.rows || []
-    pagination.total = obj.total || rows.value.length
-  } else {
+  if (!r.ok) {
     rows.value = []
     pagination.total = 0
-    if (!r.ok && r.message && r.message !== 'ok') {
-      MessagePlugin.warning(r.message)
-    }
+    if (r.message && r.message !== 'ok') MessagePlugin.warning(r.message)
+    return
   }
+  const env = r.data
+  if (env && typeof env === 'object' && env.status === false) {
+    rows.value = []
+    pagination.total = 0
+    MessagePlugin.warning(env.msg || '统计插件返回失败')
+    return
+  }
+  // 排行/日志的行数组在信封 data 字段,total 为总数(后端已按 page/page_size 分页)
+  const obj = Array.isArray(env) ? { data: env } : (env || {})
+  rows.value = obj.data || obj.list || obj.rows || []
+  pagination.total = obj.total || rows.value.length
 }
 
 async function loadAll() {

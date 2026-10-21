@@ -302,9 +302,15 @@ function parseSpace(v) {
   }
 }
 
+// llmax 约定：dq 为日志累加的字节数，max 已是 GB（jk.php/sxsyxx 同口径），展示前换算成 GB
+function parseFlow(v) {
+  const o = parseSpace(v)
+  return { dq: +(o.dq / (1024 * 1024 * 1024)).toFixed(2), max: o.max }
+}
+
 const hxa = ref(parseSpace(yhc.hxa))
 const hxb = ref(parseSpace(yhc.hxb))
-const llmax = ref(parseSpace(yhc.llmax))
+const llmax = ref(parseFlow(yhc.llmax))
 
 // 保存原始 lls 数据,用于绘制趋势图
 const rawLls = ref(null)
@@ -380,7 +386,7 @@ async function loadSpace() {
     const d = r.data
     if (d.hxa) hxa.value = parseSpace(d.hxa)
     if (d.hxb) hxb.value = parseSpace(d.hxb)
-    if (d.llmax) llmax.value = parseSpace(d.llmax)
+    if (d.llmax) llmax.value = parseFlow(d.llmax)
     nextTick(renderGauges)
     // sxsyxx 只写库不回传新值,刷新后重读 indexconf(web/sql/lls 即新值)
     await loadIndexConf()
@@ -398,9 +404,7 @@ function applyIndexConf(conf) {
   }
   if (conf.lls) {
     rawLls.value = conf.lls
-    const dqBytes = Number(conf.lls.dq) || 0
-    const maxG = Number(conf.lls.max) || 0
-    llmax.value = { dq: +(dqBytes / (1024 * 1024 * 1024)).toFixed(2), max: maxG }
+    llmax.value = parseFlow(conf.lls)
     nextTick(() => {
       renderGauges()
       renderChart()

@@ -78,7 +78,7 @@
           <span :class="spaceOver(row.hxb) ? 'td-text-danger' : ''">{{ formatSpace(row.hxb) }}</span>
         </template>
         <template #llmax="{ row }">
-          <span :class="spaceOver(row.llmax) ? 'td-text-danger' : ''">{{ formatFlow(row.llmax) }}</span>
+          <span :class="flowOver(row.llmax) ? 'td-text-danger' : ''">{{ formatFlow(row.llmax) }}</span>
         </template>
         <template #data="{ row }">{{ fmtTime(row.data) }}</template>
         <template #datae="{ row }">
@@ -92,7 +92,7 @@
             <div class="td-status-tags">
               <span v-if="spaceOver(row.hxa)" class="td-chip td-chip-danger">网页超</span>
               <span v-if="spaceOver(row.hxb)" class="td-chip td-chip-danger">数据库超</span>
-              <span v-if="spaceOver(row.llmax)" class="td-chip td-chip-danger">流量超</span>
+              <span v-if="flowOver(row.llmax)" class="td-chip td-chip-danger">流量超</span>
               <span v-if="isExpired(row.datae)" class="td-chip td-chip-danger">已到期</span>
             </div>
           </div>
@@ -245,10 +245,11 @@ function formatSpace(v) {
   return `${dq} / ${max} MB`
 }
 
+// llmax 约定：dq 为日志累加的字节数，max 已是 GB（jk.php/sxsyxx 同口径）
 function formatFlow(v) {
   const o = parseJson(v)
   if (!o) return '-'
-  const dq = Number(o.dq) || 0
+  const dq = +((Number(o.dq) || 0) / (1024 * 1024 * 1024)).toFixed(2)
   const max = Number(o.max) || 0
   if (max === 0) return `${dq} / ∞ G`
   return `${dq} / ${max} G`
@@ -260,6 +261,13 @@ function spaceOver(v) {
   const dq = Number(o.dq) || 0
   const max = Number(o.max) || 0
   return max > 0 && dq > max
+}
+
+function flowOver(v) {
+  const o = parseJson(v)
+  if (!o) return false
+  const max = Number(o.max) || 0
+  return max > 0 && (Number(o.dq) || 0) > max * 1024 * 1024 * 1024
 }
 
 function isExpired(datae) {
