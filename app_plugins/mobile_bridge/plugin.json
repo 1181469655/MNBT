@@ -1,0 +1,9 @@
+{
+  "id": "mobile_bridge",
+  "name": "移动桥接（APP）",
+  "version": "1.0.0",
+  "author": "MNBT",
+  "description": "为 MNBT 主机管理 APP 提供 Bearer 令牌鉴权的 /app/v1 接口桥与设备绑定页",
+  "requires_mnbt": "1.88",
+  "type": ["tool", "integration"]
+}
