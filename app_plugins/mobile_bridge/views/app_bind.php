@@ -41,6 +41,7 @@ body { margin:0; background:var(--bg); color:var(--text); font-family:system-ui,
 .code-info { flex:1; min-width:240px; }
 .code-str { font-family:ui-monospace,Consolas,monospace; font-size:28px; letter-spacing:6px; color:var(--brand); margin:4px 0 10px; }
 .count { color:var(--text-2); font-size:13px; margin-bottom:14px; }
+.base { color:var(--text-2); font-size:12px; line-height:1.6; margin:0 0 12px; word-break:break-all; }
 .hint { color:var(--text-2); font-size:13px; line-height:1.8; background:#f7f9fc; border:1px solid var(--border); border-radius:6px; padding:12px 14px; margin-top:16px; }
 .hint b { color:var(--text); }
 table { width:100%; border-collapse:collapse; }
@@ -73,6 +74,7 @@ td .act:hover { text-decoration:underline; }
 					<div style="color:var(--text-2);font-size:13px">配对码</div>
 					<div class="code-str" id="code-str">--------</div>
 					<div class="count" id="count-line">有效期 120 秒</div>
+					<div class="base" id="base-line"></div>
 					<button class="btn btn-plain" onclick="genCode()">
 						<i class="mdi mdi-refresh"></i>重新生成
 					</button>
@@ -130,20 +132,25 @@ td .act:hover { text-decoration:underline; }
 	}
 
 	/* ---------- 配对码 + 二维码 ---------- */
-	var qrApp = null;
+	var qrState = null;
 	function renderQR(url) {
 		var mount = document.getElementById('qr-mount');
-		mount.innerHTML = '';
-		if (!window.Vue || !window.TDesign) { mount.textContent = '二维码组件不可用，请使用手动配对'; return; }
-		if (!qrApp) {
-			qrApp = Vue.createApp({
-				data: function () { return { url: '' }; },
-				template: '<t-qrcode :value="url" :size="220" level="M" border-width="4"></t-qrcode>'
-			});
-			qrApp.use(TDesign);
-			qrApp.mount(mount);
+		if (!window.Vue || !window.TDesign) {
+			mount.innerHTML = '';
+			mount.textContent = '二维码组件不可用，请使用手动配对';
+			return;
 		}
-		qrApp._instance.proxy.url = url;
+		if (!qrState) {
+			// 用外部 reactive 驱动重绘，避免「重新生成」时改不动已挂载组件
+			qrState = Vue.reactive({ url: '' });
+			var app = Vue.createApp({
+				setup: function () { return { qrState: qrState }; },
+				template: '<t-qrcode :value="qrState.url" :size="220" level="M"></t-qrcode>'
+			});
+			app.use(TDesign);
+			app.mount(mount);
+		}
+		qrState.url = url;
 	}
 
 	var timer = null;
@@ -155,7 +162,9 @@ td .act:hover { text-decoration:underline; }
 			if (!res || res.qk !== 1 || !res.code) { toast((res && res.code) || '生成失败', true); return; }
 			document.getElementById('pair-area').style.display = 'flex';
 			document.getElementById('code-str').textContent = res.code;
-			renderQR(res.qr_url || '');
+			var qr = String(res.qr_url || '');
+			document.getElementById('base-line').textContent = qr ? ('APP 将连接的地址：' + qr.split('/index.php')[0]) : '';
+			renderQR(qr);
 			var left = res.expires_in || 120;
 			var line = document.getElementById('count-line');
 			clearInterval(timer);

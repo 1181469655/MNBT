@@ -13,28 +13,22 @@ if (!function_exists('mnbt_app_pair_generate')) {
 	{
 		global $DB;
 		$alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-		$code = '';
-		for ($i = 0; $i < 8; $i++) {
-			$code .= $alphabet[random_int(0, strlen($alphabet) - 1)];
-		}
 		$now = time();
-		// 主键唯一，极小概率碰撞时重试一次
+		// 同一主机只保留最新一张未用码：重新生成即让旧码立即失效
 		$DB->query_prepare("DELETE FROM `MN_plugin_app_pair` WHERE `zj_id`=? AND `used`=0", [(int)$zj_id]);
-		$ok = $DB->query_prepare(
-			"INSERT INTO `MN_plugin_app_pair` (`code`,`zj_id`,`created_at`,`expires_at`,`used`) VALUES (?,?,?,?,0)",
-			[$code, (int)$zj_id, $now, $now + 120]
-		);
-		if (!$ok) {
+		// code 是主键，极小概率碰撞时换码重试；三次都失败返回空串，由调用方报错
+		for ($try = 0; $try < 3; $try++) {
 			$code = '';
 			for ($i = 0; $i < 8; $i++) {
 				$code .= $alphabet[random_int(0, strlen($alphabet) - 1)];
 			}
-			$DB->query_prepare(
+			$ok = $DB->query_prepare(
 				"INSERT INTO `MN_plugin_app_pair` (`code`,`zj_id`,`created_at`,`expires_at`,`used`) VALUES (?,?,?,?,0)",
 				[$code, (int)$zj_id, $now, $now + 120]
 			);
+			if ($ok) return $code;
 		}
-		return $code;
+		return '';
 	}
 }
 
@@ -81,7 +75,14 @@ if (!function_exists('mnbt_app_pair_page_url')) {
 }
 
 if (!function_exists('mnbt_app_site_base')) {
-	/** 站点根（含子目录部署前缀，不带尾斜杠），scheme 按实际连接判定 */
+	/**
+	 * 站点根（含子目录部署前缀，不带尾斜杠），scheme 按实际连接判定。
+	 *
+	 * 不能用 dirname(SCRIPT_NAME) 单独定根：面板页在 /user/ajax.php、/user/plugin.php 下触发，
+	 * 那样算出的 base 会多一段 /user，二维码里的地址直接 404。core 在 common.php 里已按
+	 * DOCUMENT_ROOT 与项目物理根算出 $siteWebRoot（形如 / 或 /mnbt/），非根目录时优先采信；
+	 * 它退化成 / 时再按入口脚本目录推断（伪静态下 SCRIPT_NAME 已是 /index.php，不受影响）。
+	 */
 	function mnbt_app_site_base()
 	{
 		$scheme = (function_exists('mnbt_request_is_secure') && mnbt_request_is_secure()) ? 'https' : 'http';
@@ -89,6 +90,13 @@ if (!function_exists('mnbt_app_site_base')) {
 		$script = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? '/index.php'));
 		$dir = rtrim(dirname($script), '/');
 		if ($dir === '.' || $dir === '/') $dir = '';
-		return $scheme . '://' . $host . $dir;
+		// 入口脚本位于核心子目录时去掉该级，避免把 /user、/admin 当成站点根
+		$dir = preg_replace('#/(user|admin)$#', '', $dir);
+		$prefix = $dir;
+		if (isset($GLOBALS['siteWebRoot']) && is_string($GLOBALS['siteWebRoot'])) {
+			$fs = rtrim(str_replace('\\', '/', $GLOBALS['siteWebRoot']), '/');
+			if ($fs !== '' && $fs !== '/') $prefix = $fs;
+		}
+		return $scheme . '://' . $host . $prefix;
 	}
 }

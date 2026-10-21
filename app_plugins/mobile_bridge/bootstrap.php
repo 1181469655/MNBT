@@ -84,8 +84,8 @@ mnbt_register_menu('user', [
 mnbt_register_ajax('user', 'p_mobile_bridge_gen_code', function () {
 	global $DB, $yhc;
 	$uid = (string)($yhc['user'] ?? '');
-	if (function_exists('mnbt_throttle_exceeded') && mnbt_throttle_exceeded('app_gen_code', $uid, 10, 600)) {
-		json_exit_error('生成过于频繁，请 10 分钟后再试');
+	if (function_exists('mnbt_throttle_exceeded') && mnbt_throttle_exceeded('app_gen_code', $uid, 20, 600)) {
+		json_exit_error('生成过于频繁，每 10 分钟最多 20 次，请稍后再试');
 	}
 	mnbt_app_pair_gc();
 	$code = mnbt_app_pair_generate((int)$yhc['id']);

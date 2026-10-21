@@ -153,7 +153,7 @@ APP 侧 `HostHttpClientFactory` 默认 CONNECT 15s / READ 30s。以下动作**�
 - 配对码：8 位，字符集 `ABCDEFGHJKLMNPQRSTUVWXYZ23456789`（无 0/O/1/I），**TTL 120 秒、单次使用**。并发双花用 MyISAM `affected_rows` 抢占挡住。
 - 同一 `device_id` 再次配对 = **换绑**：旧设备行 `status` 置 0（旧令牌立刻失效），插新行发新令牌。APP 换手机/重装要预期"旧设备自动下线"。
 - 限流：`pair` 按 **IP 5 次 / 600 秒**，只统计**失败**尝试，成功一次即清零。超限回 `1008 + retry_after`。
-- 面板侧生成配对码另有 **10 次 / 600 秒 / 用户** 的限流（走面板提示，不是 bridge 包络）。
+- 面板侧生成配对码另有 **20 次 / 600 秒 / 用户** 的限流（走面板提示，不是 bridge 包络）。
 - `device_id` 建议用 Android 侧稳定标识（安装期生成并持久化，别用 IMEI/序列号），最长 64 字符，其余字段分别截断 120/120/20/20。
 
 ### 4.2 逐 action
@@ -166,7 +166,7 @@ APP 侧 `HostHttpClientFactory` 默认 CONNECT 15s / READ 30s。以下动作**�
 | `device.list` | Bearer | — | `list[]{id:Int, device_id, device_name, device_model, app_version, created_at, last_seen_at, last_ip}`（只含启用中的设备） |
 | `device.revoke` | Bearer | — | `revoked:Bool`（吊销**当前令牌**，之后自己回 1001） |
 
-- `site.base` 由服务端按本次请求实际命中的 host/scheme/script 拼出，**APP 只在与其一致时才采纳**（防串站）；不一致就保留用户手填的 base。
+- `site.base` 取「scheme + 本次请求的 Host + 站点部署前缀」，前缀按项目物理根相对 Web 根目录推出（子目录部署时是 `/mnbt` 这类），**不含 `/user`、`/admin` 等入口脚本目录**；**APP 只在与其一致时才采纳**（防串站），不一致就保留用户手填的 base。
 - `actions` 是服务端支持的 action 全集，可用来做能力探测/灰度隐藏入口。`capabilities` 当前固定 `["file_bytes_transparent","chunked_upload","signed_download"]`。
 - 面板的「APP 配对」页也能列设备/吊销设备（走 cookie AJAX），与 `device.list` 数据同源。
 
