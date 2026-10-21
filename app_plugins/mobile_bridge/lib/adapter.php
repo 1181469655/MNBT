@@ -236,6 +236,10 @@ if (!function_exists('mnbt_app_register_shutdown')) {
 	{
 		register_shutdown_function(function () {
 			if (empty($GLOBALS['mnbt_app_dispatched']) || !empty($GLOBALS['mnbt_app_replied'])) return;
+			// 个别 action（host.overview）会先跑一个以 exit() 收尾的核心分支，再自己补发正确包络。
+			// 通用兜底注册在前、会先执行，若不认这个标志就会把核心那句文案当成最终响应发出去，
+			// 把 action 自己那份配额数据挤掉，所以这里必须主动让路。
+			if (!empty($GLOBALS['mnbt_app_overview_shutdown'])) return;
 			$GLOBALS['mnbt_app_replied'] = true; // 防重入
 			$err = error_get_last();
 			$fatal = $err && in_array($err['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true);

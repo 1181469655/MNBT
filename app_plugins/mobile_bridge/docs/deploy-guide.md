@@ -131,6 +131,36 @@ location ~* ^/(runtime|app_plugins/.*/runtime)/ { deny all; }
 
 ---
 
+### 4.3 站点带端口 / 前面挂了反代（配对二维码地址不对）
+
+配对页上「APP 将连接的地址」这一行就是服务端算出来的结果，**必须和用户浏览器地址栏的站点根完全一致**（含端口、含子目录）。不一致就是这一节的问题。
+
+常见病因：nginx 只把 `$host` 传给 PHP（不含端口），或 CDN/内网穿透把外部端口和监听端口分开了。三种解法，任选其一：
+
+1. **让 Web 服务器把带端口的 Host 原样传进来**（最直接）：
+   ```nginx
+   fastcgi_param HTTP_HOST $http_host;   # 别用 $host，$host 不带端口
+   ```
+   Apache 一般是原样透传，无需处理。
+2. **反代/CDN 场景声明可信代理**，让服务端读 `X-Forwarded-Host` / `X-Forwarded-Port` / `X-Forwarded-Proto`：
+   ```
+   SetEnv MNBT_TRUSTED_PROXIES 127.0.0.1,10.0.0.0/8
+   ```
+   只有来源 IP 命中这个列表时才采信转发头，配错会被人伪造 Host。**没配可信代理时转发头一律忽略。**
+   这个变量是**核心**读的，只认环境变量：Apache 用 `SetEnv`，nginx + PHP-FPM 要在 `www.conf` 里加 `env[MNBT_TRUSTED_PROXIES] = 127.0.0.1`（或 systemd 的 `Environment=`），`fastcgi_param` 对它无效。
+3. **端口映射/穿透（外部 8443 → 内部 443 这类）直接写死对外地址**，优先级最高、上面两条就不用管了：
+   ```
+   SetEnv MNBT_APP_BASE_URL https://panel.example.com:8443
+   # 或 nginx：fastcgi_param MNBT_APP_BASE_URL "https://panel.example.com:8443";
+   ```
+   插件环境变量和 `$_SERVER` 两种都读，所以 `fastcgi_param` 也能生效。值必须带 `http(s)://`，可以带子目录；写错（缺协议、非法 URL）会记一条 `[mobile_bridge]` 到 PHP 错误日志并回退自动探测，不会把接口打死。
+
+宝塔设置入口：站点 → 配置文件里加 `fastcgi_param`（推荐，改动只影响这个站）；`.user.ini` **设不了环境变量**，别往那儿写。**改完要重载 PHP-FPM 或 nginx**，`SetEnv` 对已经在跑的 worker 不生效。
+
+自检：改完在浏览器开面板「APP 配对」页生成一次，比对那一行地址；再让 APP 扫码，若仍失败就按 §4.1 查 `Authorization` 头。
+
+---
+
 ## 5. PHP 参数建议
 
 | 参数 | 建议值 | 为什么 |
@@ -170,10 +200,11 @@ location ~* ^/(runtime|app_plugins/.*/runtime)/ { deny all; }
 | 返回 `code:1006` | 主机绑定的宝塔节点在 `MN_bt` 里查不到 | 后台检查该主机的节点配置 |
 | 返回 `code:5000` + `trace_id` | 核心 handler 抛致命错误（少见：PHP 版本过低、缺扩展、目录不可读） | 让客户报 `trace_id`；在 PHP 错误日志里 `grep '\[mobile_bridge\]'`，同一条 trace 能定位到 action 与原因 |
 | 上传永远不到完成、状态文件不生成 | `runtime/upload_state` 不可写 | §4.2 |
-| 上传直接 1007「缺少 size」 | **APP 没发 `size` 字段**（这是 APP 侧待改项，见 `api-contract.md` §12-18） | 升级到修了此项的 APP |
+| 上传直接 1007「缺少 size」 | 客户端没随分片上报文件总字节数（新版 APP 已带；自建客户端要按 `api-contract.md` §7 补 `size`） | 升级客户端 |
 | 大 SQL 导入报 413 | WAF/`post_max_size` 卡住整包 | 放宽 §5，或改用「先 `file.upload` 传进去、再传路径」的导法（`api-contract.md` §8） |
 | 配对码总提示已过期 | 服务器时间不准（配对码按服务器时间算 TTL） | 校准 NTP |
 | 扫码后报「配对码不存在或已失效」，但手输 8 位码能成 | 二维码里的站点地址不对（子目录部署、或域名/HTTPS 走的不是同一个 Host） | 看配对页码下方「APP 将连接的地址」是否就是用户访问面板的地址；不对就按 §3 检查部署根目录与 `DOCUMENT_ROOT` |
+| 「APP 将连接的地址」少了端口（站点是 `https://域名:8443` 这类） | nginx 传的是 `$host` 不带端口，或端口映射/穿透让内外端口不一致 | §4.3 三种解法任选其一 |
 | 点「生成配对码」提示「生成过于频繁」 | 命中面板侧 20 次/10 分钟限流 | 等窗口过去；正常用户点不到这个量 |
 | APP 显示的空间/流量是 0 或不涨 | 核心本来就不实时写这几个字段 | `host.overview` 每次都会先刷一遍用量再回；APP 首页要调 `host.overview` 而不是只用 `pair` 时拿到的快照 |
 | 想全量下线所有 APP | — | 后台停用插件即可（路由不再注册，接口回 404/HTML）；要清数据就卸载，见 §8 |

@@ -13,6 +13,10 @@
  *
  * domain.list 因此不再代理核心 listurl（那个分支丢了 port 和 path），改为直接合并两个 BT 读接口；
  * ssl 位取站点级证书状态（本面板证书按站点签发，同站域名共享），节点不可达时回 false。
+ * 每行还带 dir（绑定目录，'/'=整站绑定），对应网页面板表格的「目录」列。
+ *
+ * 改前缀 = domain.prefix.set，照抄 domain_shop 的 p_domain_seturl：面板没有重命名原语，
+ * 实现是「删旧 + 按新前缀加新」两步，第二步失败时旧域名已经删掉了，错误文案里会明说。
  *
  * 日志：域名增删由 bridge 记（domain_shop 的 AJAX 不在这次调用链上）；
  * SSL 的申请/续签/设置/关闭/强制 HTTPS 核心 ssl.php 已各自 logjl，bridge 一条都不重复记。
@@ -172,17 +176,20 @@ if (!function_exists('mnbt_app_actions_domain_ssl')) {
 				$rows = mnbt_app_domain_rows();
 				$ssl = mnbt_app_site_has_cert();
 				$list = [];
-				// 主域永远排第一：APP 用 index==0 判定「主机主域名」标签
-				$list[] = ['domain' => $main, 'port' => 80, 'ssl' => $ssl, 'type' => 'main', 'status' => 'ok'];
+				// 主域永远排第一：APP 用 type=main 判定「主机主域名」标签
+				$list[] = ['domain' => $main, 'port' => 80, 'ssl' => $ssl, 'type' => 'main', 'status' => 'ok', 'dir' => '/'];
 				foreach ($rows as $row) {
 					$name = (string)$row['name'];
 					if ($name === '' || $name === $main) continue;
+					$path = (string)$row['path'];
 					$list[] = [
 						'domain' => $name,
 						'port' => (int)($row['port'] !== '' ? $row['port'] : 80),
 						'ssl' => $ssl,
-						'type' => $row['path'] === '/' ? 'top' : 'subdir',
+						'type' => $path === '/' ? 'top' : 'subdir',
 						'status' => 'ok',
+						// 目录列：网页面板表格里那列 path，'/' 表示整站绑定
+						'dir' => $path === '' ? '/' : $path,
 					];
 				}
 				mnbt_app_ok('ok', ['list' => $list, 'total' => count($list), 'limit' => (int)($yhc['ymbds'] ?? 0)]);
@@ -269,10 +276,92 @@ if (!function_exists('mnbt_app_actions_domain_ssl')) {
 				if (!$ok) mnbt_app_err(1009, '删除失败' . mnbt_app_text($r['msg'] ?? '', '未知错误'));
 				mnbt_app_ok('删除成功', ['domain' => $domain, 'port' => (int)$port, 'deleted' => true]);
 			}],
+			'domain.prefix.set' => ['auth' => 'ctx', 'cb' => function () {
+				global $api, $yhc, $zjid, $os_xt, $cert;
+				// 改前缀 = 网页面板的 p_domain_seturl（domain_shop/user/api/bind.php:147-204）：
+				// 面板没有「重命名」原语，实现就是拿旧域名删一条、按新前缀加一条，
+				// 两步各自的成功与否分别回错；这里逐条照抄，包括它的两档上限判定（前置 >、后置 >=）。
+				$old = strtolower(str_replace([' ', "\t"], '', (string)mnbt_app_p('domain', mnbt_app_p('old_domain'))));
+				$new_prefix = trim((string)mnbt_app_p('prefix', mnbt_app_p('xqz')));
+				if ($old === '') mnbt_app_err(1007, '缺少 domain');
+				if ($old === (string)$yhc['sqldz']) mnbt_app_err(1007, '禁止删除主机名称');
+
+				$target = null;
+				foreach (mnbt_app_domain_rows() as $row) {
+					if ($row['name'] === $old) { $target = $row; break; }
+				}
+				if ($target === null) mnbt_app_err(1007, '未找到该域名：' . $old);
+
+				// 前缀/主域按第一个点拆，与网页面板客户端的 indexOf('.') 一致
+				$dot = strpos($old, '.');
+				$old_prefix = $dot === false ? '' : substr($old, 0, $dot);
+				$zone = $dot === false ? '' : substr($old, $dot + 1);
+				if ($zone === '') $zone = (string)$yhc['sqldz'];
+				if (!preg_match('/^[0-9a-zA-Z]{1,24}$/', $new_prefix) || !preg_match('/^[0-9a-zA-Z]{1,24}$/', $old_prefix)) {
+					mnbt_app_err(1007, '域名前缀不合法！');
+				}
+				$new_prefix = strtolower($new_prefix);
+				$xurl = $new_prefix . '.' . $zone;
+				if ($xurl === $old) mnbt_app_err(1007, '新前缀与原名相同');
+
+				$dir = trim((string)mnbt_app_p('dir', mnbt_app_p('path')));
+				$path = $dir !== '' ? $dir : (string)($target['path'] ?? '/');
+				if ($path === '') $path = '/';
+				$port = (string)mnbt_app_p('port', (string)($target['port'] !== '' ? $target['port'] : '80'));
+				if ($port === '') $port = '80';
+
+				$rows = mnbt_app_domain_rows();
+				$max = (int)($yhc['ymbds'] ?? 0);
+				$cur = count($rows);
+				if ($max > 0 && $cur > $max + 1) {
+					mnbt_app_err(1007, '添加失败！域名已达到最大绑定数！如想继续添加则请删除多余闲置域名！（当前 ' . $cur . '/上限 ' . $max . '）');
+				}
+
+				if ($path === '/') {
+					$r = $api->btapi_delym($zjid, (string)$yhc['sqldz'], $old, $port) ?: [];
+				} else {
+					$r = $api->delzml($zjid, $old, $os_xt . $yhc['sqldz']) ?: [];
+				}
+				$ok = is_array($r) && mnbt_app_is_on($r['status'] ?? false);
+				if (!$ok) {
+					mnbt_app_log('域名修改', '将域名' . $old . '修改为' . $xurl, '删除失败:' . mnbt_app_text($r['msg'] ?? '', '未知错误'));
+					mnbt_app_err(1009, '删除失败' . mnbt_app_text($r['msg'] ?? '', '未知错误'));
+				}
+
+				// 删完再判一次：与网页面板同口径（add 用的是 >=），也顺带挡住「新名撞 IP」
+				preg_match('/\d+\.\d+\.\d+\.\d+/', $xurl, $ure);
+				$btip = (string)(is_array($cert) ? ($cert['btip'] ?? '') : '');
+				if ($btip !== '' && ($xurl === $btip || ($ure[0] ?? '') === $btip)) {
+					mnbt_app_err(1007, '禁止添加本站IP！');
+				}
+				$after = count(mnbt_app_domain_rows());
+				if ($max > 0 && $after >= $max + 1) {
+					mnbt_app_err(1007, '添加失败！域名已达到最大绑定数！（当前 ' . $after . '/上限 ' . $max . '）');
+				}
+				if (strpos($path, '/') !== false) {
+					$r2 = $api->btapi_addym($zjid, (string)$yhc['sqldz'], $xurl . ':' . $port) ?: [];
+				} else {
+					$r2 = $api->addzml($zjid, $xurl . ':' . $port, $path, $os_xt . $yhc['sqldz']) ?: [];
+				}
+				$ok2 = is_array($r2) && mnbt_app_is_on($r2['status'] ?? false);
+				mnbt_app_log('域名修改', '将域名' . $old . '修改为' . $xurl, $ok2 ? '修改成功' : '修改失败:' . mnbt_app_text($r2['msg'] ?? '', '未知错误'));
+				if (!$ok2) mnbt_app_err(1009, '添加失败' . mnbt_app_text($r2['msg'] ?? '', '未知错误') . '（原域名 ' . $old . ' 已删除，请重新添加）');
+				mnbt_app_ok('修改成功', [
+					'domain' => $xurl,
+					'old_domain' => $old,
+					'port' => (int)$port,
+					'dir' => $path,
+					'added' => true,
+					'bound' => $after + 1,
+					'limit' => $max,
+				]);
+			}],
 			'ssl.get' => ['auth' => 'ctx', 'cb' => function () {
-				// 核心 getssl 返回裸 JSON（无 qk/success），normalize 走形态3 默认成功
+				// 核心 getssl 返回裸 JSON（无 qk/success），且其中 status 字段是「有没有证书」
+				// 的业务状态：无证书时回 false，会被 adapter 形态3 误判成请求失败，
+				// 导致「没有证书」这个正常态在 APP 上变成整页报错。故不按 $s 短路。
 				mnbt_app_proxy_run('ssl.php', 'getssl', [], function ($s, $c, $m, $d) {
-					if (!$s) return [$s, $c, $m, $d];
+					$d = is_array($d) ? $d : [];
 					$pem = mnbt_app_text($d['cert_data'] ?? '', '');
 					$cert = mnbt_app_ssl_cert_info($pem, $d['status'] ?? '');
 					return [true, 0, 'ok', [

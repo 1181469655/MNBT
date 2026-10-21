@@ -14,7 +14,8 @@
 3. 能力缺口不装作支持：面板做不到的动作一律 `code=1010` + 一句中文原因（§11）。APP 现在把 1010 映射成 `MnbtException.PluginTooOld` → `HostOutcome.Failed` → Snackbar，**这条路径正合适，别改成整页失效**。
 4. kotlinx 是严格解码：**类型不对就整包失败**，多余字段无所谓。所有字段的 JSON 类型在 §3 和逐 action 表里写死了，请照抄 DTO，不要指望"字符串数字也能parse"。
 5. 本次全部逻辑在插件目录内完成，**没有改 MNBT 核心任何一个文件**；插件只新增两张自己的表。
-6. 覆盖度：`MnbtActions.kt` 里声明的 **69 个 action（含 `pair`）全部有实现**，一个都不缺。插件另外多给 5 个当前 APP 没调的接口：`device.list`、`db.access.get`、`db.backup.create`、`db.backup.delete`、`site.proxy.get`（前 4 个正是 §12 里让 APP 改接的目标）。GET `/app/v1/pair_page`（扫码落地页）也在插件里。
+6. 覆盖度：`MnbtActions.kt` 里声明的 action（含 `pair`）**全部有实现**，一个都不缺。插件另外多给 4 个接口：`db.backup.create`、`db.backup.delete`（**APP 已接上，用作建/删库语义的替代**）、`device.list`、`db.access.get`。GET `/app/v1/pair_page`（扫码落地页）也在插件里。
+7. 「反向代理」「索引配置」已按产品决定从 APP 下线，插件不再注册 `site.proxy.get` / `site.proxy.set` / `site.indexconf.set`，APP 侧对应页面与常量一并删除（默认文档 `indexdoc` 保留，与索引配置不是一回事）。
 
 ---
 
@@ -27,7 +28,7 @@
 | A（推荐，无 rewrite 也能跑） | `POST {base}/index.php?_r=/app/v1/{action}` | 无 |
 | B（美化路径） | `POST {base}/app/v1/{action}` | Web 服务器把所有非静态请求交给 `index.php` |
 
-- `{base}` = 站点根，含子目录部署前缀、不带尾斜杠，例如 `https://panel.example.com` 或 `https://example.com/mnbt`。
+- `{base}` = 站点根，含子目录部署前缀与**非默认端口**、不带尾斜杠，例如 `https://panel.example.com`、`https://panel.example.com:8443`、`https://example.com/mnbt`。默认端口（http 80 / https 443）不写出来；服务端探测顺序：`Host` 头自带的端口 > 可信代理的 `X-Forwarded-Host`/`X-Forwarded-Port` > `SERVER_PORT` 与 scheme 默认值不同则补上。端口映射/内网穿透导致外部端口和监听端口不一致时，站点可用环境变量 `MNBT_APP_BASE_URL` 强制指定（见 `deploy-guide.md` §4.3）。
 - `{action}` 就是 §5~§10 表里的动作名，含点号（`db.list`、`file.upload_prepare`），插件按 `[^a-z0-9_.]` 过滤后小写匹配。
 - 仓库**没有自带 .htaccess**，形态 B 是否可用取决于客户环境。APP 建议**统一用形态 A**，配对二维码里服务端给的也是形态 A。
 - 配对二维码内容（面板「APP 配对」页生成）：
@@ -53,7 +54,7 @@ APP 侧 `HostHttpClientFactory` 默认 CONNECT 15s / READ 30s。以下动作**�
 | `deploy.run` | 180s（核心逐步 `sleep(3)`，实测几十秒起） |
 | `ssl.apply` / `ssl.renew` | 120s（签发要过 ACME 校验） |
 | `db.sql.import`、`file.upload`、`file.unzip`、`file.compress` | 120s |
-| `domain.add` / `domain.del` | 60s（要动宝塔站点配置） |
+| `domain.add` / `domain.del` / `domain.prefix.set` | 60s（要动宝塔站点配置；改前缀是删旧+加新两次写） |
 
 ---
 
@@ -166,7 +167,7 @@ APP 侧 `HostHttpClientFactory` 默认 CONNECT 15s / READ 30s。以下动作**�
 | `device.list` | Bearer | — | `list[]{id:Int, device_id, device_name, device_model, app_version, created_at, last_seen_at, last_ip}`（只含启用中的设备） |
 | `device.revoke` | Bearer | — | `revoked:Bool`（吊销**当前令牌**，之后自己回 1001） |
 
-- `site.base` 取「scheme + 本次请求的 Host + 站点部署前缀」，前缀按项目物理根相对 Web 根目录推出（子目录部署时是 `/mnbt` 这类），**不含 `/user`、`/admin` 等入口脚本目录**；**APP 只在与其一致时才采纳**（防串站），不一致就保留用户手填的 base。
+- `site.base` 取「scheme + 本次请求的 Host(含非默认端口) + 站点部署前缀」，前缀按项目物理根相对 Web 根目录推出（子目录部署时是 `/mnbt` 这类），**不含 `/user`、`/admin` 等入口脚本目录**；**APP 只在与其一致时才采纳**（防串站），不一致就保留用户手填的 base。
 - `actions` 是服务端支持的 action 全集，可用来做能力探测/灰度隐藏入口。`capabilities` 当前固定 `["file_bytes_transparent","chunked_upload","signed_download"]`。
 - 面板的「APP 配对」页也能列设备/吊销设备（走 cookie AJAX），与 `device.list` 数据同源。
 
@@ -226,9 +227,8 @@ APP 侧 `HostHttpClientFactory` 默认 CONNECT 15s / READ 30s。以下动作**�
 | `pass` / `site.passdir.list` | `list[]{dir:String, user:String, pass:"****"}` — **口令不回显，固定 4 个星** |
 | `xgpass` | `user`(String) `ftp_hint`(String) |
 | `cache` / `site.cache.list` | `list[]{id:Int, url:String, type:String, seconds:Int, time_out:String}` |
-| `url`（反代） | `btip`(String) `als`(String `"true"`/`"false"`) `list[]{proxy_url,target_url}` |
+| `url`（域名管理元信息） | `btip`(String) `als`(String `"true"`/`"false"`) — 只有这两个字段，域名列表走 `domain.list` |
 | `mysqlcz`（数据库访问权限） | `current`(String `127.0.0.1`/`%`) `access`(String 同值) |
-| `indexconf` | **`1010`**（见 §11） |
 
 ### 6.2 写侧逐 action
 
@@ -245,12 +245,9 @@ APP 侧 `HostHttpClientFactory` 默认 CONNECT 15s / READ 30s。以下动作**�
 | `site.password.set` | `pass`（或 `newpass`；可分别用 `ftp` `sql` 覆盖） | `action:"password"` `user` | **口令绝不进日志、绝不回显**；`ftp`/`sql` 都为空 → 1007 |
 | `site.hotlink.get` | — | `open:Int`(0/1) `lasts:Int`(**恒 0**) `domains:String` `exts:String` | `lasts`：宝塔防盗链没有"有效时长"概念，APP 按不限时显示 |
 | `site.hotlink.set` | `open`(或 `status`) `exts`(或 `fix`) `domains` `return_rule` `http_status` | 同上结构（回显提交值） | 插件补记日志；`return_rule`/`http_status` 只透传核心、不回显 |
-| `site.proxy.get` | — | `list[]{proxy_url:String, target_url:String}`（**下划线**，与 `site.init?section=url` 同形） | 插件补的扩展 action，`MnbtActions` 里没有；APP 现在用 `site.init(section=url)` 拿同一份数据 |
-| `site.proxy.set` | `proxy_url`(默认 `/`) `target_url` | `list[]{proxyUrl:String, targetUrl:String}`（**驼峰**，与 APP 的 `SiteAProxyRule` 一致，刻意与读侧不同名） | **`proxy_url` 非 `/` → `1010`**；`target_url` 为空 = 删除该 location 的规则（APP 现有"置空提交"的删法直接可用）；新增时会自动剥掉 `http://` 前缀（宝塔原语自己加） |
 | `site.cache.add` | `url`(=后缀，兼容 `suffix`/`type`) `seconds` | `action:"add"` `added:Bool` `url` `id:Int` `type` `seconds` | `id` 是**新增后按后缀回查的序号** |
 | `site.cache.edit` | `id` `url`(新后缀，可省) `seconds` `old_suffix`(可省) | `action:"edit"` `url` `old_suffix` `id` | `id` 解析不到后缀 → 1007「缓存规则不存在（id 已失效，请刷新列表）」 |
 | `site.cache.del` | `id` `suffix`(可省) | `action:"del"` `deleted:Bool` `url` `id` | 同上 |
-| `site.indexconf.set` | — | — | **`1010`**（见 §11） |
 
 **静态缓存的 id 协议（重要）**：宝塔的缓存规则**没有主键**，真实契约是「后缀 + 时长」。插件把列表按出现顺序赋 `id = 1,2,3…`，`edit`/`del` 收到 `id` 后再反查后缀。
 → APP 必须**先 `site.cache.list` 再改删**，且**不要把 id 持久化**（列表顺序变了 id 就变）。同一次列表里用 id 是稳定的。
@@ -273,7 +270,7 @@ APP 侧 `HostHttpClientFactory` 默认 CONNECT 15s / READ 30s。以下动作**�
 | `file.unzip` | `src` `dest`(默认同目录) `coding`(默认 `UTF-8`) `password` | `dir` | 加密包传 `password` |
 | `file.size` | `files`(或 `path`) | `path` `size:Long` `unit:"B"` `files` | 核心回的是浮点，插件已整型化 |
 | `file.upload_prepare` | `path`(完整目标路径) `size`(总字节数) | `upload_id`(`dir|name`) `path` `name` `size:Long` `max_size:Long`(0=不限) `chunk_size:Long`(2MB) `resume_offset:Long` | `resume_offset` 是宝塔已收到的字节数，APP 据此跳过分片 |
-| `file.upload` | **multipart**：`file`=分片二进制；`upload_id` `size`(总字节，**必填**) `index`(1-based 分片序号) `total` `name`(兼容 `file_name`；无 `upload_id` 时改用 `path`) | 未完成：`received:Long`(累计已收) `total_size:Long` `size:Long`(同 received) `done:false`；完成：`done:true` `path` `size:Long` | 见下方"分片协议"；**APP 现在一个 `size` 都没发，这条不改就必然 1007** |
+| `file.upload` | **multipart**：`file`=分片二进制；`upload_id` `size`(总字节，**必填**) `index`(1-based 分片序号) `total` `name`(兼容 `file_name`；无 `upload_id` 时改用 `path`) | 未完成：`received:Long`(累计已收) `total_size:Long` `size:Long`(同 received) `done:false`；完成：`done:true` `path` `size:Long` | 见下方"分片协议"；**`size` 缺失直接 1007**（宝塔按它判定传输完成），续传偏移从 `file.upload_prepare` 的 `resume_offset` 取 |
 | `file.download` | `file`(或 `path`) | `filename` `file` `url`(可直接 GET 的外链) `expires_hint:"24h"` | URL 是宝塔 token 型链接，**APP 用 rawClient GET，不带 Authorization**。面板拿不到文件大小：APP 的 `FileDownloadPayload.size` 会取默认 0，别显示它 |
 | `file.access.get` | `path` | `path` `perm`(`"0644"` 形式) `owner` `group` | |
 | `file.access.set` | `path` `perm`(兼容 `access`) `recurse`(`0`/`1`) | `path` `perm` `recurse` | |
@@ -306,7 +303,7 @@ APP 侧 `HostHttpClientFactory` 默认 CONNECT 15s / READ 30s。以下动作**�
 | `db.backup.restore` | `name`(备份文件名) `data_account`(可选，只校验) | `name` `db`(=`sqluser`) `restored:Bool` | 目标库一律取本主机 `sqluser`；APP 传了别的库名 → 1007 说明原因 |
 | `db.access.set` | `host`(或 `access`：`localhost`/`%`) `port` | `db` `access`(`localhost`/`%`) `port:Int` `applied:Bool` | 核心权限值是 `127.0.0.1`/`%`，插件双向映射成 APP 的 `localhost`/`%`。**面板没有改端口能力，`port` 只回显不生效**（宝塔端口固定） |
 | `db.access.get` | — | `db` `access` `port:0` `applied:false` | |
-| `db.sql.import` | **multipart**：`file`=SQL 文件；非文件字段 `name`(=目标库名，只校验)；或直投时 `path`/`file`/`filename` 指向站点内已存在的 .sql | `file`(客户端原名) `db` `imported:Bool` | 两种形态都支持：直投（插件落安全临时名 `app_时间戳_摘要.sql`，用完即删）或先用 `file.upload` 传好再引路径。**大 SQL 请走 multipart 并放宽 readTimeout** |
+| `db.sql.import` | **multipart**：`file`=SQL 文件；非文件字段 `data_account`(=目标库名，只校验，兼容 `db`；省略默认本主机库)；或直投时 `path`/`file`/`filename` 指向站点内已存在的 .sql | `file`(客户端原名) `db` `imported:Bool` | 两种形态都支持：直投（插件落安全临时名 `app_时间戳_摘要.sql`，用完即删）或先用 `file.upload` 传好再引路径。**大 SQL 请走 multipart 并放宽 readTimeout** |
 | `db.create` | — | — | **`1010`** |
 | `db.delete` | — | — | **`1010`** |
 
@@ -315,14 +312,15 @@ APP 侧 `HostHttpClientFactory` 默认 CONNECT 15s / READ 30s。以下动作**�
 
 ---
 
-## 9. 域名与 SSL（10 个）
+## 9. 域名与 SSL（11 个）
 
 | action | 入参 | 成功 `data` | 备注 |
 |---|---|---|---|
-| `domain.list` | — | `list[]{domain,port:Int,ssl:Bool,type:"main"/"top"/"subdir",status:"ok"}` `total:Int` `limit:Int`(=`ymbds`，0=不限) | **主域恒为 `list[0]`**（APP 用 `index==0` 打「主机主域名」标签，成立）。`ssl` 是站点级状态，所有条目同值 |
-| `domain.subdir.list` | — | `list[]{domain,dir}` `dirs:String[]` | `list`=已存在的"域名→目录"绑定；`dirs`=运行目录下可选的子目录名（**APP 现在没用它**，改版时把候选换成 `dirs` 即可） |
-| `domain.add` | `domain` `dir`(或 `dirs`：含 `/` 视为目录绑定) | `domain` `port:80` `added:Bool` `bound:Int` `limit:Int` | 校验：格式、禁止本站 IP、重复绑定、`ymbds` 上限（口径与网页面板逐字一致：已绑定数 ≥ `ymbds+1` 就拦）、商品域名限制插件在场时一并校验。`dir` 含 `/` 走目录绑定，否则走顶级域名绑定 |
-| `domain.del` | `domain` `port`(可选) `dir`(可选) | `domain` `port:Int` `deleted:Bool` | 禁删主机主域。APP 的 `DomainItemDto` 不带 `dir`，插件按域名查绑定表自动判定走普通删除还是目录删除 |
+| `domain.list` | — | `list[]{domain,port:Int,ssl:Bool,type:"main"/"top"/"subdir",status:"ok",dir:String}` `total:Int` `limit:Int`(=`ymbds`，0=不限) | **主域恒为 `list[0]` 且 `type=="main"`**，APP 按 `type` 打「主机主域名」标签。`dir` 是绑定目录（`'/'`=整站），对应网页面板表格的「目录」列。`ssl` 是站点级状态，所有条目同值 |
+| `domain.subdir.list` | — | `list[]{domain,dir}` `dirs:String[]` | `list`=已存在的"域名→目录"绑定；`dirs`=运行目录下可选的子目录名（APP 添加弹窗的候选取 `dirs`） |
+| `domain.add` | `domain` `dir`(或 `dirs`) | `domain` `port:80` `added:Bool` `bound:Int` `limit:Int` | 校验：格式、禁止本站 IP、重复绑定、`ymbds` 上限（口径与网页面板逐字一致：已绑定数 ≥ `ymbds+1` 就拦）、商品域名限制插件在场时一并校验。`dir` 空或含 `/` 走**顶级域名**绑定；是干净目录名（不含斜杠）才走**目录**绑定 |
+| `domain.del` | `domain` `port`(可选) `dir`(可选) | `domain` `port:Int` `deleted:Bool` | 禁删主机主域。APP 列表带 `dir` 就按它分流（`'/'`→`btapi_delym`，目录名→`delzml`）；不带时插件按域名查绑定表自行判定 |
+| `domain.prefix.set` | `domain`(旧全名) `prefix`(新前缀，1-24 位字母数字) `port`(可选) `dir`(可选) | `domain`(新全名) `old_domain` `port:Int` `dir` `added:Bool` `bound:Int` `limit:Int` | 对齐网页面板的 `p_domain_seturl`：**面板没有重命名原语，实现是「删旧 + 加新」两步**。前置上限判定用 `>`、删后再判一次用 `>=`（与网页端两档一致）。旧名不存在→`1007`；两步各自失败分别回 `1009`，加新失败时文案会明说原域名已删除 |
 | `ssl.get` | — | `ssl{expire,issuer,domains:String[],status}` `force_https:Bool` `pem` `key` `type` `csr` | `ssl.status` 是可直接展示的中文；无证书时 `expire`/`issuer` 为空串、`domains` 为空数组 |
 | `ssl.apply` | `domains`(可选，String[] 或空格/逗号分隔) | `order_id:""` `domains:String[]` `result`(String 核心原话) `expire:""` | 不传就自动取站点全部域名申请。**`order_id`/`expire` 面板拿不到，固定空串** |
 | `ssl.renew` | 同上 | 同上 | 当前站点没有生效证书 → `1007`，文案引导改用「申请证书」 |
@@ -399,9 +397,8 @@ APP 侧 `HostHttpClientFactory` 默认 CONNECT 15s / READ 30s。以下动作**�
 |---|---|
 | `db.create` | 无建库原语：一主机一库，库随主机开通产生。请改接 `db.backup.create` |
 | `db.delete` | 删库会连带主机账号失效，面板没这个动作。删除语义只针对备份文件 → `db.backup.delete` |
-| `site.indexconf.set` | 核心 `indexconf` 是首页的只读汇总页，**没有写入入口**，且不拿站点开关冒充 |
-| `site.init?section=indexconf` | 同上 |
-| `site.proxy.set`（`proxy_url` ≠ `/`） | 宝塔原语把代理路径写死 `/`，且签名请求函数是 private，插件无法自建子路径规则 → 与其建一条错规则不如明确拒绝 |
+
+「反向代理」「索引配置」不再属于缺口清单：两个功能已按产品决定从 APP 与插件同时删除（核心 `indexconf` 本来就是首页只读汇总页，没有写入入口）。
 
 另外这些字段是"面板拿不到"而非失败，用固定值占位，**APP 请按 §12 处理展示**：
 `host.overview` 的 `cpu`/`mem`/`inode_*`；`deploy.list.ver`；`deploy.run.task_id`；`ssl.apply`/`renew` 的 `order_id`/`expire`；`db.backup.download.size`；`site.rewrite.get.current`；`site.passdir.list` 的 `pass`（固定 `****`）；`db.access.set.port`（回显不生效）。
@@ -410,11 +407,13 @@ APP 侧 `HostHttpClientFactory` 默认 CONNECT 15s / READ 30s。以下动作**�
 
 ## 12. APP 侧需要改的地方（逐条可执行）
 
+> **2026-10-21 复核：下表 20 条按 `mnbt-app` 当前源码逐条对过，全部已落实**（原第 14 条「反代只支持根路径」随反代功能下线一并删除）。两处参数名以正文为准：SQL 导入的目标库字段是 **`data_account`**（兼容 `db`），分片上传的文件名字段是 **`name`**（兼容 `file_name`）。
+
 | # | 位置 | 现状 | 要改成 |
 |---|---|---|---|
 | 1 | `DatabaseModels.kt` / 数据库页 | 「新建数据库」发 `db.create`、「删除」发 `db.delete` | 语义改成**备份**：按钮接 `db.backup.create` / `db.backup.delete`；`db.list` 恒 ≤1 条，页面别按多库设计 |
 | 2 | 同上，备份删除按钮 | 传 `id` | 传 **`name`（备份文件名）**（插件会反查 id；传 id 也兼容） |
-| 3 | SQL 导入 | 按普通 form 发 | 走 **multipart**，文件字段 `file`，非文件字段 `name`=目标库名（可省略），并放宽 readTimeout |
+| 3 | SQL 导入 | 按普通 form 发 | 走 **multipart**，文件字段 `file`，非文件字段 `data_account`=目标库名（可省略，插件只校验），并放宽 readTimeout |
 | 4 | `DbQuota` / `Quota` | 读 `total` | 读 **`max`**，`max<=0` 显示"不限"；`unit` 直接用（网页/库=MB，流量=GB，**数据库页的 `quota` 是"次"**）。数据库页建议把 `db.list.sql_space` 也接上：`quota` 是备份次数配额，空间配额在它之外 |
 | 5 | `PairData` / 配对流程 | host 当字符串、流量按 MB 画 | `host` 是对象（§5.1）；**流量单位是 GB**；令牌只在配对响应出现一次，落盘要加密 |
 | 6 | `HostOverview` | 画 CPU/内存/inode 条 | 三项**隐藏**（服务端恒 `null`/`0`） |
@@ -425,14 +424,13 @@ APP 侧 `HostHttpClientFactory` 默认 CONNECT 15s / READ 30s。以下动作**�
 | 11 | `deploy.run` | 30s 默认读超时、可连点 | `readTimeoutSeconds≈180` + 二次确认 + 执行期禁用按钮 |
 | 12 | `deploy.form` | 期望 `default` 有值、可能有 select | `default` 恒空、`options` 恒空，只渲染 input + `placeholder` + `required` + `max_length` |
 | 13 | 域名子目录候选 | 用 `${domain} → ${dir}` 现绑定 | 改用 **`domain.subdir.list.dirs`** 作候选列表（`list` 保留给已绑定项） |
-| 14 | 反代 | 支持子路径规则 | 只支持根路径 `/`：新增按钮只在 `location=="/"` 可用，子路径明确提示不支持 |
-| 15 | 静态缓存 | 持久化 `id` | 每次改删前先 `site.cache.list` 取最新 id；**不要缓存 id** |
-| 16 | 文件列表 | 期望递归展平 | 只有一层，按 `type=="dir"` 下钻（`path` 已拼好） |
-| 17 | 文件读/写 | 用 `content` | 读优先 **`content_base64`**；写按原字节提交 `content` |
-| 18 | 分片上传 `FileBrowserViewModel.streamChunks` | 只发 `upload_id/path/file_name/index/total`，**没有 `size`** | **每片必须带 `size`（整个文件的总字节数）**，否则必然 1007；`UploadPreparePayload` 还要**加 `resume_offset` 字段**才能做断点续传（服务端已回，APP DTO 里没有，现在拿不到偏移） |
-| 19 | 下载 | 带 Authorization GET | **rawClient GET，不带鉴权头**（宝塔 token 外链） |
-| 20 | 错误映射 | — | `1010` 保持 Snackbar（**非破坏性**），`1003/1004` 走整页只读，`1001/1005` 走重新配对，`1008` 用 `retry_after` 倒计时 |
-| 21 | URL 拼接 | rewrite 形态 | 统一 `{base}/index.php?_r=/app/v1/{action}`；扫码时从 `qr_url` 解析 `base` |
+| 14 | 静态缓存 | 持久化 `id` | 每次改删前先 `site.cache.list` 取最新 id；**不要缓存 id** |
+| 15 | 文件列表 | 期望递归展平 | 只有一层，按 `type=="dir"` 下钻（`path` 已拼好） |
+| 16 | 文件读/写 | 用 `content` | 读优先 **`content_base64`**；写按原字节提交 `content` |
+| 17 | 分片上传 `FileBrowserViewModel.streamChunks` | 只发 `upload_id/path/name/index/total`，**没有 `size`** | **每片必须带 `size`（整个文件的总字节数）**，否则必然 1007；`UploadPreparePayload` 需带 **`resume_offset`** 才能续传 |
+| 18 | 下载 | 带 Authorization GET | **rawClient GET，不带鉴权头**（宝塔 token 外链） |
+| 19 | 错误映射 | — | `1010` 保持 Snackbar（**非破坏性**），`1003/1004` 走整页只读，`1001/1005` 走重新配对，`1008` 用 `retry_after` 倒计时 |
+| 20 | URL 拼接 | rewrite 形态 | 统一 `{base}/index.php?_r=/app/v1/{action}`；扫码时从 `qr_url` 解析 `base` |
 
 ---
 
@@ -442,12 +440,12 @@ APP 侧 `HostHttpClientFactory` 默认 CONNECT 15s / READ 30s。以下动作**�
 
 1. **`ymbds` 计数口径**：按网页面板同款"已绑定数 ≥ `ymbds+1` 才拦"。若客户反馈"还能多绑一个"，是这条口径而非插件 bug。
 2. **`gzip` 状态键**：核心回 `status` 还是 `qk` 没实测过，插件两个键都试，都取不到就当 `"off"`。
-3. **反代规则形状**：从 `Getnginx` 原文正则里抠 `location` / `proxy_pass`。宝塔改版加注释或换写法就解析不到（表现为 `site.proxy.get` 空列表）。
-4. **静态缓存 id 的稳定性**：依赖 `get_static_cache` 返回顺序稳定。宝塔按字典序重排的话，改删会指向错条目（所以 §6.2 强调先取列表）。
-5. **`ssl.get` 的"是否有证书"判定**：靠 `cert_data` 非空 + `status`。续签前置检查可能误判（有证书被判没有 → 拦住续签）。
-6. **分片 `size` 语义**：按"宝塔用 `名字.<size>.upload.tmp` 判完成"实现。若节点版本用别的字段，表现是永远收不到 `done:true`。
-7. **PDO 是否把整数列回成数字串**：取决于 `PDO::ATTR_EMULATE_PREPARES`。插件已在所有 Int 字段显式 `(int)`，两种配置都安全，但**别在 APP 侧放宽成"字符串数字也行"**。
-8. **`db.list` 的 charset 来源**（`sqlkjhq` 分支的键名）取不到时回空串，仅影响显示。
+3. **静态缓存 id 的稳定性**：依赖 `get_static_cache` 返回顺序稳定。宝塔按字典序重排的话，改删会指向错条目（所以 §6.2 强调先取列表）。
+4. **`ssl.get` 的"是否有证书"判定**：靠 `cert_data` 非空 + `status`。续签前置检查可能误判（有证书被判没有 → 拦住续签）。
+5. **分片 `size` 语义**：按"宝塔用 `名字.<size>.upload.tmp` 判完成"实现。若节点版本用别的字段，表现是永远收不到 `done:true`。
+6. **PDO 是否把整数列回成数字串**：取决于 `PDO::ATTR_EMULATE_PREPARES`。插件已在所有 Int 字段显式 `(int)`，两种配置都安全，但**别在 APP 侧放宽成"字符串数字也行"**。
+7. **`db.list` 的 charset 来源**（`sqlkjhq` 分支的键名）取不到时回空串，仅影响显示。
+8. **`domain.prefix.set` 的两步不是原子的**：删旧成功、加新失败时域名的确已被删（网页面板同款行为，插件只把"原域名已删除"写进文案）。回归时要专门点一次"新前缀撞已存在域名"，确认 APP 把这条 1009 原文显示出来并刷出新列表，别让用户以为改名失败=旧名还在。
 
 ---
 

@@ -4,13 +4,15 @@
  *
  * APP 参数名 -> 核心参数名的转换全部集中在这里（交接 §3.3 的 ⚠️ 项逐条落地）：
  *   php_version->php / rundir->wb / index->ml / rewrite->wb / gzip->action
- *   user_dir->name+mbml / pass(新密码)->ftp+sql / proxy 逐条 add/del
+ *   user_dir->name+mbml / pass(新密码)->ftp+sql
  *   缓存 url->suffix、seconds->time_out(<n>s)、id->按当前列表序号反查 suffix
  *
  * 两条刻意的取舍：
- * - 「索引配置」(site.init section=indexconf / site.indexconf.set) 恒回 1010：
- *   核心的 indexconf 分支（other.php:47）是首页只读汇总（还带 FTP/SQL 明文密码），
- *   核心全仓没有目录索引（autoindex）的写入入口，绝不能拿站点开关 siteqt 冒充。
+ * - 「索引配置」「反向代理」已按产品决定从 APP 下线，对应 action 不再注册。
+ *   核心侧本来也做不了：indexconf 分支（other.php:47）是首页只读汇总（还带 FTP/SQL 明文密码），
+ *   全仓没有目录索引（autoindex）的写入入口，绝不能拿站点开关 siteqt 冒充；
+ *   宝塔反代原语把 location 写死 '/'，子路径规则无从创建。
+ *   site.init 的 url 分支只保留核心的 btip/als，不再拿 Getnginx 原文抠规则冒充列表。
  * - 核心分支自带 logjl 的写操作（php/默认文档/运行目录/密码/防盗链外的 gzip/cache/passdir），
  *   bridge 不再重复记日志，避免面板操作日志一次动作两条记录。
  */
@@ -170,10 +172,6 @@ if (!function_exists('mnbt_app_site_init')) {
 		global $yhc;
 		$section = (string)$section;
 
-		if ($section === 'indexconf') {
-			mnbt_app_err(1010, '面板端没有「目录索引开关」接口（核心 indexconf 是首页只读汇总页，无写入入口），此功能在 APP 上不可用');
-		}
-
 		if ($section === 'pass') {
 			mnbt_app_proxy_run('panel.php', 'pass_list', [], function ($s, $c, $m, $d) {
 				if (!$s) return [$s, $c, $m, $d];
@@ -244,7 +242,6 @@ if (!function_exists('mnbt_app_site_init')) {
 				case 'url':
 					$out['btip'] = mnbt_app_text($d['btip'] ?? '', '');
 					$out['als'] = mnbt_app_text($d['als'] ?? '', 'false');
-					$out['list'] = mnbt_app_proxy_list_current();
 					break;
 				case 'mysqlcz':
 					$out['current'] = mnbt_app_text($d['access'] ?? '', '127.0.0.1');
@@ -255,53 +252,6 @@ if (!function_exists('mnbt_app_site_init')) {
 			}
 			mnbt_app_ok('ok', $out);
 		});
-	}
-}
-
-if (!function_exists('mnbt_app_proxy_rules_raw')) {
-	/** 站点 nginx 配置里的反代规则（一次请求内缓存，避免重复打宝塔） */
-	function mnbt_app_proxy_rules_raw()
-	{
-		global $api, $yhc;
-		static $cache = null;
-		if ($cache !== null) return $cache;
-		$r = $api->Getnginx($yhc['sqldz'] ?? '');
-		$text = is_array($r) ? (string)($r['msg'] ?? '') : (string)$r;
-		$cache = [];
-		if (preg_match_all('#location\s+([^\s{]+)\s*\{[^}]*?proxy_pass\s+([^;\s]+);#s', $text, $ms, PREG_SET_ORDER)) {
-			foreach ($ms as $m) $cache[] = ['proxy_url' => trim($m[1]), 'target_url' => trim($m[2])];
-		}
-		return $cache;
-	}
-}
-
-if (!function_exists('mnbt_app_proxy_list_current')) {
-	/** 反向代理列表（交接 §4-B2：整表由逐条 set 维护）；$camel=true 时键名按 proxy.set 回显 DTO */
-	function mnbt_app_proxy_list_current($camel = false)
-	{
-		$list = [];
-		foreach (mnbt_app_proxy_rules_raw() as $row) {
-			$list[] = $camel
-				? ['proxyUrl' => $row['proxy_url'], 'targetUrl' => $row['target_url']]
-				: ['proxy_url' => $row['proxy_url'], 'target_url' => $row['target_url']];
-		}
-		return $list;
-	}
-}
-
-if (!function_exists('mnbt_app_proxy_rule_find')) {
-	/** 按 location 找一条规则（容忍首尾斜杠差异），找不到回 null */
-	function mnbt_app_proxy_rule_find($proxy_url)
-	{
-		$rows = mnbt_app_proxy_rules_raw();
-		foreach ($rows as $row) {
-			if ($row['proxy_url'] === $proxy_url) return $row;
-		}
-		$want = '/' . trim((string)$proxy_url, '/');
-		foreach ($rows as $row) {
-			if ('/' . trim($row['proxy_url'], '/') === $want) return $row;
-		}
-		return null;
 	}
 }
 
@@ -365,9 +315,16 @@ if (!function_exists('mnbt_app_actions_site')) {
 			}],
 			'site.rewrite.set' => ['auth' => 'ctx', 'cb' => function () {
 				$wb = (string)mnbt_app_p('rewrite', mnbt_app_p('wb'));
+				// 核心 setwjt 是「整文件覆盖写」：wb 会原样落进 vhost/rewrite/{站点}.conf 并被
+				// 站点 nginx 配置 include。历史上 APP 传过模板名，一行裸词就让 nginx -t 全站失败，
+				// 所以这里挡住「单个词、既无换行也无 ; { }」这种必然写坏配置的形状。
+				// 清空规则（deploy.php:66 的合法用法）仍可通过：空串不含裸词，核心自己处理。
+				if ($wb !== '' && strpbrk($wb, "\r\n;{}") === false && preg_match('/^\s*[A-Za-z0-9._-]+\s*$/', $wb)) {
+					mnbt_app_err(1007, '伪静态需提交规则正文，而不是模板名');
+				}
 				mnbt_app_proxy_run('site.php', 'setwjt', ['wb' => $wb], function ($s, $c, $m, $d) use ($wb) {
 					// 核心 setwjt 分支不记日志，这里补
-					mnbt_app_log('伪静态', '设置伪静态模板' . $wb, $s ? '成功' : '失败:' . $m);
+					mnbt_app_log('伪静态', '设置伪静态规则', $s ? '成功' : '失败:' . $m);
 					return [$s, $c, $m, ['rewrite' => $wb]];
 				});
 			}],
@@ -418,13 +375,11 @@ if (!function_exists('mnbt_app_actions_site')) {
 					return [$s, $c, $m, ['action' => 'password', 'user' => (string)($GLOBALS['yhc']['user'] ?? '')]];
 				});
 			}],
-			// 「索引配置」无核心写入入口，也不拿站点开关冒充 -> 1010（详见文件头）
-			'site.indexconf.set' => ['auth' => 'ctx', 'cb' => function () {
-				mnbt_app_err(1010, '面板端没有「目录索引开关」接口（核心 indexconf 是首页只读汇总页，无写入入口），此功能在 APP 上不可用');
-			}],
 			'site.hotlink.get' => ['auth' => 'ctx', 'cb' => function () {
+				// getfdl 是裸 exit(json_encode) 的「文档型」回包，其中 status:false 表示
+				// 「防盗链未开启」这一正常状态，不是请求失败；而 adapter 形态3 会把裸 false
+				// 判成失败。所以这里不按 $s 短路，直接把载荷交给 payload 组装。
 				mnbt_app_proxy_run('other.php', 'getfdl', [], function ($s, $c, $m, $d) {
-					if (!$s) return [$s, $c, $m, $d];
 					return [true, 0, 'ok', mnbt_app_hotlink_payload($d)];
 				});
 			}],
@@ -446,41 +401,6 @@ if (!function_exists('mnbt_app_actions_site')) {
 						'exts' => $exts,
 					])];
 				});
-			}],
-			// 反向代理：读侧解析 Getnginx 原文；写侧只能用面板暴露的根路径原语（见下方注释）
-			'site.proxy.set' => ['auth' => 'ctx', 'cb' => function () {
-				global $api, $yhc;
-				$proxy = (string)mnbt_app_p('proxy_url');
-				$target = (string)mnbt_app_p('target_url');
-				$name = (string)($yhc['sqldz'] ?? '');
-				if ($proxy === '') $proxy = '/';
-				if ($target === '') {
-					// 删除：APP 只给 location，宝塔 RemoveProxy 要的是代理名（=md5(目标URL)），
-					// 从当前 nginx 配置反查该 location 的 proxy_pass
-					$rule = mnbt_app_proxy_rule_find($proxy);
-					if ($rule === null) mnbt_app_err(1007, '未找到该路径的反向代理规则：' . $proxy);
-					$r = $api->fxdl_del($rule['target_url'], $name) ?: [];
-					$ok = is_array($r) && mnbt_app_is_on($r['status'] ?? '');
-					mnbt_app_log('反向代理', '删除代理规则' . $proxy, $ok ? '成功' : '失败');
-					if (!$ok) mnbt_app_err(1009, (string)($r['msg'] ?? '代理规则删除失败'));
-					mnbt_app_ok('ok', ['list' => mnbt_app_proxy_list_current(true)]);
-				}
-				if (!in_array($proxy, ['/', ''], true)) {
-					// bt_api::fxdl_add 把 proxydir 写死为 '/'，且 GetKeyData/HttpPostCookie 是 private，
-					// 插件无法自建签名请求 -> 子路径反代没有可用原语，明确报 1010 而不是建一条错规则
-					mnbt_app_err(1010, '面板侧只提供站点根路径的反向代理原语，无法按子路径（' . $proxy . '）新增规则');
-				}
-				// 宝塔原语的 target 是裸主机[:端口]，会自行前缀 http://
-				$bare = preg_replace('#^[a-z]+://#i', '', $target);
-				$bare = rtrim((string)$bare, '/');
-				$r = $api->fxdl_add($bare, $name) ?: [];
-				$ok = is_array($r) && mnbt_app_is_on($r['status'] ?? '');
-				mnbt_app_log('反向代理', '添加代理规则/->' . $bare, $ok ? '成功' : '失败');
-				if (!$ok) mnbt_app_err(1009, (string)($r['msg'] ?? '代理规则添加失败'));
-				mnbt_app_ok('ok', ['list' => mnbt_app_proxy_list_current(true)]);
-			}],
-			'site.proxy.get' => ['auth' => 'ctx', 'cb' => function () {
-				mnbt_app_ok('ok', ['list' => mnbt_app_proxy_list_current()]);
 			}],
 			// 静态缓存：真实契约是 后缀+时长（交接 §4-B5 的 type/seconds 猜测由 id/url/type/seconds 适配层吸收）
 			'site.cache.list' => ['auth' => 'ctx', 'cb' => function () {

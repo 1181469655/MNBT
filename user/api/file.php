@@ -20,9 +20,6 @@ $file_actions = [
     'file_upload_prepare', 'file_upload', 'file_download',
     'file_access', 'file_access_set',
 ];
-if (!in_array($egn, $file_actions, true)) {
-    return;
-}
 
 // ---------------------------------------------------------------------------
 //  路径与响应工具（函数定义带存在性保护，避免重复包含时冲突）
@@ -117,6 +114,18 @@ if (!function_exists('mnbt_file_names_from_post')) {
         }
         return array_values(array_unique($names));
     }
+}
+
+// ---------------------------------------------------------------------------
+//  动作白名单早退
+//  必须放在上面的函数定义之后：mobile_bridge 的 file.read / file.copy /
+//  file.delete_batch / file.upload* 与 SQL 导入只借这套路径规范化函数（$egn 传
+//  __bridge_defs__），自己不调用这里的任何分支；早退写在定义之前会让它们全部
+//  拿不到 mnbt_file_norm_path，插件侧只能回 5000 missing_core_api:file.php。
+//  仍然放在 include class.php 与 new bt_api 之前，保证非本模块的请求零副作用。
+// ---------------------------------------------------------------------------
+if (!in_array($egn, $file_actions, true)) {
+    return;
 }
 
 // ---------------------------------------------------------------------------

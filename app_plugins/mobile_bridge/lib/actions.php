@@ -11,6 +11,7 @@ if (!defined('IN_CRONLITE')) exit;
 
 require_once __DIR__ . '/adapter.php';
 require_once __DIR__ . '/token.php';
+require_once __DIR__ . '/context.php';
 require_once __DIR__ . '/pair.php';
 require_once __DIR__ . '/throttle.php';
 require_once __DIR__ . '/actions_file.php';
@@ -46,17 +47,18 @@ if (!function_exists('mnbt_app_quota_pair')) {
 	/**
 	 * MN_zj 的配额 JSON（{dq,max}）-> APP 的 Quota{used:Double,max:Double,unit:String}。
 	 * 注意单位口径照搬面板：网页/数据库空间 dq 由 jk.php 按 size/(1024*1000) 写入 = MB；
-	 * 流量 llmax.dq 是日志累加的**字节数**，而 max 是 GB（jk.php:178 用 max*1024^3 比较），
-	 * 所以流量必须把 used 折算成 GB，否则 APP 会把几百 GB 显示成几百 B。
+	 * 流量 llmax.dq 是日志累加的**字节数**，而 max 已经是 GB（jk.php:178 用 max*1024^3 比较），
+	 * 所以流量的 used 要折算成 GB、max 却不能再折算——两者除数不同，故拆成两个参数。
 	 */
-	function mnbt_app_quota_pair($json_str, $unit = 'MB', $divide = 1.0)
+	function mnbt_app_quota_pair($json_str, $unit = 'MB', $used_divide = 1.0, $max_divide = 1.0)
 	{
 		$arr = json_decode((string)$json_str, true);
 		if (!is_array($arr)) $arr = [];
-		$divide = (float)$divide > 0 ? (float)$divide : 1.0;
+		$used_divide = (float)$used_divide > 0 ? (float)$used_divide : 1.0;
+		$max_divide = (float)$max_divide > 0 ? (float)$max_divide : 1.0;
 		return [
-			'used' => round((float)($arr['dq'] ?? 0) / $divide, 2),
-			'max' => round((float)($arr['max'] ?? 0) / $divide, 2),
+			'used' => round((float)($arr['dq'] ?? 0) / $used_divide, 2),
+			'max' => round((float)($arr['max'] ?? 0) / $max_divide, 2),
 			'unit' => $unit,
 		];
 	}
@@ -81,7 +83,7 @@ if (!function_exists('mnbt_app_host_row')) {
 			'created_at' => (string)$yhc['data'],
 			'web_quota' => mnbt_app_quota_pair($yhc['hxa'] ?? '', 'MB'),
 			'sql_quota' => mnbt_app_quota_pair($yhc['hxb'] ?? '', 'MB'),
-			'traffic_quota' => mnbt_app_quota_pair($yhc['llmax'] ?? '', 'GB', 1024 * 1024 * 1024),
+			'traffic_quota' => mnbt_app_quota_pair($yhc['llmax'] ?? '', 'GB', 1024 * 1024 * 1024, 1.0),
 		];
 	}
 }
@@ -116,19 +118,35 @@ if (!function_exists('mnbt_app_action_pair')) {
 		$ip = mnbt_app_client_ip();
 		mnbt_app_throttle_check('app_pair', $ip, 5, 600);
 
+		$raw_code = isset($_POST['code']) ? (string)$_POST['code'] : null;
 		$code = strtoupper(trim((string)mnbt_app_p('code')));
 		$device_id = mb_substr((string)mnbt_app_p('device_id'), 0, 64);
+
+		// POST 体整体丢失（宝塔/nginx 未把 request body 交给 PHP-FPM、防火墙拦下带 _r 的 POST、
+		// 或 http 被 301 重定向到 https 时 OkHttp 转 GET 丢体）：此时 code 与 device_id 双双为空。
+		// 这跟「用户填错码」不是一回事，必须分开报，否则真凶会被伪装成「配对码过期」。
+		if (($raw_code === null || $raw_code === '') && $device_id === '') {
+			error_log('[mobile_bridge] pair 未收到任何 POST 字段：CONTENT_LENGTH=' . (string)($_SERVER['CONTENT_LENGTH'] ?? 'unset')
+				. ' ctype=' . (string)($_SERVER['CONTENT_TYPE'] ?? 'unset')
+				. ' method=' . (string)($_SERVER['REQUEST_METHOD'] ?? 'unset')
+				. '（多为 nginx 未透传 body / 防火墙拦截 / 重定向丢体，非配对码问题）');
+			mnbt_app_err(1007, '服务端未收到配对请求参数，请检查站点是否强制 HTTPS 跳转、防火墙是否拦截 POST，或改用手动配对');
+		}
 		if ($device_id === '') mnbt_app_err(1007, '缺少 device_id');
 
 		list($ok, $zj_id, $reason) = mnbt_app_pair_consume($code);
 		if (!$ok) {
 			mnbt_app_throttle_hit('app_pair', $ip, 600);
 			$messages = [
-				'bad_format' => '配对码格式错误',
-				'not_found' => '配对码不存在或已失效',
+				// code 有值但形状不对：多为手输时混入空格/小写已被吃掉，或扫码解析到的不是码
+				'bad_format' => '配对码格式错误（应为 8 位大写字母数字）',
+				'not_found' => '配对码不存在或已失效，请在网页面板重新生成后尽快扫码',
 				'used' => '配对码已被使用，请重新生成',
 				'expired' => '配对码已过期，请重新生成',
 			];
+			if ($reason === 'not_found') {
+				error_log('[mobile_bridge] pair 查无此码：len=' . strlen($code) . ' 表内该主机近况需核对（重新生成会作废旧码，扫码请用最新二维码）');
+			}
 			mnbt_app_err(1002, $messages[$reason] ?? '配对失败');
 		}
 
@@ -176,23 +194,21 @@ if (!function_exists('mnbt_app_action_device_info')) {
 	}
 }
 
-if (!function_exists('mnbt_app_action_host_overview')) {
-	/** 先跑核心 sxsyxx 刷新用量（输出静默吞掉），再从刷新后的 MN_zj 组包 */
-	function mnbt_app_action_host_overview($params, $ctx)
+if (!function_exists('mnbt_app_host_overview_finish')) {
+	/**
+	 * host.overview 的收尾：从（可能已被 sxsyxx 刷新过的）MN_zj 重新读一行并装配配额包络。
+	 * 正常路径与 sxsyxx 的 exit() 兜底路径共用这里，保证两条路发出的形状完全一致。
+	 */
+	function mnbt_app_host_overview_finish()
 	{
 		global $DB, $yhc;
-		$level = ob_get_level();
-		ob_start();
-		try {
-			mnbt_app_core_include('site.php', 'sxsyxx', []);
-		} catch (Throwable $e) {
-			error_log('[mobile_bridge] sxsyxx refresh failed: ' . $e->getMessage());
-		}
-		while (ob_get_level() > $level) ob_end_clean();
-
+		// 核心 sxsyxx 分支以 json_exit() 收尾，exit 时上面为吞它输出而开的 ob 仍然活着，
+		// 里面是面板那句裸 JSON；PHP 会先跑 shutdown 回调、最后才 flush 缓冲区。
+		// 不清干净的话这里 echo 的包络会拼在那句后面，APP 收到「两段 JSON 相连」直接解析失败
+		// （表现就是用量整段拉不到）。通用兜底也是先清到 0 再发，口径保持一致。
+		while (ob_get_level() > 0) ob_end_clean();
 		$fresh = $DB->get_row_prepare("SELECT * FROM `MN_zj` WHERE `id`=? LIMIT 1", [(int)$yhc['id']]);
 		if (is_array($fresh)) $yhc = $fresh;
-
 		$row = mnbt_app_host_row();
 		mnbt_app_ok('ok', [
 			// HostOverview 读的是 web_quota/sql_quota/traffic_quota（不是 web/sql/traffic）
@@ -205,6 +221,35 @@ if (!function_exists('mnbt_app_action_host_overview')) {
 			'inode_used' => 0,
 			'inode_total' => 0,
 		]);
+	}
+}
+
+if (!function_exists('mnbt_app_action_host_overview')) {
+	/**
+	 * 先跑核心 sxsyxx 刷新用量（输出静默吞掉），再从刷新后的 MN_zj 组包。
+	 *
+	 * 核心 sxsyxx 分支以 json_exit() 收尾，而 json_exit 内部是 exit()（MPHX/function.php），
+	 * try/catch 抓不到 exit：请求会在刷新那一步就地终止，下面的组包代码根本没机会跑，
+	 * 最终被 adapter 的通用 shutdown 兜底成 data:{} —— APP 解出全 null，整段用量消失。
+	 * 所以这里额外注册一个只服务本次请求的收尾回调：若刷新分支 exit() 了，
+	 * 由它从已刷新的 MN_zj 补发正确的配额包络（通用 shutdown 见 replied 已置位会自动让路）。
+	 */
+	function mnbt_app_action_host_overview($params, $ctx)
+	{
+		global $DB, $yhc;
+		$GLOBALS['mnbt_app_overview_shutdown'] = true;
+		register_shutdown_function('mnbt_app_host_overview_finish');
+		$level = ob_get_level();
+		ob_start();
+		try {
+			mnbt_app_core_include('site.php', 'sxsyxx', []);
+		} catch (Throwable $e) {
+			error_log('[mobile_bridge] sxsyxx refresh failed: ' . $e->getMessage());
+		}
+		while (ob_get_level() > $level) ob_end_clean();
+
+		// 核心分支若正常 return（未 exit）则走这里；已 exit 的情况由上面的收尾回调处理
+		mnbt_app_host_overview_finish();
 	}
 }
 
