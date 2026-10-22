@@ -71,7 +71,7 @@ CREATE TABLE `MN_zj` (
   `id` int(11) NOT NULL AUTO_INCREMENT,				-- 数据库表ID
   `ssbt` varchar(250) NOT NULL,						-- 所属宝塔
   `user` varchar(250) NOT NULL,						-- 控制面板账号
-  `pass` varchar(50) NOT NULL,						-- 控制面板密码
+  `pass` varchar(500) NOT NULL,					-- 控制面板密码（enc1: 密文，明文长度不再等于容量）
   `sqluser` text NOT NULL,								-- 数据库账号
   `sqlpass` text NOT NULL,								-- 数据密码
   `sqldz` varchar(50) NOT NULL,						-- 网站名
@@ -363,7 +363,7 @@ UPDATE MN_bt SET ftpdz= 'false';
 
 ALTER TABLE `MN_config` ADD `mailhost` VARCHAR(50) NULL DEFAULT NULL COMMENT '邮箱服务器地址';
 ALTER TABLE `MN_config` ADD `mailuser` VARCHAR(50) NULL DEFAULT NULL COMMENT '邮箱账号';
-ALTER TABLE `MN_config` ADD `mailpassword` VARCHAR(50) NULL DEFAULT NULL COMMENT '邮箱密码';
+ALTER TABLE `MN_config` ADD `mailpassword` VARCHAR(500) NULL DEFAULT NULL COMMENT '邮箱密码（enc1: 密文）';
 ALTER TABLE `MN_config` ADD `mailport` VARCHAR(20) NOT NULL DEFAULT '465' COMMENT '邮箱端口';
 ALTER TABLE `MN_config` ADD `ymjkkg` VARCHAR(20) NOT NULL DEFAULT 'false' COMMENT '域名监控开关';
 ALTER TABLE `MN_config` ADD `mtyxfskg` VARCHAR(20) NOT NULL DEFAULT 'false' COMMENT '每天邮箱发送开关';

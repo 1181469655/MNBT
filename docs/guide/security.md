@@ -107,6 +107,18 @@ ls -l config.php                                # 近期被覆盖/重建过就�
 SELECT id, btdh, SUBSTRING(btmy,1,6) AS head FROM MN_bt;   -- head=enc1 说明库里是密文
 ```
 
+另一种"看起来像密钥丢了、其实不是"的情况：**密文被短字段截断**。`enc1:` 密文比明文长（16 位口令变 ~65 字符），而老库 `MN_zj.pass` 是 `varchar(50)`、`MN_config.mailpassword` 是 `VARCHAR(50)`，连接层又 `set sql_mode=''`，超长写入不报错只截断，截断后的密文永久解不开——现场表现就是主机列表看不到面板密码、数据库密码（`text`）却正常。此时 `config.php` 的密钥是好的，别的表也能正常解密。
+
+```sql
+-- 列宽没到 500 就说明还在截断风险里；LENGTH() 恰好顶到列宽的 enc1: 行是已经坏掉的
+SELECT COLUMN_NAME, COLUMN_TYPE FROM information_schema.COLUMNS
+ WHERE TABLE_SCHEMA=DATABASE() AND ((TABLE_NAME='MN_zj' AND COLUMN_NAME IN('pass','sqlpass'))
+    OR (TABLE_NAME='MN_config' AND COLUMN_NAME='mailpassword'));
+SELECT id, user, LENGTH(pass) AS lp, LEFT(pass,5) AS h FROM MN_zj WHERE LEFT(pass,5)='enc1:' ORDER BY id DESC LIMIT 20;
+```
+
+V1.89 起建表/`repair_tables.sql` 直接给到 `VARCHAR(500)`，`update/update_v189_secret_width.sql` 让存量站随在线更新自动加宽，`mnbt_secret_ensure_columns()` 还会在首次加密写入前补一次检查。**已经被截断的行无法还原**（缺的字节没存过），只能由管理员重新设置主机密码 / 邮箱授权码；列表会显示「密码不可用」（`pass_unreadable` / `sqlpass_unreadable`）而不是空白。
+
 恢复顺序：**优先从备份拿回原 `config.php`（或只把原来那行 `$mnbt_secret_key='64位hex';` 补回当前 config.php）**，密钥找回后所有密文自动重新可读，无需迁移。确实找不回来时，只能逐个重录：宝塔/Docker 节点密钥（宝塔面板 → 面板设置 → API接口 里能看到接口密钥；`ktmy/qmk` 由宝塔侧重新生成或手工填一组并同步到魔方财务），主机密码（重设后走面板的改密流程），邮箱授权码，DNS 服务商密钥，资源池密码。重录前别跑 `admin/migrate_secrets.php`，也别在后台保存任何节点/主机表单。
 
 ## 客户/运维升级动作清单

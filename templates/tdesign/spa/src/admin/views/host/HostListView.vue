@@ -56,19 +56,25 @@
         <template #userpass="{ row }">
           <div class="td-cell-line">{{ row.user ?? '-' }}</div>
           <div class="td-cell-line td-text-mute">
-            <span>{{ showPass[row.id] ? (row.pass ?? '-') : '********' }}</span>
-            <t-link theme="primary" @click="togglePass(row.id)" style="margin-left: 4px">
-              <i class="mdi" :class="showPass[row.id] ? 'mdi-eye-off' : 'mdi-eye'"></i>
-            </t-link>
+            <span v-if="row.pass_unreadable" class="td-chip td-chip-warning">密码不可用</span>
+            <template v-else>
+              <span>{{ showPass[row.id] ? (row.pass ?? '-') : '********' }}</span>
+              <t-link theme="primary" @click="togglePass(row.id)" style="margin-left: 4px">
+                <i class="mdi" :class="showPass[row.id] ? 'mdi-eye-off' : 'mdi-eye'"></i>
+              </t-link>
+            </template>
           </div>
         </template>
         <template #sqluserpass="{ row }">
           <div class="td-cell-line">{{ row.sqluser ?? '-' }}</div>
           <div class="td-cell-line td-text-mute">
-            <span>{{ showSqlPass[row.id] ? (row.sqlpass ?? '-') : '********' }}</span>
-            <t-link theme="primary" @click="toggleSqlPass(row.id)" style="margin-left: 4px">
-              <i class="mdi" :class="showSqlPass[row.id] ? 'mdi-eye-off' : 'mdi-eye'"></i>
-            </t-link>
+            <span v-if="row.sqlpass_unreadable" class="td-chip td-chip-warning">密码不可用</span>
+            <template v-else>
+              <span>{{ showSqlPass[row.id] ? (row.sqlpass ?? '-') : '********' }}</span>
+              <t-link theme="primary" @click="toggleSqlPass(row.id)" style="margin-left: 4px">
+                <i class="mdi" :class="showSqlPass[row.id] ? 'mdi-eye-off' : 'mdi-eye'"></i>
+              </t-link>
+            </template>
           </div>
         </template>
         <template #hxa="{ row }">
@@ -128,6 +134,9 @@
         <div class="td-form-row">
           <label>密码 (pass)</label>
           <t-input v-model="editForm.pass" />
+          <p v-if="editForm.passUnreadable" class="td-form-hint" style="color: var(--td-warning)">
+            原密码无法解密（config.php 缺少当初的加密密钥，或密文被旧版本的短字段截断）。此处留空保存会被拒绝，请重新输入正确密码，或先恢复原 config.php。
+          </p>
         </div>
         <div class="td-form-row">
           <label>SQL 账号</label>
@@ -136,6 +145,9 @@
         <div class="td-form-row">
           <label>SQL 密码</label>
           <t-input v-model="editForm.sqlpass" />
+          <p v-if="editForm.sqlpassUnreadable" class="td-form-hint" style="color: var(--td-warning)">
+            原数据库密码无法解密，同上：留空保存会被拒绝，请重新输入。
+          </p>
         </div>
         <div class="td-form-row">
           <label>网页空间 (MB)</label>
@@ -198,6 +210,8 @@ const editForm = reactive({
   pass: '',
   sqluser: '',
   sqlpass: '',
+  passUnreadable: false,
+  sqlpassUnreadable: false,
   webkj: 0,
   sqlkj: 0,
   llmax: 0,
@@ -334,6 +348,8 @@ function edit(row) {
   editForm.pass = row.pass || ''
   editForm.sqluser = row.sqluser || ''
   editForm.sqlpass = row.sqlpass || ''
+  editForm.passUnreadable = !!row.pass_unreadable
+  editForm.sqlpassUnreadable = !!row.sqlpass_unreadable
   const hxa = parseJson(row.hxa) || {}
   const hxb = parseJson(row.hxb) || {}
   const llmax = parseJson(row.llmax) || {}

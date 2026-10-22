@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS `MN_zj` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `ssbt` varchar(250) NOT NULL,
   `user` varchar(250) NOT NULL,
-  `pass` varchar(50) NOT NULL,
+  `pass` varchar(500) NOT NULL,
   `sqluser` text NOT NULL,
   `sqlpass` text NOT NULL,
   `sqldz` varchar(50) NOT NULL,

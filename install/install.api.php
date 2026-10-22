@@ -94,7 +94,7 @@ function mnbt_upgrade_columns($actual_config, $actual_zj, $actual_bt, $actual_dp
         $actual_config => array(
             'mailhost' => "ALTER TABLE `{$actual_config}` ADD `mailhost` VARCHAR(50) NULL DEFAULT NULL",
             'mailuser' => "ALTER TABLE `{$actual_config}` ADD `mailuser` VARCHAR(50) NULL DEFAULT NULL",
-            'mailpassword' => "ALTER TABLE `{$actual_config}` ADD `mailpassword` VARCHAR(50) NULL DEFAULT NULL",
+            'mailpassword' => "ALTER TABLE `{$actual_config}` ADD `mailpassword` VARCHAR(500) NULL DEFAULT NULL",
             'mailport' => "ALTER TABLE `{$actual_config}` ADD `mailport` VARCHAR(20) NOT NULL DEFAULT '465'",
             'ymjkkg' => "ALTER TABLE `{$actual_config}` ADD `ymjkkg` VARCHAR(20) NOT NULL DEFAULT 'false'",
             'mtyxfskg' => "ALTER TABLE `{$actual_config}` ADD `mtyxfskg` VARCHAR(20) NOT NULL DEFAULT 'false'",

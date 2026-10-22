@@ -82,6 +82,9 @@ description: admin/ajax.php 后台管理 AJAX 接口（登录、宝塔节点、�
 
 **参数说明：**
 
+- `listzj` 的 `rows[]` 每项带 `pass_unreadable` / `sqlpass_unreadable`（`1`=库里的 `enc1:` 密文解不开，原因可能是 `config.php` 缺密钥，也可能是老库 `varchar(50)` 把密文截断了）：此时对应密码返回空串，前端显示「密码不可用」
+- `zjxgjl` 在提交的 `pass` 或 `sqlpass` 为空、而库里原值解不开时直接返回错误、拒绝保存——这两个值会同时推到宝塔节点，写空等于把主机密码清掉。要恢复请先补回原 `config.php` 的密钥，或重新输入正确密码
+
 - `datae`/`datar`：到期日期（`Y-m-d`，`0000-00-00` 表示永久）
 - `webkj`/`sqlkj`/`llmax`：网页空间、数据库空间、流量上限（单位 MB）
 - `ymbds`：域名绑定数

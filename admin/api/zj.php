@@ -269,6 +269,9 @@ if($egn=='listzj') {
 	// pass/sqlpass 库内为 enc1: 密文,列表供管理端查看与编辑回填,输出前解密
 	if (is_array($data["rows"])) {
 		foreach ($data["rows"] as &$r) {
+			// 先判定是否解不开（密钥丢失或密文被截断），再解密，避免空串被当成"没设置密码"
+			$r['pass_unreadable'] = mnbt_secret_is_unreadable($r['pass']);
+			$r['sqlpass_unreadable'] = mnbt_secret_is_unreadable($r['sqlpass']);
 			$r['pass'] = mnbt_secret_decrypt($r['pass']);
 			$r['sqlpass'] = mnbt_secret_decrypt($r['sqlpass']);
 		}

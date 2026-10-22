@@ -79,12 +79,51 @@ function mnbt_secret_key()
 	return $key;
 }
 
+/** 密文比明文长，这些列必须留够宽度（表 => 列） */
+function mnbt_secret_columns()
+{
+	return [['MN_zj', 'pass'], ['MN_config', 'mailpassword']];
+}
+
+/**
+ * 写入前把上面这些列加宽到 500。连接层是 sql_mode=''，varchar 超长不报错只静默截断，
+ * 截断后的 enc1: 永远解不开——新库的 MN_zj.pass 原本只有 varchar(50)，等于一装好就把主机密码写坏。
+ * 同一次请求内只探测一次；没 DDL 权限时安静跳过，
+ * 由 admin/migrate_secrets.php 或 update/ 增量 SQL 负责正式加宽。
+ */
+function mnbt_secret_ensure_columns()
+{
+	static $done = false;
+	if ($done || defined('SQLITE')) return;
+	$done = true;
+	if (!isset($GLOBALS['DB']) || !is_object($GLOBALS['DB'])) return;
+	$DB = $GLOBALS['DB'];
+	foreach (mnbt_secret_columns() as $t) {
+		try {
+			$meta = $DB->get_row_prepare(
+				"SELECT COLUMN_TYPE, IS_NULLABLE, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=? AND COLUMN_NAME=?",
+				[$t[0], $t[1]]
+			);
+			if (!$meta || !is_array($meta)) continue;
+			if (!preg_match('/^varchar\((\d+)\)$/i', (string)$meta['COLUMN_TYPE'], $m)) continue;
+			if ((int)$m[1] >= 500) continue;
+			$alter = "ALTER TABLE `{$t[0]}` MODIFY `{$t[1]}` VARCHAR(500)";
+			if (!empty($meta['CHARACTER_SET_NAME'])) $alter .= " CHARACTER SET {$meta['CHARACTER_SET_NAME']} COLLATE {$meta['COLLATION_NAME']}";
+			$alter .= ($meta['IS_NULLABLE'] === 'YES') ? ' NULL' : ' NOT NULL';
+			$DB->query($alter);
+		} catch (Throwable $e) {
+			// 忽略：加宽失败不该打断业务写入，最坏情况仍是截断，由迁移脚本报错兜底
+		}
+	}
+}
+
 /** 明文 → enc1: 密文;空值与已加密值原样返回(幂等) */
 function mnbt_secret_encrypt($plain)
 {
 	if ($plain === null || $plain === '') return $plain;
 	if (!is_string($plain)) $plain = (string)$plain;
 	if (strpos($plain, 'enc1:') === 0) return $plain;
+	mnbt_secret_ensure_columns();
 	$key = hex2bin(mnbt_secret_key());
 	$nonce = random_bytes(12);
 	$tag = '';
