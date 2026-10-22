@@ -67,7 +67,8 @@ class CubeFinanceClient
 	 *  - timeout    int     请求超时秒数
 	 *  - cache_dir  string  JWT 缓存目录（可写）
 	 *  - jwt_ttl    int     JWT 缓存时长
-	 *  - verify_ssl bool    true=强制校验证书；false/缺省时跟随面板全局退路（panel/ssl_insecure），不会静默关闭校验
+	 *  - verify_ssl bool    true=强制校验证书；false/缺省按宽容处理（魔方财务多为自签证书站点），
+	 *                       可改由面板 panel/ssl_strict=1 全局收紧
 	 *  - jwt        string  已有 JWT（可选，跳过登录）
 	 */
 	public function __construct(array $config)
@@ -81,10 +82,12 @@ class CubeFinanceClient
 		$this->timeout = isset($config['timeout']) ? (int)$config['timeout'] : 30;
 		$this->cacheDir = isset($config['cache_dir']) ? rtrim($config['cache_dir'], '/\\') : null;
 		$this->jwtTtl = isset($config['jwt_ttl']) ? (int)$config['jwt_ttl'] : 7200;
-		// verify_ssl 只能加严（true 强制校验）或顺应运维的全局退路（panel/ssl_insecure），
-		// 绝不允许插件缺省即静默关闭校验
+		// 魔方财务是客户自架的站点，证书常常是自签的，所以缺省按"宽容"走（与宝塔节点同一档），
+		// 由运维显式收紧：config 的 verify_ssl=true 单条链路加严，panel/ssl_strict=1 全局加严；
+		// panel/ssl_insecure=1 仍可一键关掉校验
 		$globalInsecure = function_exists('mnbt_ssl_insecure_enabled') && mnbt_ssl_insecure_enabled();
-		$this->verifySsl = !empty($config['verify_ssl']) ? true : !$globalInsecure;
+		$globalStrict = function_exists('mnbt_ssl_strict_for_nodes') && mnbt_ssl_strict_for_nodes();
+		$this->verifySsl = !empty($config['verify_ssl']) || ($globalStrict && !$globalInsecure);
 		if (!empty($config['jwt'])) {
 			$this->jwt = (string)$config['jwt'];
 		}

@@ -142,13 +142,16 @@ function _mnbtdocker_api_call($params, $gn, $extra = [], $timeout = 30)
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_HTTPHEADER     => ['Content-Type: application/x-www-form-urlencoded; charset=UTF-8'],
     ]);
-    // 请求里带 mn_key/mn_keye 节点凭据，TLS 校验走面板统一退路开关（panel/ssl_insecure）；
-    // 模块独立部署在魔方财务时面板函数不可加载，兜底同样默认强校验（VERIFYHOST=2 才校验主机名/SAN）
+    // 请求里带 mn_key/mn_keye 节点凭据；面板地址是自管机器（宝塔默认自签证书），所以走宽容档，
+    // 需要收紧时在魔方入口 define('MNBT_SSL_VERIFY', true)，或把面板侧 panel/ssl_strict 置 1。
+    // VERIFYHOST 一旦校验就必须传 2（1 已废弃且不校验主机名）
+    $mnbt_ssl_force = defined('MNBT_SSL_VERIFY') && MNBT_SSL_VERIFY;
     if (function_exists('mnbt_curl_ssl_verify')) {
-        mnbt_curl_ssl_verify($ch);
+        mnbt_curl_ssl_verify($ch, 'node', $mnbt_ssl_force);
     } else {
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+        // 模块独立部署在魔方财务、面板函数加载不到时，沿用本模块的历史默认：不校验
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, $mnbt_ssl_force);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, $mnbt_ssl_force ? 2 : 0);
     }
     $resp = curl_exec($ch);
     $errno = curl_errno($ch);

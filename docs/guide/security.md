@@ -60,28 +60,37 @@ description: PHP 运行环境安全基线（php2shell）、同批次 CVE 影响�
 
 ## 出站 TLS 校验
 
-V1.89 起，面板对外的 HTTPS 请求默认校验证书（`CURLOPT_SSL_VERIFYPEER = true`、`CURLOPT_SSL_VERIFYHOST = 2`；只有值为 2 时 libcurl 才校验主机名/SAN）：
+面板对外的 HTTPS 请求按**对端是不是我们自己的机器**分两档（`MPHX/function.php` 的 `mnbt_curl_ssl_verify($ch, $scope, $force)` 是唯一入口；校验开启时 `CURLOPT_SSL_VERIFYHOST` 固定传 2——只有值为 2 时 libcurl 才校验证书主机名/SAN，1 已废弃、0/false 等于放弃身份校验）：
 
-| 调用点 | 位置 |
-|-------|------|
-| 宝塔节点 API | `MPHX/bt_api.php` 的 `HttpPostCookie()` |
-| Docker 节点 | `MPHX/bt_docker.php` |
-| 反向代理节点 | `MPHX/bt_proxy.php` |
-| 通用取回 | `MPHX/function.php` 的 `curl_get()` |
-| 魔方财务 server module | `mf_modules/servers/mnbthost`、`mnbtdocker`（独立部署、面板函数不可加载时兜底同样强校验） |
-| 支付宝官方插件 | `app_plugins/alipay_official/lib/AlipayService.php` |
+| 档位 | 调用点 | 缺省行为 | 可调开关 |
+|-----|-------|---------|---------|
+| `node`（自管机器） | 宝塔节点 API `MPHX/bt_api.php` 的 `HttpPostCookie()`、Docker 节点 `MPHX/bt_docker.php`、反向代理节点 `MPHX/bt_proxy.php`、魔方财务 server module `mf_modules/servers/mnbthost`、`mnbtdocker`、预约网关 `app_plugins/zjmfmanager_reserve/lib/CubeFinanceClient.php` | **不校验证书**（宝塔面板与自架魔方财务默认就是自签证书，一刀切强校验会让存量客户的节点对接当场失败） | `panel/ssl_strict=1` 收紧 |
+| `public`（公网服务） | 通用取回 `MPHX/function.php` 的 `curl_get()`、插件与更新下载 `MPHX/plugin.php`、`MPHX/github_updater.php`、监控探活 `MPHX/monitor.function.php`、聚名网域名 API `app_plugins/qmzl_domain/lib/api.php`、支付宝官方插件 | **强校验**（这些站点有公网 CA 签发的证书，校验零成本） | `panel/ssl_insecure=1` 放宽 |
 
-- 统一入口：`MPHX/function.php` 的 `mnbt_curl_ssl_verify()`，退路开关为面板级选项 `ssl_insecure`（存 `MN_plugin_option`，`plugin_slug=panel` / `k=ssl_insecure`，值 `1`/`true` 生效），由 `mnbt_ssl_insecure_enabled()` 读取；默认（无配置）一律校验。
-- 支付网关不受该开关影响：`AlipayService` 在 `curl_setopt_array` 之后硬写校验，调用方传选项也关不掉。
-- 保留退路的原因：宝塔节点默认使用自签证书，一刀切强校验会让存量客户的节点对接直接失败。**推荐做法是把节点证书/CA 加入系统信任，或在 `php.ini` 设置 `curl.cainfo`（及 `openssl.cafile`）指向 CA bundle，而不是打开 `ssl_insecure`**；确需打开时按节点逐个验证后再全局启用，事后关闭。
+- 两个开关都存既有键值表 `MN_plugin_option`（`plugin_slug=panel`，`k=ssl_insecure` / `ssl_strict`，值 `1` 或 `true` 生效），没有新增表也没有新增列，**当前没有后台 UI，需要执行 SQL**：
+
+  ```sql
+  -- 节点已换成可信证书后收紧全部自管链路
+  INSERT INTO MN_plugin_option (plugin_slug, k, v) VALUES ('panel', 'ssl_strict', '1')
+    ON DUPLICATE KEY UPDATE v='1';
+  -- 应急：连公网服务也不校验（会让更新源、支付回调等一并失去证书保护，事后请删除）
+  INSERT INTO MN_plugin_option (plugin_slug, k, v) VALUES ('panel', 'ssl_insecure', '1')
+    ON DUPLICATE KEY UPDATE v='1';
+  DELETE FROM MN_plugin_option WHERE plugin_slug='panel' AND k IN ('ssl_strict','ssl_insecure');
+  ```
+
+- 优先级：`ssl_insecure`（放宽全部）> `ssl_strict`（收紧 node 档）> 各档缺省。调用点还可以传 `$force=true` 表达"这条一定要校验"，此时连 `ssl_insecure` 也压不住它——魔方财务那两个 server module 就是这样处理入口文件里的 `define('MNBT_SSL_VERIFY', true)` 的。
+- 支付网关不受任何开关影响：`AlipayService` 在 `curl_setopt_array` 之后硬写 `VERIFYPEER=true` / `VERIFYHOST=2`，调用方传选项也关不掉。
+- `node` 档默认宽容的代价要说明白：这条链路上带着节点凭据（`ktmy/qmk` 派生的鉴权与按节点分存的 cookie jar），不校验证书意味着中间的 HTTPS 请求仍可被出示任意证书的中间人篡改。想把它收紧又暂时拿不到公网证书，做法是自建一个 CA 签节点证书，把该 CA 追加进系统信任或在面板 `php.ini` 设 `curl.cainfo`（及 `openssl.cafile`）指向那个 bundle，然后把 `ssl_strict` 打开；宝塔节点能申请 Let's Encrypt 的（必须用域名，不能用 IP）直接换证书更省事。
+- 部分精简 PHP 环境没有系统 CA bundle，`public` 档会连正规证书都报 `unable to get local issuer certificate`；这不是策略过严，装 `ca-certificates` 并配好 `curl.cainfo` 即可。
 
 ## 客户/运维升级动作清单
 
 1. 在宝塔节点装好已修复版本的 PHP（8.2.35 / 8.3.36 / 8.4.27 / 8.5.12 及以上），把面板站点切换到该版本；已安装状态下可用 `php -v` / `phpinfo()` 核对实际运行版本（安装向导的环境检测在存在 `install/install.lock` 时不再执行）。
 2. 复核面板 `php.ini` 的 `session.upload_progress.enabled`，升级后建议仍保持 `0`。
 3. 按上文「缓解」第 3 条的循环，在每个节点上给存量池与共享池追加 `php_admin_value[session.upload_progress.enabled] = 0`，再逐版本 reload php-fpm——面板当前不会自动下发该指令，新建站点也一样不带它。
-4. 升级后在后台「宝塔列表 → 状态列 → 点我检测」逐节点复测通信；出现证书错误时按上一节修 CA 信任（`curl.cainfo`），不要直接开 `ssl_insecure`。
-5. 复测其他出站链路：Docker 节点、魔方财务对接的 `mnbthost`/`mnbtdocker`、支付宝回调、`curl_get` 相关取回、监控计划任务与邮件发送。
+4. 升级后在后台「宝塔列表 → 状态列 → 点我检测」逐节点复测通信。节点这一档默认不校验证书，自签节点不会报错；如果你在 `public` 档链路（更新下载、支付回调、监控探活）遇到 `unable to get local issuer certificate`，那是缺 CA bundle，装 `ca-certificates` 并配 `curl.cainfo` 解决，不要开 `ssl_insecure`。
+5. 节点证书换成可信证书后，把 `panel/ssl_strict` 置 1 并再复测一轮；Docker 节点、魔方财务对接的 `mnbthost`/`mnbtdocker`、支付宝回调、`curl_get` 相关取回、监控计划任务与邮件发送一并回归。
 6. 配置与凭据变更后重新登录管理后台；同版本还包含库内凭据密文迁移，执行 `admin/migrate_secrets.php` 后所有管理员需重新登录。
 7. 仍停留在 7.4 / 8.0 / 8.1 的服务器：面板允许你在显式确认后继续安装/运行，但这些分支拿不到官方补丁，php2shell 只能靠下文 ini 缓解 + 前置拦截压住风险，请把它当成排期项而不是长期状态。
 

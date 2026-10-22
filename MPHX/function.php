@@ -286,10 +286,12 @@ function mnbt_log($user = '系统', $type = '系统日志', $content = '内容',
 }
 
 /**
- * 出站 TLS 校验的唯一退路开关：默认（没配置时）一律校验证书，只有运维显式打开才跳过。
- * 为什么要保留退路：宝塔节点默认是自签证书，一刀切强校验会让存量客户的节点对接直接失败。
- * 值放在 MN_plugin_option（plugin_slug=panel / k=ssl_insecure），与插件配置共用同一张键值表，
- * 不需要给 MN_config 新加列；每个调用点只调 mnbt_curl_ssl_verify()，不在各处各自写死。
+ * 出站 TLS 校验的两个运维可调开关（都存 MN_plugin_option，plugin_slug=panel，与插件配置共用同一张
+ * 键值表，不需要给 MN_config 新加列；没有记录时取默认值）：
+ *  - ssl_insecure：全局关掉 TLS 证书校验（含公网服务）。默认不存在=不生效。
+ *  - ssl_strict  ：把"自管节点"这一档也收紧成强校验。默认不存在=不生效，因为宝塔面板默认
+ *                  就是自签证书，一刀切强校验会让存量客户的节点对接当场断掉。
+ * 每个调用点只调 mnbt_curl_ssl_verify()，不在各处各自写死。
  */
 function mnbt_ssl_insecure_enabled()
 {
@@ -304,12 +306,40 @@ function mnbt_ssl_insecure_enabled()
 	return $insecure;
 }
 
-/** 给 cURL 句柄应用出站 TLS 校验选项：VERIFYHOST 必须传 2，libcurl 只有值为 2 时才校验证书主机名/SAN（1 已废弃，0/false 等于放弃身份校验） */
-function mnbt_curl_ssl_verify($ch)
+/** 自管节点档是否要收紧到强校验（宝塔/Docker/反向代理节点、魔方财务对接面板这类"自己架的机器"） */
+function mnbt_ssl_strict_for_nodes()
 {
-	$insecure = mnbt_ssl_insecure_enabled();
-	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, $insecure ? false : true);
-	curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, $insecure ? 0 : 2);
+	static $strict = null;
+	if ($strict === null) {
+		$strict = false;
+		if (isset($GLOBALS['DB']) && is_object($GLOBALS['DB']) && function_exists('mnbt_plugin_option_get')) {
+			$v = mnbt_plugin_option_get('panel', 'ssl_strict', 'false');
+			$strict = ($v === true || $v === 1 || $v === '1' || $v === 'true');
+		}
+	}
+	return $strict;
+}
+
+/**
+ * 给 cURL 句柄应用出站 TLS 校验选项。VERIFYHOST 必须传 2，libcurl 只有值为 2 时才校验证书主机名/SAN
+ * （1 已废弃，0/false 等于放弃身份校验）。
+ *
+ * $scope 决定这一路请求的默认严格程度，判据是"对端证书是不是我们自己的机器给的"：
+ *  - public（默认）：支付宝一类的 SaaS、GitHub 更新源、DNS 服务商 API、监控探活。这些站点有
+ *    公网 CA 签发的证书，强校验零成本，所以默认强校验；只有运维显式打开 ssl_insecure 才放宽。
+ *  - node：宝塔/Docker/反向代理节点与魔方财务↔面板这类自管机器。宝塔默认发的是自签证书，
+ *    强校验等于要每个客户先给节点换可信证书才能升级，这会直接打断存量对接，所以默认按老行为
+ *    宽容（不校验），运维给节点配好可信证书后用 ssl_strict=1 一键收紧。
+ * ssl_insecure 优先于 ssl_strict：全局退路打开时两档都不校验。
+ * $force_verify 供调用点表达"我这条链路一定要校验"（如魔方财务模块被显式定义了
+ * MNBT_SSL_VERIFY），它会盖过上面两个开关。
+ */
+function mnbt_curl_ssl_verify($ch, $scope = 'public', $force_verify = false)
+{
+	$verify = $force_verify ? true : ($scope === 'node' ? mnbt_ssl_strict_for_nodes() : true);
+	if (!$force_verify && mnbt_ssl_insecure_enabled()) $verify = false;
+	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, $verify);
+	curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, $verify ? 2 : 0);
 }
 
 function mnbt_api_compat_mode()

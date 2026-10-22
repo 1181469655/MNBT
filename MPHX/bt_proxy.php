@@ -117,7 +117,8 @@ class bt_proxy
         curl_setopt($ch, CURLOPT_COOKIEFILE, $cookie_file);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($ch, CURLOPT_HEADER, 0);
-        mnbt_curl_ssl_verify($ch);
+        // 反向代理节点同为自管机器（默认自签证书），走 node 档
+        mnbt_curl_ssl_verify($ch, 'node');
         if ($postData !== null) {
             curl_setopt($ch, CURLOPT_POST, 1);
             curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);

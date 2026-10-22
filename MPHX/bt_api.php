@@ -1600,7 +1600,8 @@ class bt_api
         // 否则 302 指向 file:// gopher:// 等协议就能把请求打到本地资源上
         curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
         curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
-        mnbt_curl_ssl_verify($ch);
+        // 宝塔节点默认是自签证书，node 档默认宽容；节点换成可信证书后可用 panel/ssl_strict 收紧
+        mnbt_curl_ssl_verify($ch, 'node');
         $output = curl_exec($ch);
         if ($output === false) {
             $last_error = (string)curl_error($ch);
