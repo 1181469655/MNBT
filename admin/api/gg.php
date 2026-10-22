@@ -204,4 +204,11 @@ if($egn=='update') {
 	]);
 	return;
 }
+if($egn=='system_info') {
+	// 仪表盘 loadDashboard 的 AJAX 数据源：与启动注入（templates/tdesign/admin/index.php、admin/sy.php）
+	// 共用 MPHX/function.php 的 mnbt_sys_info()，php_security 同样出自 MPHX/BL.php 的那张分支表，
+	// 所以 SPA 用 AJAX 覆盖 info 之后 PHP 风险提示不会凭空消失，两处数字也不会分叉
+	// 输出纯字段载荷（不带 qk/success 包装，和同文件的 gn=mnbt 一致），前端 parseResult 直接当数据用
+	exit(json_encode(mnbt_sys_info(), JSON_UNESCAPED_UNICODE));
+}
 return;

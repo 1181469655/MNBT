@@ -325,6 +325,58 @@ function mnbt_panel_logo_max_mb()
 	return 2;
 }
 
+/**
+ * 系统信息（仪表盘）字段的唯一数据源：管理端启动注入（templates/tdesign/admin/index.php）、
+ * 旧控制器（admin/sy.php）与 AJAX（admin/api/gg.php 的 system_info）三处共用同一份，
+ * 免得同一组数字在三处各算一遍、改一处漏两处（SPA 的 info 会被 AJAX 整体覆盖，字段必须齐）。
+ * php_security 走 MPHX/BL.php 的 mnbt_php_security_status()：PHP 补丁版本只在那张表里出现一次。
+ */
+function mnbt_sys_info()
+{
+	global $DB, $WEBQB, $SQLQB;
+	// BL.php 不在 MPHX/common.php 的加载链上（安装器与各 API 分支都要自己 include），这里补一次；
+	// 先声明 global，include 里的 $WEBQB / $SQLQB 赋值才会写进全局作用域而不是函数作用域
+	if (!function_exists('mnbt_php_security_status')) include_once __DIR__ . '/BL.php';
+
+	$sy = [
+		'hosts'     => (int)$DB->count_prepare("SELECT count(*) FROM MN_zj WHERE 1"),
+		'bt_panels' => (int)$DB->count_prepare("SELECT count(*) FROM MN_bt WHERE 1"),
+		'nodes'     => (int)$DB->count_prepare("SELECT count(*) FROM MN_node WHERE 1"),
+		'orders'    => (int)$DB->count_prepare("SELECT count(*) FROM MN_dd WHERE 1"),
+	];
+	$sy['os']            = php_uname('s') . ' ' . php_uname('r');
+	$sy['hostname']      = php_uname('n');
+	$sy['php_version']   = PHP_VERSION;
+	$sy['php_sapi']      = PHP_SAPI;
+	$sy['server_soft']   = $_SERVER['SERVER_SOFTWARE'] ?? 'N/A';
+	$sy['server_ip']     = $_SERVER['SERVER_ADDR'] ?? ($_SERVER['LOCAL_ADDR'] ?? '127.0.0.1');
+	$sy['server_port']   = $_SERVER['SERVER_PORT'] ?? '80';
+	$sy['server_time']   = date('Y-m-d H:i:s');
+	$sy['timezone']      = date_default_timezone_get();
+	$sy['memory_limit']  = ini_get('memory_limit');
+	$sy['max_exec_time'] = ini_get('max_execution_time');
+	$sy['upload_max']    = ini_get('upload_max_filesize');
+	$sy['post_max']      = ini_get('post_max_size');
+	$sy['ext_count']     = count(get_loaded_extensions());
+	$sy['disk_total']    = @disk_total_space(ROOT) ?: 0;
+	$sy['disk_free']     = @disk_free_space(ROOT) ?: 0;
+	$sy['disk_used']     = max(0, $sy['disk_total'] - $sy['disk_free']);
+	$sy['disk_pct']      = $sy['disk_total'] ? round($sy['disk_used'] / $sy['disk_total'] * 100, 1) : 0;
+	$sy['disk_ok']       = $sy['disk_total'] > 0;
+	$sy['mem_current']   = memory_get_usage(true);
+	$sy['mem_peak']      = memory_get_peak_usage(true);
+	$sy['load_avg']      = function_exists('sys_getloadavg') ? @sys_getloadavg() : null;
+	$_row = $DB->get_row("SELECT VERSION() AS ver");
+	$sy['db_version']    = isset($_row['ver']) ? $_row['ver'] : 'N/A';
+	$sy['web_version']   = $WEBQB ?? 0;
+	$sy['sql_version']   = $SQLQB ?? 0;
+
+	// 只提示、不拦截：面板对 PHP 版本永远只是告知风险，不影响后台任何功能
+	$phpsec = mnbt_php_security_status();
+	$sy['php_security']  = ['status' => $phpsec['status'], 'text' => $phpsec['text']];
+	return $sy;
+}
+
 // ---------------------------------------------------------------------------
 //  监控/定时入口鉴权（jk.php / jk_monitor.php / docker_cron.php）
 //  新方式：?t=<unix秒>&sign=hash_hmac('sha256', '<脚本名>|<t>', API密钥)，±300 秒有效

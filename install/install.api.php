@@ -13,40 +13,23 @@ function Res(int $code, string $msg = '返回信息', ?array $data = null, ?int 
     return Response::json($code, $msg, $data, $redirect);
 }
 
-// PHP 安全版本门槛：php2shell（CVE-2026-109618 / CVE-2026-109619，CVSS 9.2，
-// 构造 multipart POST 即可未授权 RCE）仅在下列各分支的补丁版本中修复。
-// 表内只登记"分支 => 最低已修补版本"，7.4 / 8.0 / 8.1 已 EOL，上游永不修复，故不入表。
+// PHP 安全版本检测：分支 => 最低已修补版本的表、EOL 判定与全部文案的唯一来源在 MPHX/BL.php 的
+// mnbt_php_security_status()（本文件第 6 行已 include BL.php，安装路径不启动面板也拿得到）。
+// php2shell（CVE-2026-109618 / CVE-2026-109619）的分支明细见上面那个函数。
+// 注意：本函数只做"告知"，不做"拒绝"。运行环境是用户的，装不装由用户决定：
+// status = ok（已修复）/ warning（分支有补丁但当前构建过旧）/ eol（分支已停更，永不修复）。
 function mnbt_php_security_gate()
 {
-    // 分支 => 该分支修复 php2shell 的最低补丁版本
-    $patched_min = array(
-        '8.2' => '8.2.35',
-        '8.3' => '8.3.36',
-        '8.4' => '8.4.27',
-        '8.5' => '8.5.12',
-    );
-    $require_txt = '8.2.35 / 8.3.36 / 8.4.27 / 8.5.12 及以上（推荐 8.4.27+）';
-    $mitigate_txt = '若确实暂时无法升级 PHP，必须先按《安装部署》文档的安全说明，在 php.ini 与 PHP-FPM 池中设置 session.upload_progress.enabled = 0 作为临时缓解，升级完成后及时复核。';
-    $branch = PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION;
+    $sec = mnbt_php_security_status();
+    return array('status' => $sec['status'], 'msg' => $sec['msg'], 'text' => $sec['text']);
+}
 
-    if (isset($patched_min[$branch])) {
-        if (version_compare(PHP_VERSION, $patched_min[$branch], '>=')) {
-            // 同分支内更高的补丁版本（含后续未列入表的小版本）视为已修复
-            return array(true, '');
-        }
-        return array(false, '当前 PHP 版本为 ' . PHP_VERSION . '，' . $branch . ' 分支需升级到 '
-            . $patched_min[$branch] . ' 及以上才能修复 php2shell（CVE-2026-109618 / CVE-2026-109619，未授权远程代码执行）。'
-            . '本面板要求运行环境使用' . $require_txt . '。' . $mitigate_txt);
-    }
-
-    if (version_compare(PHP_VERSION, '8.5.0', '>=')) {
-        // 高于表内最新分支的版本已包含该修复
-        return array(true, '');
-    }
-
-    // 7.x / 8.0 / 8.1 等：分支已停止上游维护，永远不会有官方补丁
-    return array(false, '当前 PHP 版本为 ' . PHP_VERSION . '，该分支已停止上游维护，官方不会为 php2shell（CVE-2026-109618 / CVE-2026-109619，CVSS 9.2，未授权远程代码执行）发布任何补丁，'
-        . '安装在本面板上等于留下永久漏洞，因此拒绝继续安装。请改用' . $require_txt . '后重新安装。' . $mitigate_txt);
+// 操作者是否已明确勾选"已知悉 PHP 未修复 php2shell，风险自负"。
+// 未勾选时安装请求会被退回，这不是因为面板拒绝服务，而是用户还没做出选择。
+function mnbt_php_risk_acked()
+{
+    $ack = isset($_POST['php_risk_ack']) ? strtolower(trim((string)$_POST['php_risk_ack'])) : '';
+    return in_array($ack, array('1', 'true', 'yes', 'on'), true);
 }
 
 function table_exists_case($tableName) {
@@ -163,18 +146,24 @@ switch ($action) {
         break;
     case 'system':
         $php_gate = mnbt_php_security_gate();
+        // 版本未修复只作为"警示"上报（is_php_warning），不再作为阻断项（is_vs_install 仅供文案参考）
         echo Res(1, '系统基础环境监测', [
             'vs' => [
                 'info' => PHP_VERSION,
-                'is_vs_install' => $php_gate[0],
-                'tip' => $php_gate[1],
+                'is_vs_install' => ($php_gate['status'] === 'ok'),
+                'php_status' => $php_gate['status'],
+                'is_php_warning' => ($php_gate['status'] !== 'ok'),
+                'php_text' => $php_gate['text'],
+                'tip' => $php_gate['msg'],
             ],
             'curl_exec' => function_exists('curl_exec'),
         ]);
         break;
     case 'database_info_wire':
         $php_gate = mnbt_php_security_gate();
-        if (!$php_gate[0]) exit(Res(0, $php_gate[1]));
+        if ($php_gate['status'] !== 'ok' && !mnbt_php_risk_acked()) {
+            exit(Res(0, '当前 PHP 版本未修复 php2shell，请先在「环境监测」步骤勾选「我已知悉当前 PHP 未修复 php2shell，风险自负，继续安装」后再提交。'));
+        }
         require_once './db.class.php';
         $db_host = isset($_POST['db_host']) ? $_POST['db_host'] : NULL;
         $db_port = isset($_POST['db_port']) ? $_POST['db_port'] : NULL;
@@ -361,7 +350,9 @@ switch ($action) {
 
     case 'install':
         $php_gate = mnbt_php_security_gate();
-        if (!$php_gate[0]) exit(Res(0, $php_gate[1]));
+        if ($php_gate['status'] !== 'ok' && !mnbt_php_risk_acked()) {
+            exit(Res(0, '当前 PHP 版本未修复 php2shell，请先勾选「我已知悉当前 PHP 未修复 php2shell，风险自负，继续安装」后再执行安装。'));
+        }
         $site_name = isset($_POST['site_name']) ? trim((string)$_POST['site_name']) : '';
         $site_qq = isset($_POST['site_qq']) ? trim((string)$_POST['site_qq']) : '';
         $site_gg = isset($_POST['site_gg']) ? trim((string)$_POST['site_gg']) : '';

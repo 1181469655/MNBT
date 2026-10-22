@@ -140,7 +140,7 @@
               <strong>PHP 信息</strong>
               <span>PHP Runtime</span>
             </div>
-            <t-tag theme="primary" size="small" shape="round" variant="light">{{ info.phpVersion }}</t-tag>
+            <t-tag :theme="(info.phpSecurity && info.phpSecurity.status !== 'ok') ? 'warning' : 'primary'" size="small" shape="round" variant="light">{{ info.phpVersion }}</t-tag>
           </div>
           <table class="info-tbl">
             <tbody>
@@ -153,6 +153,10 @@
               <tr><td>已加载扩展</td><td>{{ info.extCount }} 个</td></tr>
             </tbody>
           </table>
+          <div v-if="info.phpSecurity && info.phpSecurity.status !== 'ok'" class="php-sec-warn">
+            <i class="mdi mdi-alert-outline"></i>
+            <span>{{ info.phpSecurity.text }}</span>
+          </div>
         </div>
 
         <div class="info-card">
@@ -214,6 +218,7 @@ const info = ref({
   os: bootSy.os || '-',
   hostname: bootSy.hostname || '-',
   phpVersion: bootSy.php_version || '-',
+  phpSecurity: bootSy.php_security || null,
   phpSapi: bootSy.php_sapi || '-',
   serverSoft: bootSy.server_soft || '-',
   serverIp: bootSy.server_ip || '-',
@@ -415,6 +420,7 @@ async function loadDashboard() {
         os: d.os || '-',
         hostname: d.hostname || '-',
         phpVersion: d.php_version || '-',
+        phpSecurity: d.php_security || null,
         phpSapi: d.php_sapi || '-',
         serverSoft: d.server_soft || '-',
         serverIp: d.server_ip || '-',
@@ -780,6 +786,25 @@ onBeforeUnmount(() => {
 .info-tbl td:last-child {
   color: var(--td-text);
   word-break: break-all;
+}
+/* php2shell 未修复的运行期提示（只提示，不影响后台任何功能） */
+.php-sec-warn {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 12px 16px 16px;
+  padding: 10px 12px;
+  border-radius: var(--td-radius);
+  background: #fff3e0;
+  border: 1px solid #ffd9a8;
+  color: #e37318;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.php-sec-warn i {
+  font-size: 16px;
+  line-height: 1.2;
+  flex-shrink: 0;
 }
 
 @media (max-width: 600px) {

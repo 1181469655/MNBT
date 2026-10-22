@@ -142,7 +142,7 @@ include_once __DIR__ . '/../MPHX/BL.php';
                         </div>
                         <div>
                             <b>PHP</b>
-                            <span>面板运行环境需已修复 php2shell：8.2.35 / 8.3.36 / 8.4.27 / 8.5.12 及以上（推荐 8.4.27+）</span>
+                            <span>面板运行环境建议已修复 php2shell：8.2.35 / 8.3.36 / 8.4.27 / 8.5.12 及以上（推荐 8.4.27+）</span>
                         </div>
                     </div>
                     <div class="sys-item curl_exec">
@@ -153,6 +153,19 @@ include_once __DIR__ . '/../MPHX/BL.php';
                             <b>curl_exec</b>
                             <span>用于与宝塔 API 通信</span>
                         </div>
+                    </div>
+                </div>
+                <div class="tip-box warn d-none php-risk-tip">
+                    <span class="mdi">⚠</span>
+                    <span class="php-risk-tip-text"></span>
+                </div>
+                <div class="agree-card use-terms php-risk-ack d-none">
+                    <div class="check">
+                        <svg viewBox="0 0 11 9" fill="none"><path d="M1 4L4 7L10 1" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </div>
+                    <div>
+                        <b>我已知悉当前 PHP 未修复 php2shell（7.4/8.0/8.1 官方不再发布补丁），风险自负，继续安装</b>
+                        <small>勾选后即可以当前 PHP 版本继续安装；建议尽快升级 PHP 并复核 session.upload_progress.enabled</small>
                     </div>
                 </div>
             </div>
@@ -413,6 +426,7 @@ include_once __DIR__ . '/../MPHX/BL.php';
                 return NEXT_BTN_FUN.TipsShow('请将表单填写完整，表单可下滑');
             }
             NEXT_BTN_FUN.loading('连接中....');
+            data.php_risk_ack=isPhpRiskAcked()?'1':'0';
             let result = await request('database_info_wire',data);
             if (result.code!==1){
                 NEXT_BTN_FUN.removeDisabled();
@@ -494,7 +508,8 @@ include_once __DIR__ . '/../MPHX/BL.php';
             }
             NEXT_BTN_FUN.loading(install_mode==='upgrade'?'升级中...':'安装中...');
             let payload=Object.assign({
-                install_mode: install_mode
+                install_mode: install_mode,
+                php_risk_ack: isPhpRiskAcked()?'1':'0'
             }, siteConfigCache);
             let result = await request('install', payload);
             if(result.code!==1){
@@ -578,6 +593,23 @@ include_once __DIR__ . '/../MPHX/BL.php';
             }
             return;
         }
+        // PHP 未修复 php2shell 的风险确认：与许可协议同一套勾选机制，勾选后才放开下一步
+        if(thisClass.hasClass('php-risk-ack')){
+            thisClass.toggleClass('terms-yes');
+            if(thisClass.hasClass('terms-yes')){
+                // 勾选只代表"已知悉风险"，其他阻断项（如缺 curl）仍要拦着下一步
+                if ($('.install-system-info>div.no').length<=0){
+                    NEXT_BTN_FUN.removeDisabled();
+                    NEXT_BTN_FUN.TipsHide();
+                } else {
+                    NEXT_BTN_FUN.TipsShow('PHP 风险已确认，但上方仍有不支持的必需项，请先处理');
+                }
+            } else {
+                NEXT_BTN_FUN.disabled();
+                NEXT_BTN_FUN.TipsShow('请勾选「我已知悉当前 PHP 未修复 php2shell，风险自负，继续安装」后才能继续');
+            }
+            return;
+        }
         if(thisClass.hasClass('terms-yes')) {
             thisClass.removeClass('terms-yes').next().removeClass('d-none');
             if (thisClass.hasClass('must')) {
@@ -650,16 +682,34 @@ include_once __DIR__ . '/../MPHX/BL.php';
 
     $(".form-site input, .form-site textarea").on("change input", checkSiteFormValidation);
 
+    //PHP 风险确认勾选状态（与许可协议同一套 use-terms / terms-yes 机制）
+    const isPhpRiskAcked=()=>$('.php-risk-ack.use-terms').hasClass('terms-yes');
+
     const systemCheck=async ()=>{
         let result = await request('system');
+        if (!result.data || !result.data.vs){
+            return NEXT_BTN_FUN.TipsShow('环境监测读取失败，请刷新页面重试');
+        }
         $('.install-system-info>div').addClass('yes');
-        if (!result.data.vs.is_vs_install){
-            const php_vs=$('.php_vs').addClass('no');
-            if (result.data.vs.tip) php_vs.find('span').text(result.data.vs.tip);
-            NEXT_BTN_FUN.TipsShow('PHP 版本未修复 php2shell，无法安全安装，详见上方 PHP 项说明');
+        let phpItem=$('.php_vs').removeClass('php-warn');
+        $('.php-risk-tip').addClass('d-none');
+        let needAck=false;
+        if (result.data.vs.is_php_warning){
+            // 未修复只警示不阻断：用 php-warn 态而不是 no 态，版本不再是下一步的拦路项
+            phpItem.addClass('php-warn');
+            if (result.data.vs.php_text) phpItem.find('span').text(result.data.vs.php_text);
+            if (result.data.vs.tip){
+                $('.php-risk-tip').removeClass('d-none').find('.php-risk-tip-text').text(result.data.vs.tip);
+            }
+            $('.php-risk-ack').removeClass('d-none');
+            needAck=!isPhpRiskAcked();
+            NEXT_BTN_FUN.TipsShow('当前 PHP 未修复 php2shell，勾选「我已知悉…风险自负，继续安装」后即可继续');
+        } else {
+            $('.php-risk-ack').addClass('d-none').removeClass('terms-yes');
         }
         if (!result.data.curl_exec)$('.curl_exec').addClass('no');
-        $('.install-system-info>div.no').length<=0 && NEXT_BTN_FUN.removeDisabled();
+        let blocked = $('.install-system-info>div.no').length>0;
+        if (!blocked && !needAck)NEXT_BTN_FUN.removeDisabled();
     }
 
     //防抖
