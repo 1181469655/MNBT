@@ -108,6 +108,7 @@ MNBT 采用模块化目录组织：`admin/`（管理后台）、`user/`（用户
 │
 ├── jk.php                    # 域名/文件监控
 ├── jk_monitor.php            # 监控计划任务执行脚本（URL检测/资源阈值/到期提醒）
+├── config.bak.php             # 配置样例（入库，程序不读；真实 config.php 由安装生成且不入库）
 ├── config.php                # 数据库配置文件
 ├── bash.conf.php             # Shell 命令配置
 ├── composer.json             # Composer（vendor-dir: mail/vendor）

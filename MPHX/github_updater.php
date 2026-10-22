@@ -896,6 +896,7 @@ function mnbt_updater_mkdir($dir)
 function mnbt_updater_extract($file, $root, $strip, &$err)
 {
 	$err = '';
+	$skipped = 0;
 	$zip = new ZipArchive();
 	if ($zip->open($file) !== true) {
 		$err = '压缩包打开失败';
@@ -922,6 +923,8 @@ function mnbt_updater_extract($file, $root, $strip, &$err)
 			$rel = substr($name, strlen($strip));
 		}
 		if ($rel === '') continue;
+		// 本地生成的文件（config.php 等）一律不写，包里有也当没有
+		if (mnbt_updater_is_local_keep($rel)) { $skipped++; continue; }
 		$target = $root . $rel;
 		if (substr($name, -1) === '/') {
 			if (!is_dir($target) && !mnbt_updater_mkdir($target)) {
@@ -955,15 +958,39 @@ function mnbt_updater_extract($file, $root, $strip, &$err)
 		fclose($src);
 	}
 	$zip->close();
+	if ($skipped > 0) {
+		mnbt_updater_progress(['detail' => '已跳过 ' . $skipped . ' 个本地配置文件（config.php 等，不覆盖）']);
+	}
 	return true;
+}
+
+/**
+ * 永不被更新包写入的本地路径（安装时就生成、只属于这台站点的东西）。
+ * 解压阶段直接跳过这些条目——早先是"先覆盖再还原"，一旦被 FPM 硬杀/502/磁盘满打断在中途，
+ * 站点上留下的就是打包人自己的 config.php：数据库配置错还是小事，$mnbt_secret_key 换成别人的
+ * 等于把库里全部 enc1: 密文判死刑，且现场无法恢复。
+ */
+function mnbt_updater_local_keep()
+{
+	return ['config.php', 'cf_up.php', 'runtime/bt_cookie',
+		'templates/active_user_theme', 'templates/active_admin_theme', 'templates/active_docker_theme'];
+}
+
+/** 这个包内相对路径是不是该跳过的本地文件（目录用前缀匹配，含目录本身与其下所有内容） */
+function mnbt_updater_is_local_keep($rel)
+{
+	foreach (mnbt_updater_local_keep() as $keep) {
+		if ($rel === $keep || strpos($rel, $keep . '/') === 0) return true;
+	}
+	return false;
 }
 
 /** 需要备份还原的本地文件：装完就有、包里有但不能被覆盖 */
 function mnbt_updater_local_files()
 {
 	// active_*_theme：管理员选择的主题跨更新保留（V1.87）
-	return ['config.php', 'cf_up.php', 'install/install.lock',
-		'templates/active_user_theme', 'templates/active_admin_theme', 'templates/active_docker_theme'];
+	// install.lock 不在 local_keep 里：它由包携带、按"站点原本有没有"决定留还是删，见 restore_local
+	return array_merge(mnbt_updater_local_keep(), ['install/install.lock']);
 }
 
 /** 需要备份还原的本地目录：包里可能带着作者的数据，整目录换回来 */

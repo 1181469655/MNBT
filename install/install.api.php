@@ -165,6 +165,12 @@ switch ($action) {
             exit(Res(0, '当前 PHP 版本未修复 php2shell，请先在「环境监测」步骤勾选「我已知悉当前 PHP 未修复 php2shell，风险自负，继续安装」后再提交。'));
         }
         require_once './db.class.php';
+        // config.php 除了数据库配置还存着 $mnbt_secret_key：install.lock 丢了但站点还活着时，
+        // 走完这一步会把旧密钥覆盖掉，库里全部 enc1: 密文（节点密钥、主机密码、邮箱授权码）当场永久解不开。
+        // 所以已存在就不写，要重装请先把文件删除或改名——这是运维的动作，不是我们替运维猜。
+        if (file_exists('../config.php')) {
+            exit(Res(0, '站点根目录已存在 config.php，说明这台机器已经安装过。继续写入会覆盖原数据库配置和加密密钥 $mnbt_secret_key，库里以 enc1: 存储的宝塔节点密钥、主机密码、邮箱授权码将永久无法解密。请退出安装向导；确实要全新重装，请先在服务器上删除或改名 config.php 再重新提交。'));
+        }
         $db_host = isset($_POST['db_host']) ? $_POST['db_host'] : NULL;
         $db_port = isset($_POST['db_port']) ? $_POST['db_port'] : NULL;
         $db_user = isset($_POST['db_user']) ? $_POST['db_user'] : NULL;

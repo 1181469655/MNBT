@@ -86,8 +86,10 @@ description: PHP 运行环境安全基线（php2shell）、同批次 CVE 影响�
 
 ## 加密密钥丢失的识别与恢复
 
-`MPHX/secret.php` 的加密密钥 `$mnbt_secret_key` 只存在根目录 `config.php` 里（gitignored、在线更新保留清单内），密钥一丢，库里全部 `enc1:` 密文就永久解不开。因此这一版把"缺密钥"的行为改成不可静默降级：
+`MPHX/secret.php` 的加密密钥 `$mnbt_secret_key` 只存在根目录 `config.php` 里，密钥一丢，库里全部 `enc1:` 密文就永久解不开。**这次故障的成因是 `config.php` 被在线覆盖更新冲掉**：更新流程原本走"先备份 → 解压覆盖站点根 → 完成后还原"，一旦在中途被 FPM 硬杀、502、磁盘满打断，站点上留下的就是**打包人自己的 config.php**——数据库配置错还能改回来，`$mnbt_secret_key` 换成别人的等于把所有密文判死刑且现场不可恢复。这一版把这条路径改成不依赖"事后还原"：
 
+- **`config.php` 只由安装生成**：它本就 gitignored，GitHub/Gitee 自动源码包里根本没有；在线更新的解压阶段现在直接**跳过**本地文件条目（`MPHX/github_updater.php` 的 `mnbt_updater_local_keep()`：`config.php`、`cf_up.php`、`runtime/bt_cookie/`、`templates/active_*_theme`），包里带着也不写盘，备份还原只作为额外保险保留。样例见新增入库的 `config.bak.php`（程序不读它，只给手工部署的人抄）。
+- **安装向导不再覆盖已有 `config.php`**：`database_info_wire` 检测到根目录已有 `config.php` 就拒绝写入并说明后果——`install.lock` 丢了但站点还活着时重走向导，以前会静默换掉密钥。要全新重装请先在服务器上删除或改名该文件。
 - **解密只读现有密钥，任何情况下都不再生成、不再写 `config.php`**。以前解密路径也会触发"缺密钥就自动生成一把新的追加写回"，等于把旧密文判死刑还不留现场——这条路径已经删掉。
 - **加密（写入）路径缺密钥时直接报错**：`mnbt_secret_key()` 先扫库里是否已有 `enc1:` 值，有则抛 `MNBT_SecretException`（提示恢复原 `config.php` 或重录凭据），**不会**生成新密钥；库里一条密文都没有才按老行为自动生成。`MPHX/common.php` 装了未捕获异常兜底，这类错误会以一句话原文回给前端并写日志 `runtime/logs/php-error.log`，其他异常只回"服务器内部错误"，细节不外泄。
 - **列表与表单显式区分"没设置"和"解不开"**：`gn=listbt`、`gn=docker_node_list` 多返回一个 `sec_unreadable`（1=库里是解不开的密文），密钥/调用密钥一律留空，`dymy` 也不再拿 `md5('')` 冒充一个看起来正常的调用密钥；宝塔列表与 Docker 节点页显示"密钥不可用"标记。
