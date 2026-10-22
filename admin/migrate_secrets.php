@@ -18,13 +18,13 @@ $errors  = [];
 
 // 迁移清单：表 => 需加密的列
 $secret_cols = [
-	'MN_zj'            => ['pass', 'sqlpass'],
-	'MN_bt'            => ['btmy', 'ktmy', 'qmk'],
-	'MN_docker_node'   => ['btmy', 'ktmy', 'qmk'],
-	'MN_config'        => ['mailpassword'],
-	'plg_dns_provider' => ['api_secret'],
+	'MN_zj'             => ['pass', 'sqlpass'],
+	'MN_bt'             => ['btmy', 'ktmy', 'qmk'],
+	'MN_docker_node'    => ['btmy', 'ktmy', 'qmk'],
+	'MN_config'         => ['mailpassword'],
+	'plg_dns_provider'  => ['api_secret'],
+	'MN_plugin_respool' => ['password'],//资源池（RP_TABLE）；插件停用时表可能仍在，残留明文也一并迁移
 ];
-if (defined('RP_TABLE')) $secret_cols[RP_TABLE] = ['password'];
 
 function msc_table_exists($DB, $table)
 {
@@ -32,14 +32,27 @@ function msc_table_exists($DB, $table)
 	if (defined('SQLITE')) {
 		return (bool)$DB->get_row_prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?", [$table]);
 	}
-	return (bool)$DB->get_row_prepare("SHOW TABLES LIKE ?", [$table]);
+	// SHOW TABLES LIKE ? 在部分 MySQL/MariaDB 预处理协议下不可用，统一走 information_schema
+	return (bool)$DB->get_row_prepare("SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=?", [$table]);
+}
+
+// 核心表缺失视为错误（正常面板必有），避免检查失灵时"什么都没做却自删"
+function msc_missing_table($DB, $table, &$results, &$errors)
+{
+	if (msc_table_exists($DB, $table)) return true;
+	if (in_array($table, ['MN_zj', 'MN_bt', 'MN_config'], true)) {
+		$errors[] = "核心表 {$table} 不存在，请确认脚本连接的是面板自己的数据库";
+	} else {
+		$results[] = "跳过（表/对应插件未安装）：{$table}";
+	}
+	return false;
 }
 
 try {
 	// 1. 加宽 varchar 列（enc1: 密文比明文长；SQLite 类型不限制长度，跳过）
 	if (!defined('SQLITE')) {
 		foreach ($secret_cols as $table => $cols) {
-			if (!msc_table_exists($DB, $table)) { $results[] = "跳过（表不存在）：{$table}"; continue; }
+			if (!msc_missing_table($DB, $table, $results, $errors)) continue;
 			foreach ($cols as $col) {
 				$meta = $DB->get_row_prepare(
 					"SELECT COLUMN_TYPE, IS_NULLABLE, COLUMN_DEFAULT, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=? AND COLUMN_NAME=?",
@@ -63,7 +76,7 @@ try {
 
 	// 2. 逐列加密（空值与已是密文的行跳过）
 	foreach ($secret_cols as $table => $cols) {
-		if (!msc_table_exists($DB, $table)) continue;
+		if (!msc_missing_table($DB, $table, $results, $errors)) continue;
 		foreach ($cols as $col) {
 			$rows = $DB->get_all_prepare("SELECT `id`, `{$col}` AS v FROM `{$table}`");
 			$done = 0; $skip = 0; $fail = 0;
