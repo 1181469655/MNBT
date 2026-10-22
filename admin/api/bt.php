@@ -67,8 +67,12 @@ if($egn=='xgjl') {
 	$urlla=daddslashes($_POST['urlla']);
 	$ftpdz=daddslashes($_POST['ftpdz']);
 	$xieyi=daddslashes($_POST['xieyi']);
+	// 密钥解密失败时编辑表单回填为空，直接保存会把空字符串写进 btmy 覆盖掉原密文（永久失去节点密钥）。
+	// 提交为空且库里现存的是解不开的 enc1: 密文时，保留原密文不动。
+	$stored=$DB->get_row_prepare("SELECT btmy FROM MN_bt WHERE id=? limit 1", [$id]);
+	$btmy_field=mnbt_secret_keep_unreadable($key, is_array($stored)?$stored['btmy']:'');
 	logjl($user,'修改宝塔','对ID为'.$id.'的宝塔进行了修改','修改成功',$DB);
-	if($DB->query_prepare("update `MN_bt` set `btip` =?,`btdk` =?,`btmy` =?,`qk` =?,`btos` =?,`als` =?,`ptl` =?,`ftpdz` =? where `id`=?", [$ip,$dk,mnbt_secret_encrypt($key),$kg,$btos,$urlla,$xieyi,$ftpdz,$id]))json_exit('修改成功'); else json_exit('修改失败'.$DB->error());
+	if($DB->query_prepare("update `MN_bt` set `btip` =?,`btdk` =?,`btmy` =?,`qk` =?,`btos` =?,`als` =?,`ptl` =?,`ftpdz` =? where `id`=?", [$ip,$dk,$btmy_field,$kg,$btos,$urlla,$xieyi,$ftpdz,$id]))json_exit('修改成功'); else json_exit('修改失败'.$DB->error());
 	return;
 }
 if($egn=='mnbt') {
@@ -107,11 +111,14 @@ if($egn=='listbt') {
 	$data=["total"=>$countdata];
 	$rows=$DB->get_all_prepare("SELECT * FROM MN_bt order by $paixu $sorting limit $pageu,$pagesize");
 	// 计算调用密钥 dymy = md5(ktmy.qmk)，前端直接用不需要算 md5;btmy 解密供编辑表单回填
+	// sec_unreadable=1 表示库里是解不开的 enc1: 密文(config.php 缺原密钥)。此时密钥/调用密钥一律留空，
+	// 由前端显式提示"密钥不可用"，不能拿 md5('') 冒充一个看起来正常的调用密钥
 	foreach($rows as &$r){
+		$r['sec_unreadable'] = (mnbt_secret_is_unreadable($r['btmy']) || mnbt_secret_is_unreadable($r['ktmy']) || mnbt_secret_is_unreadable($r['qmk'])) ? 1 : 0;
 		$r['btmy'] = mnbt_secret_decrypt($r['btmy']);
 		$r['ktmy'] = mnbt_secret_decrypt($r['ktmy']);
 		$r['qmk'] = mnbt_secret_decrypt($r['qmk']);
-		$r['dymy']=md5($r['ktmy'].$r['qmk']);
+		$r['dymy'] = $r['sec_unreadable'] ? '' : md5($r['ktmy'].$r['qmk']);
 	}
 	unset($r);
 	$data["rows"]=$rows;
@@ -123,6 +130,10 @@ if($egn=='btztjc') {
 	$cert = $DB->get_row_prepare("SELECT * FROM MN_bt WHERE id=? limit 1", [$btid]);
 	if(!$cert) {
 		exit(json_encode(['qk'=>0,'code'=>'宝塔不存在','titco'=>'text-danger']));
+	}
+	// 密钥解不开时请求一定会被宝塔判成"密钥校验失败"，这一步先说清楚是本机密钥丢了，别去查白名单
+	if (mnbt_secret_is_unreadable($cert['btmy'])) {
+		exit(json_encode(['qk'=>0,'code'=>'宝塔接口密钥无法解密：config.php 里缺少（或已换掉）当初的加密密钥 $mnbt_secret_key。请从备份恢复原 config.php，或在宝塔列表重新录入该节点的接口密钥；这与宝塔 API 白名单无关。','titco'=>'text-danger'], JSON_UNESCAPED_UNICODE));
 	}
 	include_once(SYSTEM_ROOT."bt_api.php");
 	$protocol = $cert['ptl']=='true'?'https':'http';

@@ -49,19 +49,21 @@
         </template>
         <template #ktmy="{ row }">
           <div class="td-flex-center td-gap-8">
-            <span class="td-mono">{{ showKtmy[row.id] ? (row.dymy || '-') : '********' }}</span>
-            <t-link theme="primary" @click="toggleKtmy(row.id)">
+            <span v-if="row.sec_unreadable" class="td-chip td-chip-warning">密钥不可用</span>
+            <span v-else class="td-mono">{{ showKtmy[row.id] ? (row.dymy || '-') : '********' }}</span>
+            <t-link v-if="!row.sec_unreadable" theme="primary" @click="toggleKtmy(row.id)">
               <i class="mdi" :class="showKtmy[row.id] ? 'mdi-eye-off' : 'mdi-eye'"></i>
             </t-link>
-            <t-link v-if="showKtmy[row.id]" theme="default" @click="copyDymy(row)" title="复制调用密钥">
+            <t-link v-if="showKtmy[row.id] && !row.sec_unreadable" theme="default" @click="copyDymy(row)" title="复制调用密钥">
               <i class="mdi mdi-content-copy"></i>
             </t-link>
           </div>
         </template>
         <template #btmy="{ row }">
           <div class="td-flex-center td-gap-8">
-            <span class="td-mono">{{ showBtmy[row.id] ? (row.btmy || '-') : '********' }}</span>
-            <t-link theme="primary" @click="toggleBtmy(row.id)">
+            <span v-if="row.sec_unreadable" class="td-chip td-chip-warning">密钥不可用</span>
+            <span v-else class="td-mono">{{ showBtmy[row.id] ? (row.btmy || '-') : '********' }}</span>
+            <t-link v-if="!row.sec_unreadable" theme="primary" @click="toggleBtmy(row.id)">
               <i class="mdi" :class="showBtmy[row.id] ? 'mdi-eye-off' : 'mdi-eye'"></i>
             </t-link>
           </div>
@@ -110,6 +112,9 @@
         <div class="td-form-row">
           <label>宝塔密钥</label>
           <t-textarea v-model="editForm.key" :autosize="{ minRows: 2, maxRows: 4 }" />
+          <p v-if="editKeyUnreadable" class="td-form-hint td-key-warn">
+            原密钥无法解密（config.php 缺少当初的加密密钥）。留空保存会保留原密文不被覆盖；填入正确密钥则覆盖保存。
+          </p>
         </div>
         <div class="td-form-row">
           <label>操作系统</label>
@@ -194,6 +199,7 @@ const connectVersion = reactive({})
 const pagination = reactive({ current: 1, pageSize: 10, total: 0, showJumper: true })
 
 const editVisible = ref(false)
+const editKeyUnreadable = ref(false)
 const editForm = reactive({
   id: null, ip: '', dk: '', key: '', btos: 1,
   urlla: '', ftpdz: '', xieyi: false, kg: true,
@@ -237,6 +243,10 @@ function toggleKtmy(id) {
 }
 function copyDymy(row) {
   const val = row.dymy || ''
+  if (!val) {
+    MessagePlugin.warning('调用密钥不可用：密钥无法解密')
+    return
+  }
   navigator.clipboard.writeText(val).then(() => {
     MessagePlugin.success('调用密钥已复制')
   }).catch(() => {
@@ -290,6 +300,7 @@ function edit(row) {
   editForm.ip = row.btip || ''
   editForm.dk = row.btdk || ''
   editForm.key = row.btmy || ''
+  editKeyUnreadable.value = Number(row.sec_unreadable) === 1
   editForm.btos = Number(row.btos) || 1
   editForm.urlla = row.als || ''
   editForm.ftpdz = row.ftpdz || ''
@@ -439,5 +450,8 @@ onMounted(load)
 }
 .td-php-list :deep(.t-radio) {
   font-size: 13px;
+}
+.td-key-warn {
+  color: var(--td-warning);
 }
 </style>

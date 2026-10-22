@@ -62,6 +62,22 @@
               <t-switch v-model="form.kzmbqk" />
             </div>
 
+            <div class="td-form-switch">
+              <div class="td-form-switch-txt">
+                <strong>自管节点强制证书校验</strong>
+                <span>宝塔 / Docker / 反向代理这类自管节点默认不校验证书(宝塔发的是自签证书,一刀切强校验会打断存量对接);开启后这一档收紧为完整校验(证书需 CA 可信 + 校验主机名),请确认节点已换上可信证书后再开。</span>
+              </div>
+              <t-switch v-model="form.sslStrict" />
+            </div>
+
+            <div class="td-form-switch">
+              <div class="td-form-switch-txt">
+                <strong>全局关闭证书校验(紧急退路)</strong>
+                <span>对所有出站请求关闭校验,含支付宝、GitHub 更新检查、DNS 服务商 API、插件下载;优先于上面一项,只在排障时临时开启。支付宝官方插件写死了强校验,不受此项影响。两者都不影响面板自身的 HTTPS。</span>
+              </div>
+              <t-switch v-model="form.sslInsecure" />
+            </div>
+
             <div class="td-form-note">
               <b>说明:</b> 三张图统一存到 <code>imsetes/upload_logo/</code>,由用户端与官网首页按位置读取——浏览器图标用于用户端页头的标签页图标,侧栏图在官网未设置 Logo 时充当首页 Logo。管理端品牌图另有目录,不受这里影响。在线文件管理由系统内置(基于宝塔节点 API)。
             </div>
@@ -79,9 +95,9 @@
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { MessagePlugin } from 'tdesign-vue-next'
-import { setPanel } from '@/admin/api/settings'
+import { getPanelTls, setPanel } from '@/admin/api/settings'
 
 const boot = window.__TD_BOOT__ || {}
 const conf = boot.conf || {}
@@ -100,6 +116,16 @@ const form = reactive({
   hxp: conf.hxp || '',
   yzme: conf.yzme === 'true',
   kzmbqk: conf.kzmbqk === 'true',
+  sslStrict: false,
+  sslInsecure: false,
+})
+
+onMounted(async () => {
+  const r = await getPanelTls()
+  if (r.ok && r.data && typeof r.data === 'object') {
+    form.sslStrict = r.data.ssl_strict === 'true'
+    form.sslInsecure = r.data.ssl_insecure === 'true'
+  }
 })
 
 const picks = reactive({ loa: null, lob: null, loc: null })
@@ -134,6 +160,8 @@ async function save() {
   fd.append('yzm', form.yzme ? 'true' : 'false')
   fd.append('kg', form.kzmbqk ? 'true' : 'false')
   fd.append('bq', form.hxp)
+  fd.append('ssl_strict', form.sslStrict ? 'true' : 'false')
+  fd.append('ssl_insecure', form.sslInsecure ? 'true' : 'false')
   logoFields.forEach((it) => {
     if (picks[it.key]) fd.append(it.key, picks[it.key])
   })

@@ -63,6 +63,8 @@ description: admin/ajax.php 后台管理 AJAX 接口（登录、宝塔节点、�
 - `btos`：操作系统（`1`=Linux，`0`=Windows）
 - `xieyi`：协议（`http`/`https`）
 - `btdh` / `bh`：宝塔节点编号
+- `listbt` 的 `rows[]` 每项带 `sec_unreadable`（`1`=库里的 `enc1:` 密文用当前 `config.php` 的 `$mnbt_secret_key` 解不开）：此时 `btmy` 为空、`dymy` 为空串，前端显示「密钥不可用」而不是"未设置"
+- `xgjl` 的 `key` 传空且库中原值解不开时保留原密文（防止回填失败的一次保存覆盖掉密钥）；`btztjc` 遇到解不开的密钥直接返回"config.php 缺少加密密钥"，不会走节点请求
 
 ---
 
@@ -209,7 +211,8 @@ description: admin/ajax.php 后台管理 AJAX 接口（登录、宝塔节点、�
 |------|------|----------|----------|
 | `setwz` | 修改网站设置 | `gg`、`qq`、`yzm`、`zjyx` | `code`、`msg` |
 | `setapi` | 修改 API 设置 | `apikey`、`apiqk`、`linux`、`windows`；可选 `api_compat`（`0`/`1`，不传则不改协议模式） | `code`、`msg` |
-| `setkzmb` | 修改控制面板 | `name`（必填）、`yzm`、`kg`、`bq`；可选 multipart 文件 `loa`/`lob`/`loc`（登录页/侧栏/浏览器图标 Logo，PNG·JPG 且 ≤2MB） | `code`、`msg` |
+| `setkzmb` | 修改控制面板 | `name`（必填）、`yzm`、`kg`、`bq`；可选 multipart 文件 `loa`/`lob`/`loc`（登录页/侧栏/浏览器图标 Logo，PNG·JPG 且 ≤2MB）；可选 `ssl_strict`、`ssl_insecure`（`'true'`/`'false'`，存 `MN_plugin_option` 的 `panel` 键，见 `docs/guide/security.md`「出站 TLS 校验」） | `code`、`msg` |
+| `getpaneltls` | 读取出站 TLS 两枚开关当前值（回显控制面板页用） | 无 | `{ssl_strict, ssl_insecure}`，值 `'true'`/`'false'` |
 | `setpaymethods` | 设置支付方式 | `methods`（JSON） | `code`、`msg` |
 | `gl` | 修改管理员账户 | `yuser`、`ypass`、`xuser`、`xpass` | `code`、`msg` |
 | `mailmode` | 邮箱配置 | `host`、`user`、`password`、`port` | `code`、`msg` |

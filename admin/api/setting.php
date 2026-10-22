@@ -74,10 +74,35 @@ if($egn=='setkzmb') {
 	if($name==='') json_exit_error('控制面板名称不能为空');
 	$logoFiles = setkzmb_save_logos(mnbt_panel_logo_max_mb());
 	if(isset($logoFiles['error'])) json_exit_error($logoFiles['error']);
+	// 出站 TLS 两枚开关随本页一起保存：只认这两个字面量键，键名不来自前端，值只可能是 'true'/'false'
+	if(isset($_POST['ssl_strict']) || isset($_POST['ssl_insecure'])) {
+		if(!function_exists('mnbt_plugin_option_set')) json_exit_error('TLS 开关存储不可用，请稍后重试');
+		foreach(['ssl_strict', 'ssl_insecure'] as $tls_key) {
+			if(!isset($_POST[$tls_key])) continue;
+			$tls_val = $_POST[$tls_key];
+			if(!is_scalar($tls_val)) json_exit_error($tls_key.' 参数格式错误');
+			$tls_val = (string)$tls_val;
+			$tls_on = ($tls_val === 'true' || $tls_val === '1') ? 'true' : 'false';
+			if(mnbt_plugin_option_set('panel', $tls_key, $tls_on) === false) json_exit_error($tls_key.' 保存失败');
+			logjl($user,'控制面板设置','出站 TLS 校验开关 '.$tls_key.' 已设为 '.$tls_on,'修改成功',$DB);
+		}
+	}
 	$auther=md5($date);
 	logjl($user,'控制面板设置','对主机的控制面板进行了修改'.($logoFiles['saved'] ? '(已更新 Logo: '.$logoFiles['saved'].')' : ''),'修改成功',$DB);
 	$sql="update `MN_config` set `name` =?, `yzme` =?, `kzmbqk` =?, `hxp` =?, `auther` =? where `id`=?";
 	if($DB->query_prepare($sql,[$name,$yzm,$kg,$bq,$auther,$siteid]))json_exit('修改成功'); else json_exit('修改失败'.$DB->error());
+	return;
+}
+if($egn=='getpaneltls') {
+	// 纯数据载荷：判定口径与 mnbt_ssl_insecure_enabled()/mnbt_ssl_strict_for_nodes() 保持一致
+	$out = ['ssl_strict' => 'false', 'ssl_insecure' => 'false'];
+	if(function_exists('mnbt_plugin_option_get')) {
+		foreach(array_keys($out) as $tls_key) {
+			$tls_raw = mnbt_plugin_option_get('panel', $tls_key, 'false');
+			$out[$tls_key] = ($tls_raw === true || $tls_raw === 1 || $tls_raw === '1' || $tls_raw === 'true') ? 'true' : 'false';
+		}
+	}
+	exit(json_encode($out, JSON_UNESCAPED_UNICODE));
 	return;
 }
 if($egn=='setpaymethods') {
@@ -143,7 +168,11 @@ if($egn == "mailmode")
     $mailuser = daddslashes($_POST['user']);
     $passwrod = daddslashes($_POST['password']);
     $port = daddslashes($_POST['port']);
-    if(!$DB->query_prepare("UPDATE `MN_config` SET `mailhost` = ?, `mailuser` = ?, `mailpassword` = ?, `mailport` = ? WHERE `id` = 1", [$host, $mailuser, mnbt_secret_encrypt($passwrod), $port]))
+    // 邮件表单会把当前授权码回填，密钥不匹配时回填为空，保存等于把授权码抹掉；
+    // 这里读库里的原始密文判断，提交为空且原值解不开时保留原值
+    $stored_mail = $DB->get_row_prepare("SELECT mailpassword FROM MN_config WHERE id=1 limit 1");
+    $mail_field = mnbt_secret_keep_unreadable($passwrod, $stored_mail['mailpassword'] ?? '');
+    if(!$DB->query_prepare("UPDATE `MN_config` SET `mailhost` = ?, `mailuser` = ?, `mailpassword` = ?, `mailport` = ? WHERE `id` = 1", [$host, $mailuser, $mail_field, $port]))
     {
         json_exit('数据库操作失败请联系开发人员判断错误');
     }

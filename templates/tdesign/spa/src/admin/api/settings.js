@@ -10,9 +10,14 @@ export function setApi(data) {
   return apiGn('setapi', data)
 }
 
-/** 控制面板: name / yzm / kg / bq,以及可选的 loa / lob / loc 三个 Logo 文件(传 FormData) */
+/** 控制面板: name / yzm / kg / bq,可选的 loa / lob / loc 三个 Logo 文件(传 FormData),可选的 ssl_strict / ssl_insecure */
 export function setPanel(data) {
   return apiGn('setkzmb', data)
+}
+
+/** 出站 TLS 校验开关回显: { ssl_strict, ssl_insecure },值为 'true' / 'false' */
+export function getPanelTls() {
+  return apiGn('getpaneltls', {}, { silent: true })
 }
 
 /** 管理账号: yuser / ypass / xuser / xpass */

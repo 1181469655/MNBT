@@ -26,7 +26,9 @@ function docker_admin_node_instance($nodeId)
 if ($egn === 'docker_node_list') {
 	$rows = $DB->get_all_prepare("SELECT * FROM MN_docker_node ORDER BY id DESC") ?: [];
 	// btmy/ktmy/qmk 解密：btmy 供编辑表单回填，ktmy/qmk 回填防误清空（列表页只显示"已设置"标记）
+	// sec_unreadable=1：库里是解不开的 enc1: 密文（config.php 缺原密钥），密钥一律为空，前端据此提示不可用
 	foreach ($rows as &$r) {
+		$r['sec_unreadable'] = (mnbt_secret_is_unreadable($r['btmy']) || mnbt_secret_is_unreadable($r['ktmy']) || mnbt_secret_is_unreadable($r['qmk'])) ? 1 : 0;
 		$r['btmy'] = mnbt_secret_decrypt($r['btmy']);
 		$r['ktmy'] = mnbt_secret_decrypt($r['ktmy']);
 		$r['qmk'] = mnbt_secret_decrypt($r['qmk']);
@@ -65,8 +67,15 @@ if ($egn === 'docker_node_edit') {
 	$qmk = daddslashes($_POST['qmk'] ?? '');
 	$qk = daddslashes($_POST['qk'] ?? 'true');
 	if ($id <= 0) json_exit('参数错误');
-	if ($name === '' || $btip === '' || $btmy === '') json_exit('节点名、面板地址、接口密钥不能为空');
-	if ($DB->query_prepare("UPDATE MN_docker_node SET name=?,btip=?,btdk=?,ptl=?,btmy=?,ktmy=?,qmk=?,qk=? WHERE id=?", [$name, $btip, $btdk, $ptl, mnbt_secret_encrypt($btmy), mnbt_secret_encrypt($ktmy), mnbt_secret_encrypt($qmk), $qk, $id])) {
+	// 密钥解密失败时表单回填为空，直接保存会把空字符串写进 btmy/ktmy/qmk 覆盖掉原密文。
+	// 提交为空且库里现存的是解不开的 enc1: 密文时，保留原密文不动（接口密钥本身仍要求有值或可保留）。
+	$stored = $DB->get_row_prepare("SELECT btmy,ktmy,qmk FROM MN_docker_node WHERE id=? limit 1", [$id]);
+	if (!$stored) json_exit('节点不存在');
+	$btmy_field = mnbt_secret_keep_unreadable($btmy, $stored['btmy']);
+	$ktmy_field = mnbt_secret_keep_unreadable($ktmy, $stored['ktmy']);
+	$qmk_field  = mnbt_secret_keep_unreadable($qmk, $stored['qmk']);
+	if ($name === '' || $btip === '' || $btmy_field === '') json_exit('节点名、面板地址、接口密钥不能为空');
+	if ($DB->query_prepare("UPDATE MN_docker_node SET name=?,btip=?,btdk=?,ptl=?,btmy=?,ktmy=?,qmk=?,qk=? WHERE id=?", [$name, $btip, $btdk, $ptl, $btmy_field, $ktmy_field, $qmk_field, $qk, $id])) {
 		mnbt_log($user, 'Docker节点', '编辑节点 ID' . $id, '编辑成功', $DB);
 		json_exit('编辑成功');
 	}
@@ -88,8 +97,12 @@ if ($egn === 'docker_node_del') {
 // ===== 节点 Docker 配置（检测安装状态）=====
 if ($egn === 'docker_node_config') {
 	$nodeId = (int)($_POST['node_id'] ?? 0);
-	list($bt, ) = docker_admin_node_instance($nodeId);
+	list($bt, $node) = docker_admin_node_instance($nodeId);
 	if (!$bt) json_exit('节点不存在');
+	// 密钥解不开时节点一定会回"密钥校验失败"，先把原因说清楚，别让人去查 API 白名单
+	if (mnbt_secret_is_unreadable($node['btmy'])) {
+		json_exit_error('节点接口密钥无法解密：config.php 里缺少（或已换掉）当初的加密密钥 $mnbt_secret_key。请恢复原 config.php 或重新录入该节点的接口密钥，这与宝塔 API 白名单无关。');
+	}
 	$r = $bt->get_config();
 	exit(json_encode(['code' => 0, 'data' => $r], JSON_UNESCAPED_UNICODE));
 }

@@ -75,6 +75,11 @@ if($egn=='zjxgjl') {
 	$lldx=daddslashes($_POST['llmax']);
 	$kg=daddslashes($_POST['kg']);
 	$cres=$DB->get_row_prepare("SELECT * FROM MN_zj WHERE id=? limit 1", [$id]);
+	// 密码密文解不开时编辑表单回填为空，而这里的空密码会同时被推到宝塔节点（setmysqlpass/setftppass）
+	// 并覆盖掉库内原密文——两边一起永久失去密码。这种情况必须先恢复密钥或人工重设密码。
+	if (($pass===''&&mnbt_secret_is_unreadable(is_array($cres)?$cres['pass']:'')) || ($sqlpass===''&&mnbt_secret_is_unreadable(is_array($cres)?$cres['sqlpass']:''))) {
+		json_exit_error('该主机的密码无法解密：config.php 缺少当初的加密密钥 $mnbt_secret_key。请恢复原 config.php 或手动重新设置密码后再保存，否则会把空密码写进宝塔和数据库。');
+	}
 	$btbh=$cres['ssbt'];
 	$cxbt=$DB->get_row_prepare("SELECT * FROM MN_bt WHERE btdh=? limit 1", [$btbh]);
 	$btipe=($cxbt['ptl']=='true'?'https':'http').'://'.$cxbt['btip'].':'.$cxbt['btdk'];

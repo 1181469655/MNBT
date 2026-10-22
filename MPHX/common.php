@@ -19,6 +19,25 @@ if (!$errorLogPath) {
 ini_set('error_log', $errorLogPath);
 error_reporting(E_ALL);
 
+// 未捕获异常兜底：细节只进日志，页面/AJAX 拿到的是一句话。
+// 例外是密钥类错误（MNBT_SecretException）——它的消息就是运维的恢复步骤，必须原文回显。
+// 没有这层兜底时 display_errors=0 会直接吐空白 500，运维看不到任何原因。
+set_exception_handler(function ($e) {
+	error_log('[MNBT] 未捕获异常 ' . get_class($e) . ': ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine());
+	if (headers_sent()) return;
+	$msg = ($e instanceof MNBT_SecretException)
+		? $e->getMessage()
+		: '服务器内部错误，请稍后重试；持续出现请查看 runtime/logs/php-error.log';
+	$is_ajax = isset($_SERVER['HTTP_X_REQUESTED_WITH']) || !empty($_POST['gn']) || !empty($_GET['gn']) || !empty($_REQUEST['egn']);
+	http_response_code(500);
+	if ($is_ajax) {
+		header('Content-Type: application/json; charset=utf-8');
+		echo json_encode(['success' => false, 'qk' => 4, 'code' => $msg, 'msg' => $msg], JSON_UNESCAPED_UNICODE);
+	} else {
+		echo '<!doctype html><meta charset="utf-8"><title>服务器错误</title><p>' . htmlspecialchars($msg) . '</p>';
+	}
+});
+
 define('SYS_KEY', 'MNBT');
 define('CC_Defender', 1); //防CC攻击开关(1为session模式)
 date_default_timezone_set("PRC");

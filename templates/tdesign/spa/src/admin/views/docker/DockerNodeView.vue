@@ -30,7 +30,8 @@
           <span class="dk-mono">{{ row.btip }}:{{ row.btdk }} {{ row.ptl === 'true' ? '(HTTPS)' : '(HTTP)' }}</span>
         </template>
         <template #btmy="{ row }">
-          <t-tag v-if="row.btmy" size="small" theme="success" variant="light">已设置</t-tag>
+          <t-tag v-if="Number(row.sec_unreadable) === 1" size="small" theme="warning" variant="light">密钥不可用</t-tag>
+          <t-tag v-else-if="row.btmy" size="small" theme="success" variant="light">已设置</t-tag>
           <t-tag v-else size="small" theme="danger" variant="light">未设置</t-tag>
         </template>
         <template #ktmy="{ row }">
@@ -138,6 +139,9 @@
         <div class="td-form-row">
           <label>宝塔接口密钥 <span class="td-text-danger">*</span></label>
           <t-textarea v-model="editForm.btmy" :autosize="{ minRows: 2, maxRows: 3 }" />
+          <p v-if="editForm.secUnreadable" class="td-form-hint" style="color: var(--td-warning)">
+            原密钥无法解密（config.php 缺少当初的加密密钥）。留空保存会保留原密文不被覆盖；填入正确密钥则覆盖保存。
+          </p>
         </div>
         <div class="td-form-row">
           <label>调用密钥（外部 API 鉴权）</label>
@@ -234,12 +238,15 @@ function openEdit(row) {
     ktmy: row.ktmy || '',
     qmk: row.qmk || '',
     qk: row.qk === 'true' ? 'true' : 'false',
+    secUnreadable: Number(row.sec_unreadable) === 1,
   })
   editVisible.value = true
 }
 
 async function onEdit() {
-  if (!editForm.value.name || !editForm.value.btip || !editForm.value.btmy) {
+  // 密钥解不开时回填为空，但库里原密文仍在：允许留空保存（后端会保留原密文），只有真正没设过密钥才拦
+  const keyMissing = !editForm.value.btmy && !editForm.value.secUnreadable
+  if (!editForm.value.name || !editForm.value.btip || keyMissing) {
     MessagePlugin.warning('节点名、面板地址、接口密钥必填')
     return
   }

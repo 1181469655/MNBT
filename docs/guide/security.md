@@ -67,7 +67,7 @@ description: PHP 运行环境安全基线（php2shell）、同批次 CVE 影响�
 | `node`（自管机器） | 宝塔节点 API `MPHX/bt_api.php` 的 `HttpPostCookie()`、Docker 节点 `MPHX/bt_docker.php`、反向代理节点 `MPHX/bt_proxy.php`、魔方财务 server module `mf_modules/servers/mnbthost`、`mnbtdocker`、预约网关 `app_plugins/zjmfmanager_reserve/lib/CubeFinanceClient.php` | **不校验证书**（宝塔面板与自架魔方财务默认就是自签证书，一刀切强校验会让存量客户的节点对接当场失败） | `panel/ssl_strict=1` 收紧 |
 | `public`（公网服务） | 通用取回 `MPHX/function.php` 的 `curl_get()`、插件与更新下载 `MPHX/plugin.php`、`MPHX/github_updater.php`、监控探活 `MPHX/monitor.function.php`、聚名网域名 API `app_plugins/qmzl_domain/lib/api.php`、支付宝官方插件 | **强校验**（这些站点有公网 CA 签发的证书，校验零成本） | `panel/ssl_insecure=1` 放宽 |
 
-- 两个开关都存既有键值表 `MN_plugin_option`（`plugin_slug=panel`，`k=ssl_insecure` / `ssl_strict`，值 `1` 或 `true` 生效），没有新增表也没有新增列，**当前没有后台 UI，需要执行 SQL**：
+- 两个开关都存既有键值表 `MN_plugin_option`（`plugin_slug=panel`，`k=ssl_insecure` / `ssl_strict`，值 `1` 或 `true` 生效），没有新增表也没有新增列。**后台已有开关**：系统设置 → 控制面板页面的「自管节点强制证书校验」「全局关闭证书校验(紧急退路)」两行（读取用 `gn=getpaneltls`，随该页保存走 `gn=setkzmb` 的 `ssl_strict` / `ssl_insecure` 字段）。改完当次请求不生效——两个判定各自在进程内缓存，下一次请求才读到新值。需要直接操作数据库时：
 
   ```sql
   -- 节点已换成可信证书后收紧全部自管链路
@@ -83,6 +83,29 @@ description: PHP 运行环境安全基线（php2shell）、同批次 CVE 影响�
 - 支付网关不受任何开关影响：`AlipayService` 在 `curl_setopt_array` 之后硬写 `VERIFYPEER=true` / `VERIFYHOST=2`，调用方传选项也关不掉。
 - `node` 档默认宽容的代价要说明白：这条链路上带着节点凭据（`ktmy/qmk` 派生的鉴权与按节点分存的 cookie jar），不校验证书意味着中间的 HTTPS 请求仍可被出示任意证书的中间人篡改。想把它收紧又暂时拿不到公网证书，做法是自建一个 CA 签节点证书，把该 CA 追加进系统信任或在面板 `php.ini` 设 `curl.cainfo`（及 `openssl.cafile`）指向那个 bundle，然后把 `ssl_strict` 打开；宝塔节点能申请 Let's Encrypt 的（必须用域名，不能用 IP）直接换证书更省事。
 - 部分精简 PHP 环境没有系统 CA bundle，`public` 档会连正规证书都报 `unable to get local issuer certificate`；这不是策略过严，装 `ca-certificates` 并配好 `curl.cainfo` 即可。
+
+## 加密密钥丢失的识别与恢复
+
+`MPHX/secret.php` 的加密密钥 `$mnbt_secret_key` 只存在根目录 `config.php` 里（gitignored、在线更新保留清单内），密钥一丢，库里全部 `enc1:` 密文就永久解不开。因此这一版把"缺密钥"的行为改成不可静默降级：
+
+- **解密只读现有密钥，任何情况下都不再生成、不再写 `config.php`**。以前解密路径也会触发"缺密钥就自动生成一把新的追加写回"，等于把旧密文判死刑还不留现场——这条路径已经删掉。
+- **加密（写入）路径缺密钥时直接报错**：`mnbt_secret_key()` 先扫库里是否已有 `enc1:` 值，有则抛 `MNBT_SecretException`（提示恢复原 `config.php` 或重录凭据），**不会**生成新密钥；库里一条密文都没有才按老行为自动生成。`MPHX/common.php` 装了未捕获异常兜底，这类错误会以一句话原文回给前端并写日志 `runtime/logs/php-error.log`，其他异常只回"服务器内部错误"，细节不外泄。
+- **列表与表单显式区分"没设置"和"解不开"**：`gn=listbt`、`gn=docker_node_list` 多返回一个 `sec_unreadable`（1=库里是解不开的密文），密钥/调用密钥一律留空，`dymy` 也不再拿 `md5('')` 冒充一个看起来正常的调用密钥；宝塔列表与 Docker 节点页显示"密钥不可用"标记。
+- **"打开编辑页再保存"不会再毁掉密文**：`gn=xgjl`（宝塔）、`gn=docker_node_edit`、邮件设置、以及主机修改都改成先读库里的原始密文再决定写什么——提交为空且原值解不开时原样保留旧密文（`mnbt_secret_keep_unreadable()`）。主机修改这一条更严格：`pass`/`sqlpass` 会同时被推到宝塔节点，解不开时直接拒绝保存并说明原因，而不是把空密码写进两边。
+- **通信检测先说清是谁的问题**：`gn=btztjc` 与 `gn=docker_node_config` 在调节点前先判断密钥可解与否，解不开就直接提示"config.php 缺少/换掉了加密密钥"，不再让人去查宝塔 API 白名单。
+
+识别方法（三选一即可判定）：
+
+```bash
+grep -c mnbt_secret_key config.php              # 0 = 本机已经没有这把密钥
+ls -l config.php                                # 近期被覆盖/重建过就是它
+```
+
+```sql
+SELECT id, btdh, SUBSTRING(btmy,1,6) AS head FROM MN_bt;   -- head=enc1 说明库里是密文
+```
+
+恢复顺序：**优先从备份拿回原 `config.php`（或只把原来那行 `$mnbt_secret_key='64位hex';` 补回当前 config.php）**，密钥找回后所有密文自动重新可读，无需迁移。确实找不回来时，只能逐个重录：宝塔/Docker 节点密钥（宝塔面板 → 面板设置 → API接口 里能看到接口密钥；`ktmy/qmk` 由宝塔侧重新生成或手工填一组并同步到魔方财务），主机密码（重设后走面板的改密流程），邮箱授权码，DNS 服务商密钥，资源池密码。重录前别跑 `admin/migrate_secrets.php`，也别在后台保存任何节点/主机表单。
 
 ## 客户/运维升级动作清单
 
