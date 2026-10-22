@@ -89,6 +89,11 @@ if($egn=='cxtj') {
 	foreach ($fn_cz as $xbd=>$val) {
 		if($val['cz']=='setwj' || $val['cz']=='setwjt') {
 			//判断操作是否为修改文件内容
+			//键名将直接作为文件名写盘，按仓库既有标识符白名单校验，非法则拒绝写入
+			//用\z而非$，避免结尾换行符绕过（如 "abc\n"）
+			if(!preg_match('/^[a-zA-Z0-9_\-]+\z/', (string)$xbd)) {
+				exit('{"code":100,"msg":"配置项标识名非法：仅允许字母、数字、下划线与短横线"}');
+			}
 			$wjszwz=$sfjgf.'/setwj';
 			//此操作文件的所在位置
 			mkdir($wjszwz);
@@ -132,6 +137,11 @@ if($egn=='cxxgjl') {
 	foreach ($fn_cz as $xbd=>$val) {
 		if($val['cz']=='setwj' || $val['cz']=='setwjt') {
 			//判断操作是否为修改文件内容
+			//键名将直接用于拼接删档/写盘路径，先按仓库既有标识符白名单校验，非法则整体拒绝
+			//用\z而非$，避免结尾换行符绕过（如 "abc\n"）；校验在unlink之前，合法名称的删除重建流程不受影响
+			if(!preg_match('/^[a-zA-Z0-9_\-]+\z/', (string)$xbd)) {
+				json_exit_error('配置项标识名非法：仅允许字母、数字、下划线与短横线');
+			}
 			$sfjgf='../filecx/'.explode("/",$cres['cxwz'])[2];
 			$wjszwz=$sfjgf.'/setwj';
 			//此操作文件的所在位置
@@ -275,8 +285,45 @@ if($egn=='cxfiledru') {
 	$zip = new \ZipArchive;
 	if($zip->open($filepath)===true) {
 		//打开
-		$zip->extractTo($tmp_path);
-		//解压
+		//逐条解压并校验，防止 zip-slip（../ 段或绝对路径条目写到目标目录之外）
+		$dest_real=realpath($tmp_path);
+		//目标目录真实路径
+		if($dest_real===false) {
+			$zip->close();
+			@unlink($filepath);
+			exit(json_encode(['error'=>1,'size'=>4,'msg'=>'错误！解压目标目录不存在！']));
+		}
+		$total=$zip->numFiles;
+		for($i=0;$i<$total;$i++) {
+			$name=$zip->getNameIndex($i);
+			if($name===false || $name==='')continue;
+			//条目分隔符统一为 / 再判断，同时拒绝空字节等控制字符
+			$entry=str_replace('\\','/',$name);
+			if($entry[0]=='/' || preg_match('/^[a-zA-Z]:\//',$entry) || preg_match('/[\x00-\x1F]/',$entry)) {
+				//绝对路径、盘符路径或含控制字符，跳过该条目
+				continue;
+			}
+			$esc=false;
+			foreach (explode('/',$entry) as $seg) {
+				if($seg==='..') {
+					$esc=true;
+					break;
+				}
+			}
+			//仅过滤字符串".."不够，需按路径段拆分判断（如 a/../b）
+			if($esc)continue;
+			$zip->extractTo($tmp_path,$name);
+			//单条解压，保持原 extractTo 的目标路径与不覆盖语义
+			//解压后再用 realpath 复核落点，防符号链接等绕过；前缀比较补分隔符，避免 dest 误配 destory
+			$real=realpath($tmp_path.'/'.$entry);
+			if($real===false || ($real!==$dest_real && strpos($real,$dest_real.DIRECTORY_SEPARATOR)!==0)) {
+				if($real!==false) {
+					if(is_file($real))@unlink($real);
+					if(is_dir($real))@deldir($real);
+				}
+				continue;
+			}
+		}
 		$zip->close();
 		//关闭
 		@unlink($filepath);

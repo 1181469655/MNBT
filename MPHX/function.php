@@ -139,8 +139,7 @@ function mnbt_csrf_inject_html($html)
 function curl_get($url)
 {
 $ch=curl_init($url);
-curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+mnbt_curl_ssl_verify($ch);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Linux; U; Android 4.4.1; zh-cn; R815T Build/JOP40D) AppleWebKit/533.1 (KHTML, like Gecko)Version/4.0 MQQBrowser/4.5 Mobile Safari/533.1');
 curl_setopt($ch, CURLOPT_TIMEOUT, 10);
@@ -286,6 +285,33 @@ function mnbt_log($user = '系统', $type = '系统日志', $content = '内容',
 	return logjl($user, $type, $content, $status, $db);
 }
 
+/**
+ * 出站 TLS 校验的唯一退路开关：默认（没配置时）一律校验证书，只有运维显式打开才跳过。
+ * 为什么要保留退路：宝塔节点默认是自签证书，一刀切强校验会让存量客户的节点对接直接失败。
+ * 值放在 MN_plugin_option（plugin_slug=panel / k=ssl_insecure），与插件配置共用同一张键值表，
+ * 不需要给 MN_config 新加列；每个调用点只调 mnbt_curl_ssl_verify()，不在各处各自写死。
+ */
+function mnbt_ssl_insecure_enabled()
+{
+	static $insecure = null;
+	if ($insecure === null) {
+		$insecure = false;
+		if (isset($GLOBALS['DB']) && is_object($GLOBALS['DB']) && function_exists('mnbt_plugin_option_get')) {
+			$v = mnbt_plugin_option_get('panel', 'ssl_insecure', 'false');
+			$insecure = ($v === true || $v === 1 || $v === '1' || $v === 'true');
+		}
+	}
+	return $insecure;
+}
+
+/** 给 cURL 句柄应用出站 TLS 校验选项：VERIFYHOST 必须传 2，libcurl 只有值为 2 时才校验证书主机名/SAN（1 已废弃，0/false 等于放弃身份校验） */
+function mnbt_curl_ssl_verify($ch)
+{
+	$insecure = mnbt_ssl_insecure_enabled();
+	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, $insecure ? false : true);
+	curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, $insecure ? 0 : 2);
+}
+
 function mnbt_api_compat_mode()
 {
 	global $conf;
@@ -357,7 +383,8 @@ function mnbt_admin_password_verify($plain, $stored)
 	return hash_equals($stored, $plain) || hash_equals($stored, daddslashes($plain));
 }
 
-/** BT 面板 cookie jar 路径：runtime/bt_cookie（web 根下的 api/cookie 会话 cookie 可被直读；含旧目录一次性迁移） */
+/** BT 面板 cookie jar 路径：runtime/bt_cookie（web 根下的 api/cookie 会话 cookie 可被直读；含旧目录一次性迁移）
+ *  按节点 URL 各存一个文件，A 节点的面板凭据不会被带到 B 节点（curl 侧再按域名匹配发送） */
 function mnbt_bt_cookie_file($panel_url)
 {
 	$dir = ROOT . 'runtime/bt_cookie/';
@@ -378,7 +405,12 @@ function send_post($url, $post_data) {
       'method' => 'POST',
       'header' => 'Content-type:application/x-www-form-urlencoded',
       'content' => $postdata,
-      'timeout' => 4// 超时时间（单位:s）
+      'timeout' => 4,
+      // stream wrapper 默认跟随重定向（上限 20 跳），302 会把 POST 正文转发到异源目标；
+      // 唯一调用点（admin/api/gg.php 广告拉取）的接口应直接返回 200，故整体关闭跟随，
+      // max_redirects 仅作兜底上限（若 3xx 到来按请求失败处理，调用方已兼容 false）
+      'follow_location' => 0,
+      'max_redirects' => 3,
     )
   );
   $context = stream_context_create($options);

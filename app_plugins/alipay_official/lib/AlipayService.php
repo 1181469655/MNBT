@@ -227,8 +227,10 @@ class Alipay_Official_Service
 		if (!empty($options)) {
 			curl_setopt_array($ch, $options);
 		}
-		curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-		curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+		// 支付网关一律校验证书，且放在 curl_setopt_array 之后，调用方传选项也关不掉
+		curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+		// VERIFYHOST=2：libcurl 只有值为 2 时才校验证书主机名/SAN（1 已废弃，0/false 等于不校验）
+		curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
 		$data = curl_exec($ch);
 		if ($data === false) {
 			error_log('[MNBT alipay_official] curl error: ' . curl_error($ch));

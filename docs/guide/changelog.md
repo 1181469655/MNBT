@@ -1,9 +1,35 @@
 ---
 title: 更新日志
-description: MNBT 版本更新记录（V1.88 ~ V1.60）
+description: MNBT 版本更新记录（V1.89 ~ V1.60）
 ---
 
 # 更新日志
+
+## V1.89
+
+**安全加固：库内密码与密钥全面密文化**
+
+- **密文存储落地**：新增 `MPHX/secret.php` 统一加解密助手（AES-256-GCM，密文形如 `enc1:` + base64(nonce+tag+密文)），加密密钥 `$mnbt_secret_key`（64 位 hex）存 `config.php`——该文件本就 gitignored 且在在线更新保留清单内不会被覆盖；新装在写数据库配置时一并生成，老站首次需要加密时自动补写（要求 `config.php` 可写，不可写时明确报错提示手工添加）。纳入加密的字段：`MN_zj.pass`（同时是面板登录密码与 FTP 密码，必须可逆）、`MN_zj.sqlpass`、`MN_bt` 与 `MN_docker_node` 的 `btmy/ktmy/qmk`、`MN_config.mailpassword`、DNS 服务商 `plg_dns_provider.api_secret`、资源池 `MN_plugin_respool.password`。这条防线挡的是拖库、备份外泄、SQL 注入一次性带走全部凭据；密钥与数据库同机，整机被控不在防线内
+- **读取全部走解密，与明文双向兼容**：`bt_api` / `bt_docker` / `bt_proxy` 三个类的构造器统一解密，一次覆盖 30 余处节点密钥调用点；其余读取点逐个改造——用户登录校验、会话派生、一键登录、phpMyAdmin 免登表单、一键部署配置模板、数据库连通测试、后台主机/宝塔/Docker 节点列表与编辑回填、外部 API 与 Docker API 的 `md5(ktmy.qmk)` 鉴权、邮箱授权码（在 `common.php` 读配置时统一还原，三处发信入口自动生效）。**没有 `enc1:` 前缀的值原样透传，所以"先部署代码、后迁移数据"是安全的**，明文密文混合期功能不受影响；已是密文的值再写回也幂等，不会被二次加密。聚名网域名插件（自有 authcode 加密）与移动桥接（只存令牌哈希）不属本次范围
+- **管理员密码收口 bcrypt**：`MN_config.pwd` 的明文残留统一改为 bcrypt 哈希（V1.87 引入的登录时惰性升级继续保留）。realname 插件「查看身份证号」的二次密码校验此前直接比对明文，密码转哈希后会永久验证失败，已改走 `mnbt_admin_password_verify()`
+- **新增一次性迁移脚本 `admin/migrate_secrets.php`**：客户主机普遍没有 PHP CLI，脚本走浏览器执行——管理员登录后台后访问 `/admin/migrate_secrets.php`。它先按 information_schema 把相关 varchar 列加宽到 500（密文比明文长），再逐表加密存量明文、把管理员密码转哈希，最后打印每张表的处理条数；全程幂等可重复执行，全部成功后自动删除自身，有失败项则保留文件、修好后刷新重跑。判表存在性不走 `SHOW TABLES LIKE ?`——该写法在部分 MySQL/MariaDB 的预处理协议下不被支持，`mysqli_prepare` 失败会被误判成"表不存在"而空跑
+- **升级须知（发给客户）**：① 部署新代码后**先跑一次迁移脚本再对外开通主机**——`MN_zj.pass` 建表是 `varchar(50)`，未加宽前写入密文会被 MySQL 静默截断成不可解的坏值（本项目连接层 `sql_mode=''`，不报错只截断）；② 脚本会把管理员密码转哈希，跑完所有管理员需重新登录，用户侧登录态与续费流程不受影响；③ `config.php` 需可写；④ 后台列表与用户面板的 FTP/数据库信息、phpMyAdmin 免登等处仍会显示明文，那是解密后给管理员/租户本人用的，属功能本身
+
+**安全加固：PHP 运行环境基线与近半年 PHP 核心漏洞（php2shell）**
+
+- **背景**：PHP 官方于 2026-10-21 紧急发布修复 php2shell——CVE-2026-109618 / CVE-2026-109619（CVSS v4.0 9.2，构造 multipart POST 即可未授权远程执行代码），仅修在 8.2.35 / 8.3.36 / 8.4.27 / 8.5.12；7.4 / 8.0 / 8.1 已停止上游维护，官方永远不会出补丁。本面板是按分销形式给一批客户发 PHP 运行时的，所以这不只是自身的事：默认配置下 `session.upload_progress.enabled=1` 会随池参数带到每一个租户站
+- **安装强制门槛**：`install/install.api.php` 新增 `mnbt_php_security_gate()`，按 `PHP_MAJOR_VERSION.PHP_MINOR_VERSION` 查「分支 → 最低已修补版本」表，在 `system`（环境检测）、`database_info_wire`、`install` 三处拦截，版本不合格直接拒绝安装并给出可执行的说明。**已装站点不受影响**（存在 `install/install.lock` 时不再执行环境检测），`repair` / `check_upgrade` 不设门槛，避免把存量站卡在维护流程之外。`composer.json` 的 `"php": ">=7.4"` 保持不动——那是源码移植性声明，改成 `>=8.2` 会是假话（`MPHX/common.php`、`MPHX/function.php` 仍有 `PHP_VERSION_ID >= 70300` 的旧分支），运行环境要求由安装门槛与文档表达
+- **缓解措施（不是根治，升级到上表版本才是）**：`MPHX/common.php` 在 `session_start()` 前 `@ini_set('session.upload_progress.enabled', '0')` 兜底面板自身（不经入口脚本的请求仍以 `php.ini` 为准）；`bash.conf.php` 的 `$fpm_conf` 池模板追加 `php_admin_value[session.upload_progress.enabled] = 0`（用 `php_admin_value` 是为了让租户无法通过 `.user.ini` 或 `ini_set` 重新打开）与 `pm.max_requests = 500`（限制残留请求状态跨请求累积）。⚠️ **如实说明：该模板当前没有下发通道**——`bash.conf.php` 全仓库仅被 `MPHX/bt_api.php` 的 `GetAllFile()` 引用且只用其中的 `$shell_get_file`，`$fpm_conf` / `$nginx_conf` / `$shell_phpset_bash` 均无消费方，文末注释提到的「后台 → 宝塔列表 → 修复配置」按钮已随 V1.87 移除 classic 后台一起消失，租户池实际是节点在 `AddSite` / `SetPHPVersion` 时按默认参数生成的。因此这条改动目前只是模板备好，要让缓解真正落到站点，须在每个节点手工给池文件追加该指令并逐版本 reload php-fpm，命令与验证方法见新增的 `docs/guide/security.md`；补一个真下发通道得走节点 shell 执行通道，等于新增一条命令执行面，本次没有做
+- **出站 TLS 从「默认不校验」改为「默认强校验」**：原本有 5 处硬关掉证书校验——`bt_api`（宝塔节点 API，携带含节点密钥的 cookie jar 且跟随重定向）、`bt_docker`、`bt_proxy`、`curl_get`、支付宝官方插件；安全审计又查出 3 处：`mf_modules/servers/mnbthost`、`mnbtdocker`（后者会把 `mn_key` / `mn_keye` 发出去）与 `app_plugins/zjmfmanager_reserve/lib/CubeFinanceClient.php`。现统一走新增的 `MPHX/function.php` `mnbt_curl_ssl_verify()`，`CURLOPT_SSL_VERIFYHOST` 传 2（只有值为 2 时 libcurl 才校验主机名/SAN）；开启重定向的调用点补 `CURLOPT_PROTOCOLS` / `CURLOPT_REDIR_PROTOCOLS` 限定只跳 http/https，防止 302 把带凭据的请求拐到 `file://`、`gopher://`；`send_post()`（HTTP 流包装器默认跟随 20 跳）改为不跟随。唯一退路是面板级选项 `panel/ssl_insecure`（存既有 `MN_plugin_option` 键值表，无新增表，暂无后台开关需执行 SQL 设置）；支付宝网关不受该开关影响，校验硬写在 `curl_setopt_array` 之后，调用方也关不掉。**破坏性提示**：宝塔节点默认是自签证书，升级后节点对接会直接报证书错误，正解是给 `php.ini` 配 `curl.cainfo` 指向 CA bundle，而不是打开 `ssl_insecure`
+- **同窗口其余 PHP 公告的影响面判定**：CVE-2026-91769 / CVE-2026-91767（OpenSSL 对端名称校验，SAN 不匹配后回退 CN、通配符名堆溢出）与 CVE-2026-91766（重定向跨源携带凭证）都落在上一节那条出站链路上；CVE-2026-6735（FPM status 页 XSS）不涉及，`$fpm_conf` 未设 `pm.status_path`；CVE-2026-6103（phar TAR 条目注入）不涉及，仓库只用 `ZipArchive`，无 `Phar` / `PharData` 调用；CVE-2026-17543 / CVE-2025-14179 属 pgsql 扩展，本产品不使用；CVE-2026-14355 是 `openssl_encrypt` 的 AES-WRAP-PAD 填充，本面板加密链路用 `aes-256-gcm` / `aes-256-cbc` / `aes-128-cbc`，未涉及。以上随升级到基线版本一并收口
+- **顺带修掉的代码缺陷**：`admin/api/cx.php` 的 `cxtj` / `cxxgjl` 两个分支都把 POST 的**键名**直接当文件名拼路径（写盘以及先 `@unlink` 再写），现按仓库既有写法加 `^[a-zA-Z0-9_\-]+\z` 白名单拒绝非法名（用 `\z` 而非 `$`，避免结尾换行绕过）；`cxfiledru` 的 `ZipArchive::extractTo` 改为逐条校验条目名，拒绝绝对路径、盘符与 `..` 路径段，解压后再用 `realpath` 前缀复核实际落点（zip-slip）；删除 `bt_api::GetFileCentent()`——它把参数直接拼进 `cat` 后交给节点 shell 执行，全仓库零调用方
+- **文档**：新增 `docs/guide/security.md`（PHP 运行环境基线表、无法升级时的缓解与节点侧命令、同批次 CVE 影响面、出站 TLS 与退路开关、客户/运维升级动作清单）；README 与 `docs/index.md` 徽章、`docs/guide/install.md` / `faq.md` / `directory.md` 的「PHP 7.4 ~ 8.4」口径同步改为运行环境基线，`faq.md` 新增「服务器暂时不能升级 PHP 怎么办」；`docs/guide/intro.md` 的「一键切换 PHP 版本（5.2 ~ 8.1）」澄清为**租户站点**选择器，并注明 8.1 及以下无法修复 php2shell
+- **未验证与待办**：开发环境无 PHP CLI，本次改动未跑过 `php -l`，部署前请对改动的 `.php` 文件做语法检查并在测试节点点一次「点我检测」确认出站链路；前端仍捆绑 jQuery 3.4.1（< 3.5.0 存在 XSS，官方已在 3.5.0 修复）、Bootstrap 4.4.1、Vue 2.6.10（已 EOL），随主题一起分发给客户，尚未处理
+
+**问题修复**
+
+- **流量统计页所有卡片与图表显示 0**：统计插件返回的是 `{status, data:{…}}` 信封，而 SPA 的 `parseResult` 会把整个信封当数据载荷交给前端，前端按扁平字段取值全部落空；同时前端请求的区间名 `7days/30days` 与 `mnbt_connector` 侧 `_date_range` 认识的 `7d/30d` 不一致，区间永远命中空数据。现按信封解包（并识别 `status:false` 弹出插件真实错误），下拉选项与请求词汇一并对齐
+- **用户端 dashboard 流量显示"几万G"**：`MN_zj.llmax.dq` 存的是**字节**、`max` 才是 GB（与 `jk.php` 的统计口径一致），此前把字节数直接标注为 G，几百 GB 的用量就显示成几万 G，超量判定同步失真。用户端 dashboard 与管理端主机列表均改为按字节还原单位
 
 ## V1.88
 

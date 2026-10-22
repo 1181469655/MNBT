@@ -141,6 +141,9 @@ function monitor_check_url($task) {
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
     curl_setopt($ch, CURLOPT_MAXREDIRS, 3);
+    // 跟随跳转只允许 http/https，防止 302 指向 file:// gopher:// 等协议打到本地资源
+    curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
+    curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
     curl_setopt($ch, CURLOPT_TIMEOUT, max(1, min(30, (int)$task['timeout_seconds'])));
     curl_setopt($ch, CURLOPT_USERAGENT, 'MNBT-Monitor/1.0');
     curl_setopt($ch, CURLOPT_HEADER, false);

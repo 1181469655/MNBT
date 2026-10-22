@@ -140,10 +140,16 @@ function _mnbtdocker_api_call($params, $gn, $extra = [], $timeout = 30)
         CURLOPT_POSTFIELDS     => http_build_query($post),
         CURLOPT_TIMEOUT        => $timeout,
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_SSL_VERIFYHOST => false,
-        CURLOPT_SSL_VERIFYPEER => false,
         CURLOPT_HTTPHEADER     => ['Content-Type: application/x-www-form-urlencoded; charset=UTF-8'],
     ]);
+    // 请求里带 mn_key/mn_keye 节点凭据，TLS 校验走面板统一退路开关（panel/ssl_insecure）；
+    // 模块独立部署在魔方财务时面板函数不可加载，兜底同样默认强校验（VERIFYHOST=2 才校验主机名/SAN）
+    if (function_exists('mnbt_curl_ssl_verify')) {
+        mnbt_curl_ssl_verify($ch);
+    } else {
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+    }
     $resp = curl_exec($ch);
     $errno = curl_errno($ch);
     $error = curl_error($ch);

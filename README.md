@@ -1,11 +1,11 @@
-# 梦奈宝塔主机系统 (MNBT) V1.88
+# 梦奈宝塔主机系统 (MNBT) V1.89
 
 基于宝塔面板 API 的虚拟主机分销管理系统，支持多节点宝塔面板统一管理、用户自主开通主机、一键部署网站程序、在线文件管理、Gzip/缓存配置、URL/资源监控告警、违禁词扫描、**可切换前端主题**、**PHP 业务插件**等功能。
 
-![PHP](https://img.shields.io/badge/PHP-7.4%20~%208.4-777BB4?logo=php&logoColor=white)
+![PHP](https://img.shields.io/badge/PHP-%E2%89%A58.2.35%2F8.3.36%2F8.4.27%2F8.5.12-777BB4?logo=php&logoColor=white)
 ![MySQL](https://img.shields.io/badge/MySQL-5.6%20~%208.x-4479A1?logo=mysql&logoColor=white)
 ![License](https://img.shields.io/badge/license-Commercial-blue)
-![Version](https://img.shields.io/badge/version-1.88-green)
+![Version](https://img.shields.io/badge/version-1.89-green)
 
 ---
 
@@ -27,11 +27,17 @@
 
 | 依赖 | 版本要求 |
 |------|---------|
-| PHP | **7.4 ~ 8.4**（已全面兼容 PHP 8.x） |
+| PHP | 面板自身运行环境 **≥ 8.2.35 / 8.3.36 / 8.4.27 / 8.5.12**（推荐 8.4.27+，安装向导强制校验） |
 | MySQL | 5.6 ~ 8.x（含 MySQL 8.0+） |
 | Web 服务器 | Nginx / Apache |
 | 宝塔面板 | Linux 版 / Windows 版 |
 | PHP 扩展 | curl、mysqli、json、mbstring |
+
+> ⚠️ **安全说明（php2shell）**：PHP 官方 2026 年修复的 CVE-2026-109618 / CVE-2026-109619（CVSS 9.2）可被未认证攻击者通过构造的 multipart POST 请求远程执行代码，**仅 8.2.35 / 8.3.36 / 8.4.27 / 8.5.12 及更高版本包含补丁**。PHP 7.4 / 8.0 / 8.1 已停止上游维护，永远不会拿到官方补丁，安装在这些版本上的面板只能靠 ini 缓解。因此安装向导会直接拒绝低于上述补丁版本的运行环境。
+>
+> 暂时无法升级的服务器，必须先做临时缓解：在面板自身 `php.ini` 中设置 `session.upload_progress.enabled = 0`（租户站点由 `bash.conf.php` 的 PHP-FPM 模板通过 `php_admin_value` 关闭），升级完成后请及时复核。
+>
+> 面板代码本身仍兼容 PHP 7.4 ~ 8.4 语法；此门槛是安全要求，不是语法要求。
 
 ---
 

@@ -142,7 +142,7 @@ include_once __DIR__ . '/../MPHX/BL.php';
                         </div>
                         <div>
                             <b>PHP</b>
-                            <span>需要 PHP 7.4 及以上</span>
+                            <span>面板运行环境需已修复 php2shell：8.2.35 / 8.3.36 / 8.4.27 / 8.5.12 及以上（推荐 8.4.27+）</span>
                         </div>
                     </div>
                     <div class="sys-item curl_exec">
@@ -653,7 +653,11 @@ include_once __DIR__ . '/../MPHX/BL.php';
     const systemCheck=async ()=>{
         let result = await request('system');
         $('.install-system-info>div').addClass('yes');
-        if (!result.data.vs.is_vs_install)$('.php_vs').addClass('no');
+        if (!result.data.vs.is_vs_install){
+            const php_vs=$('.php_vs').addClass('no');
+            if (result.data.vs.tip) php_vs.find('span').text(result.data.vs.tip);
+            NEXT_BTN_FUN.TipsShow('PHP 版本未修复 php2shell，无法安全安装，详见上方 PHP 项说明');
+        }
         if (!result.data.curl_exec)$('.curl_exec').addClass('no');
         $('.install-system-info>div.no').length<=0 && NEXT_BTN_FUN.removeDisabled();
     }

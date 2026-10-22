@@ -976,6 +976,9 @@ function mnbt_http_request($method, $url, $body = null, $opts = [])
 	curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 	curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
 	curl_setopt($ch, CURLOPT_MAXREDIRS, 3);
+	// 跟随跳转只允许 http/https，防止 302 指向 file:// gopher:// 等协议打到本地资源
+	curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
+	curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
 	curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $timeout);
 	curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
 	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, !empty($opts['insecure']) ? false : true);

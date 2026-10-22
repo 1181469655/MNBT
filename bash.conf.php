@@ -202,11 +202,15 @@ listen.mode = 0666
 user = $pool
 group = www
 php_value[session.save_path] = "0;600;/tmp/"$pool
+;php2shell缓解(CVE-2026-109618/CVE-2026-109619)：关闭会话上传进度通道，用admin_value租户无法经.user.ini/ini_set覆盖；仅缓解，升级到修复版本才是根治
+php_admin_value[session.upload_progress.enabled] = 0
 pm = dynamic
 pm.max_children = 10
 pm.start_servers = 0
 pm.min_spare_servers = 0
 pm.max_spare_servers = 4
+;worker定期回收，限制残留请求状态在慢泄漏中跨请求累积；本池为单租户且max_children=10，500安全
+pm.max_requests = 500
 request_terminate_timeout = 100
 request_slowlog_timeout = 30
 slowlog = var/log/slow.log

@@ -41,7 +41,7 @@ features:
 
 ## 版本信息
 
-![PHP](https://img.shields.io/badge/PHP-7.4~8.4-777BB4?logo=php&logoColor=white)
+![PHP](https://img.shields.io/badge/PHP-%E2%89%A58.2.35%2F8.3.36%2F8.4.27%2F8.5.12-777BB4?logo=php&logoColor=white)
 ![MySQL](https://img.shields.io/badge/MySQL-5.6~8.x-4479A1?logo=mysql&logoColor=white)
 ![Version](https://img.shields.io/badge/version-1.85-green)
 ![License](https://img.shields.io/badge/license-Commercial-blue)

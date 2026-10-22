@@ -9,14 +9,18 @@ description: 环境要求、安装部署步骤与快速开始
 
 | 依赖 | 版本要求 |
 |------|---------|
-| PHP | **7.4 ~ 8.4**（已全面兼容 PHP 8.x） |
+| PHP | 面板自身运行环境 **≥ 8.2.35 / 8.3.36 / 8.4.27 / 8.5.12**（推荐 8.4.27+，安装向导强制校验） |
 | MySQL | 5.6 ~ 8.x（含 MySQL 8.0+） |
 | Web 服务器 | Nginx / Apache |
 | 宝塔面板 | Linux 版 / Windows 版 |
 | PHP 扩展 | curl、mysqli、json、mbstring |
 | Composer | 可选（仅用于 PHPMailer 安装） |
 
-> 已修复 `each()`、`count($string)`、`get_magic_quotes_gpc()` 等 PHP 8 废弃语法；所有 SQL 已迁移至参数化查询。
+> 已修复 `each()`、`count($string)`、`get_magic_quotes_gpc()` 等 PHP 8 废弃语法；所有 SQL 已迁移至参数化查询。面板代码本身仍兼容 PHP 7.4 ~ 8.4 语法，上面的门槛是**安全要求**而非语法要求。
+>
+> ⚠️ **安全说明（php2shell）**：PHP 官方 2026 年发布的 CVE-2026-109618 / CVE-2026-109619（CVSS 9.2）允许未认证攻击者用构造的 multipart POST 请求远程执行代码，**只有 8.2.35 / 8.3.36 / 8.4.27 / 8.5.12 及更高版本包含补丁**。PHP 7.4 / 8.0 / 8.1 已停止上游维护，官方不会再出补丁，装在这些版本上的面板属于永久未修补状态，因此安装向导会直接拒绝并中止。同一批 2026 年修复还包含 OpenSSL 主机名校验缺陷（CVE-2026-91769 / CVE-2026-91767）、跨源重定向凭证泄漏（CVE-2026-91766）与 CVE-2026-93682，升级到这四个补丁版本（8.2.35 / 8.3.36 / 8.4.27 / 8.5.12，5 月与 9 月的常规安全版本不覆盖 php2shell）可一并处理。
+>
+> **暂时无法升级的服务器的临时缓解**：在面板自身的 `php.ini` 中设置 `session.upload_progress.enabled = 0`（并重启 PHP-FPM），只作为过渡措施，请尽快升级到修复版本；租户站点侧的 `bash.conf.php` PHP-FPM 池模板也已写入 `php_admin_value[session.upload_progress.enabled] = 0`（`php_admin_value` 让租户无法用 `.user.ini` 或 `ini_set` 覆盖），但**该模板在当前版本没有下发通道**（旧「修复配置」入口随 classic 后台一起移除，租户池实际由宝塔节点在建站/切版本时按节点默认生成），所以要真正生效仍需在节点侧手工处理，具体命令见[安全说明](/guide/security)的「缓解」一节。同批次 CVE、出站 TLS 校验开关与升级动作清单见[安全说明](/guide/security)。
 >
 > **MySQL 8 用户**：系统在安装与运行时会话级清空 `sql_mode`，兼容 MySQL 8 默认严格模式；MySQL 8 默认认证插件为 `caching_sha2_password`，需 PHP 使用 mysqlnd 驱动（PHP 7.4+ 默认自带）方可连接，若 PHP 编译时使用 libmysqlclient 可能报 "Authentication plugin not supported"。
 
@@ -24,7 +28,7 @@ description: 环境要求、安装部署步骤与快速开始
 
 ### 1. 准备环境
 
-确保服务器已安装 PHP 7.4+ + MySQL，并已安装宝塔面板。
+确保服务器已安装 **已修复 php2shell 的 PHP**（8.2.35 / 8.3.36 / 8.4.27 / 8.5.12 及以上，推荐 8.4.27+）+ MySQL，并已安装宝塔面板。
 
 ### 2. 部署代码
 
@@ -39,7 +43,7 @@ description: 环境要求、安装部署步骤与快速开始
 访问 `http://你的域名/install`，按向导提示完成：
 
 1. 欢迎 / 许可协议
-2. 环境检测（PHP 版本 >= 7.4.0、curl 等）
+2. 环境检测（PHP 是否已修复 php2shell：>= 8.2.35 / 8.3.36 / 8.4.27 / 8.5.12、curl 等；版本不合格时无法继续安装）
 3. 数据库配置（填写 MySQL 连接信息）
 4. **站点与管理员**（控制面板名称、站长 QQ、公告、管理员账号密码）
 5. 初始化数据库（自动导入表结构，或重装模式）

@@ -102,7 +102,7 @@ MNBT 采用模块化目录组织：`admin/`（管理后台）、`user/`（用户
 │
 ├── install/                  # 安装向导
 │   ├── index.php             # 安装步骤页面
-│   ├── install.api.php       # 安装接口（PHP 版本 >= 7.4.0）
+│   ├── install.api.php       # 安装接口（强制校验 PHP 已修复 php2shell：≥ 8.2.35 / 8.3.36 / 8.4.27 / 8.5.12）
 │   ├── install.sql           # 完整数据库表结构（含监控表/节点表/违禁词扫描表/插件表）
 │   └── db.class.php          # 安装专用数据库类
 │

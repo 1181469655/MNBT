@@ -37,7 +37,19 @@ description: 安装、对接、使用过程中的常见问题解答
 
 ## Q: PHP 8.x 兼容吗？
 
-已全面兼容 PHP 7.4 ~ 8.4。修复内容包括：`each()` 替换为 `foreach`、`count($string)` 替换为 `strlen`、`get_magic_quotes_gpc()` 写死返回 `false`、`var` 改为 `public`、移除 PHP 4 构造器、`strftime` 替换、`json_decode(null)` 保护等。
+代码层面已全面兼容 PHP 7.4 ~ 8.4（修复内容包括：`each()` 替换为 `foreach`、`count($string)` 替换为 `strlen`、`get_magic_quotes_gpc()` 写死返回 `false`、`var` 改为 `public`、移除 PHP 4 构造器、`strftime` 替换、`json_decode(null)` 保护等）。
+
+但**面板自身运行环境**必须使用已修复 php2shell 的版本：**≥ 8.2.35 / 8.3.36 / 8.4.27 / 8.5.12（推荐 8.4.27+）**，安装向导会强制校验并拒绝更旧的版本。原因：PHP 官方的 CVE-2026-109618 / CVE-2026-109619（CVSS 9.2）可被未认证攻击者通过构造的 multipart POST 请求远程执行代码，补丁只进了上面四个版本；PHP 7.4 / 8.0 / 8.1 已停止上游维护，永远不会拿到官方补丁。
+
+## Q: 服务器暂时不能升级 PHP 怎么办？
+
+只能做临时缓解，不能替代升级：
+
+1. 面板自身的 `php.ini`：设置 `session.upload_progress.enabled = 0`，然后重启 PHP-FPM
+2. 租户站点：`bash.conf.php` 的 PHP-FPM 池模板已写入 `php_admin_value[session.upload_progress.enabled] = 0`（租户无法用 `.user.ini`/`ini_set` 覆盖），但**当前版本没有把该模板下发到节点的通道**——旧「修复配置」入口随 classic 后台一起移除，租户池是宝塔节点在建站/切 PHP 版本时按节点默认生成的。所以这条只能算已备好的模板改动，真正生效要在节点侧对池文件手工追加该指令并 reload 对应 php-fpm，命令见[安全说明](/guide/security)
+3. 在入口前置 Nginx/防火墙拦截异常 multipart 请求，并尽快排期升级到 8.2.35 / 8.3.36 / 8.4.27 / 8.5.12 及以上
+
+完整口径（同批次 CVE、出站 TLS 校验、升级动作清单）见[安全说明](/guide/security)。
 
 ## Q: 如何升级到新版本？
 

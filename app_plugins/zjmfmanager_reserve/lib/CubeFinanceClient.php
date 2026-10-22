@@ -57,7 +57,7 @@ class CubeFinanceClient
 	protected $jwtTtl = 7200;
 
 	/** @var bool */
-	protected $verifySsl = false;
+	protected $verifySsl = true;
 
 	/**
 	 * @param array $config
@@ -67,7 +67,7 @@ class CubeFinanceClient
 	 *  - timeout    int     请求超时秒数
 	 *  - cache_dir  string  JWT 缓存目录（可写）
 	 *  - jwt_ttl    int     JWT 缓存时长
-	 *  - verify_ssl bool    是否校验 HTTPS 证书
+	 *  - verify_ssl bool    true=强制校验证书；false/缺省时跟随面板全局退路（panel/ssl_insecure），不会静默关闭校验
 	 *  - jwt        string  已有 JWT（可选，跳过登录）
 	 */
 	public function __construct(array $config)
@@ -81,7 +81,10 @@ class CubeFinanceClient
 		$this->timeout = isset($config['timeout']) ? (int)$config['timeout'] : 30;
 		$this->cacheDir = isset($config['cache_dir']) ? rtrim($config['cache_dir'], '/\\') : null;
 		$this->jwtTtl = isset($config['jwt_ttl']) ? (int)$config['jwt_ttl'] : 7200;
-		$this->verifySsl = !empty($config['verify_ssl']);
+		// verify_ssl 只能加严（true 强制校验）或顺应运维的全局退路（panel/ssl_insecure），
+		// 绝不允许插件缺省即静默关闭校验
+		$globalInsecure = function_exists('mnbt_ssl_insecure_enabled') && mnbt_ssl_insecure_enabled();
+		$this->verifySsl = !empty($config['verify_ssl']) ? true : !$globalInsecure;
 		if (!empty($config['jwt'])) {
 			$this->jwt = (string)$config['jwt'];
 		}
@@ -568,6 +571,11 @@ class CubeFinanceClient
 			CURLOPT_RETURNTRANSFER => true,
 			CURLOPT_TIMEOUT        => $this->timeout,
 			CURLOPT_FOLLOWLOCATION => true,
+			CURLOPT_MAXREDIRS      => 5,
+			// 跟随跳转时会带着 Bearer JWT，只允许 http/https，
+			// 否则 302 指向 file:// gopher:// 等协议就能把请求打到本地资源上
+			CURLOPT_PROTOCOLS      => CURLPROTO_HTTP | CURLPROTO_HTTPS,
+			CURLOPT_REDIR_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
 			CURLOPT_SSL_VERIFYPEER => $this->verifySsl,
 			CURLOPT_SSL_VERIFYHOST => $this->verifySsl ? 2 : 0,
 			CURLOPT_HTTPHEADER     => $headers,

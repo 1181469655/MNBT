@@ -1424,16 +1424,6 @@ class bt_api
         return $this->shell_yx($shell_get_file);
     }
 
-    public function GetFileCentent($name)
-    {
-        $shell_cat_file = '
-        #!/bin/bash
-        content=$(cat ' . $name . ')
-        echo "$content"
-        ';
-        return $this->shell_yx($shell_cat_file);
-    }
-
     // ========================================================================
     //  计划任务（/crontab，V1.88 用户端租户隔离功能的服务端封装）
     //  仅供 user/api/crontab.php 在归属校验后调用；toShell/toPython 等危险
@@ -1606,8 +1596,11 @@ class bt_api
         curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
         curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
         curl_setopt($ch, CURLOPT_POSTREDIR, CURL_REDIR_POST_ALL);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        // 跟随跳转时会带着本节点的 cookie jar（内含面板密钥），只允许跳到 http/https，
+        // 否则 302 指向 file:// gopher:// 等协议就能把请求打到本地资源上
+        curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
+        curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
+        mnbt_curl_ssl_verify($ch);
         $output = curl_exec($ch);
         if ($output === false) {
             $last_error = (string)curl_error($ch);

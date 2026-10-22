@@ -28,6 +28,8 @@ $sessionSecure = mnbt_request_is_secure();
 @ini_set('session.use_strict_mode', '1');
 @ini_set('session.cookie_httponly', '1');
 @ini_set('session.cookie_samesite', 'Lax');
+// php2shell缓解(CVE-2026-109618/CVE-2026-109619)：关闭会话上传进度，仅缓解，仍需升级PHP
+@ini_set('session.upload_progress.enabled', '0');
 if (PHP_VERSION_ID >= 70300) {
 	session_set_cookie_params(['lifetime' => 0, 'path' => '/', 'secure' => $sessionSecure, 'httponly' => true, 'samesite' => 'Lax']);
 } else {
